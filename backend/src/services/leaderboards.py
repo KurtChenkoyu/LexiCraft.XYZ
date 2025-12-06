@@ -17,6 +17,23 @@ class LeaderboardService:
     def __init__(self, db: Session):
         self.db = db
     
+    def _table_exists(self, table_name: str) -> bool:
+        """Check if a table exists."""
+        try:
+            result = self.db.execute(
+                text("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = :table_name
+                    )
+                """),
+                {'table_name': table_name}
+            )
+            return result.scalar()
+        except Exception:
+            return False
+    
     def get_global_leaderboard(
         self,
         period: str = 'weekly',
@@ -26,6 +43,8 @@ class LeaderboardService:
         """
         Get global leaderboard.
         
+        Falls back to calculating from source tables if leaderboard_entries doesn't exist.
+        
         Args:
             period: Time period ('weekly', 'monthly', 'all_time')
             limit: Number of entries to return
@@ -34,6 +53,9 @@ class LeaderboardService:
         Returns:
             List of leaderboard entries with rankings
         """
+        # Check if leaderboard_entries table exists
+        has_leaderboard_table = self._table_exists('leaderboard_entries')
+        
         # Determine column based on period and metric
         if metric == 'xp':
             if period == 'weekly':
@@ -48,65 +70,230 @@ class LeaderboardService:
             elif period == 'monthly':
                 order_column = 'monthly_words'
             else:
-                # For all_time words, we need to calculate from learning_progress
+                # For all_time words, always calculate from learning_progress
                 order_column = None
         elif metric == 'streak':
             order_column = 'longest_streak'
         else:
             raise ValueError(f"Invalid metric: {metric}")
         
-        if order_column:
-            # Query from leaderboard_entries
-            result = self.db.execute(
-                text(f"""
-                    SELECT 
-                        le.user_id,
-                        le.{order_column} as score,
-                        le.longest_streak,
-                        le.current_streak,
-                        u.name,
-                        u.email
-                    FROM leaderboard_entries le
-                    JOIN auth.users u ON le.user_id = u.id
-                    WHERE le.{order_column} > 0
-                    ORDER BY le.{order_column} DESC
-                    LIMIT :limit
-                """),
-                {'limit': limit}
-            )
-        else:
-            # For all_time words, calculate from learning_progress
-            result = self.db.execute(
-                text("""
-                    SELECT 
-                        lp.user_id,
-                        COUNT(*) as score,
-                        COALESCE(le.longest_streak, 0) as longest_streak,
-                        COALESCE(le.current_streak, 0) as current_streak,
-                        u.name,
-                        u.email
-                    FROM learning_progress lp
-                    JOIN auth.users u ON lp.user_id = u.id
-                    LEFT JOIN leaderboard_entries le ON lp.user_id = le.user_id
-                    WHERE lp.status = 'verified'
-                    GROUP BY lp.user_id, le.longest_streak, le.current_streak, u.name, u.email
-                    ORDER BY score DESC
-                    LIMIT :limit
-                """),
-                {'limit': limit}
-            )
+        # Try to use leaderboard_entries if it exists and we have a column
+        use_leaderboard_table = False
+        if has_leaderboard_table and order_column:
+            try:
+                result = self.db.execute(
+                    text(f"""
+                        SELECT 
+                            le.user_id,
+                            le.{order_column} as score,
+                            le.longest_streak,
+                            le.current_streak,
+                            u.name,
+                            u.email
+                        FROM leaderboard_entries le
+                        JOIN auth.users u ON le.user_id = u.id
+                        WHERE le.{order_column} > 0
+                        ORDER BY le.{order_column} DESC
+                        LIMIT :limit
+                    """),
+                    {'limit': limit}
+                )
+                use_leaderboard_table = True
+            except Exception:
+                # Table exists but query failed, fall back to calculation
+                pass
+        
+        # Fallback: calculate from source tables
+        if not use_leaderboard_table:
+            if metric == 'xp':
+                # Calculate XP from xp_history or user_xp
+                if period == 'weekly':
+                    xp_query = """
+                        SELECT 
+                            COALESCE(xh.user_id, ux.user_id) as user_id,
+                            COALESCE(SUM(xh.xp_amount), ux.total_xp, 0) as score,
+                            0 as longest_streak,
+                            0 as current_streak,
+                            u.name,
+                            u.email
+                        FROM (
+                            SELECT DISTINCT user_id FROM xp_history
+                            WHERE earned_at >= NOW() - INTERVAL '7 days'
+                            UNION
+                            SELECT DISTINCT user_id FROM user_xp
+                        ) users
+                        LEFT JOIN xp_history xh ON users.user_id = xh.user_id 
+                            AND xh.earned_at >= NOW() - INTERVAL '7 days'
+                        LEFT JOIN user_xp ux ON users.user_id = ux.user_id
+                        JOIN auth.users u ON COALESCE(xh.user_id, ux.user_id) = u.id
+                        GROUP BY COALESCE(xh.user_id, ux.user_id), ux.total_xp, u.name, u.email
+                        HAVING COALESCE(SUM(xh.xp_amount), ux.total_xp, 0) > 0
+                        ORDER BY score DESC
+                        LIMIT :limit
+                    """
+                elif period == 'monthly':
+                    xp_query = """
+                        SELECT 
+                            COALESCE(xh.user_id, ux.user_id) as user_id,
+                            COALESCE(SUM(xh.xp_amount), ux.total_xp, 0) as score,
+                            0 as longest_streak,
+                            0 as current_streak,
+                            u.name,
+                            u.email
+                        FROM (
+                            SELECT DISTINCT user_id FROM xp_history
+                            WHERE earned_at >= NOW() - INTERVAL '30 days'
+                            UNION
+                            SELECT DISTINCT user_id FROM user_xp
+                        ) users
+                        LEFT JOIN xp_history xh ON users.user_id = xh.user_id 
+                            AND xh.earned_at >= NOW() - INTERVAL '30 days'
+                        LEFT JOIN user_xp ux ON users.user_id = ux.user_id
+                        JOIN auth.users u ON COALESCE(xh.user_id, ux.user_id) = u.id
+                        GROUP BY COALESCE(xh.user_id, ux.user_id), ux.total_xp, u.name, u.email
+                        HAVING COALESCE(SUM(xh.xp_amount), ux.total_xp, 0) > 0
+                        ORDER BY score DESC
+                        LIMIT :limit
+                    """
+                else:  # all_time
+                    xp_query = """
+                        SELECT 
+                            ux.user_id,
+                            COALESCE(ux.total_xp, 0) as score,
+                            0 as longest_streak,
+                            0 as current_streak,
+                            u.name,
+                            u.email
+                        FROM user_xp ux
+                        JOIN auth.users u ON ux.user_id = u.id
+                        WHERE ux.total_xp > 0
+                        ORDER BY ux.total_xp DESC
+                        LIMIT :limit
+                    """
+                
+                # Check if xp_history or user_xp tables exist
+                has_xp_history = self._table_exists('xp_history')
+                has_user_xp = self._table_exists('user_xp')
+                
+                if has_xp_history or has_user_xp:
+                    try:
+                        result = self.db.execute(text(xp_query), {'limit': limit})
+                    except Exception as e:
+                        # Query failed (maybe table structure issue), try simpler query
+                        if has_user_xp and period == 'all_time':
+                            # Simple fallback for all_time XP
+                            result = self.db.execute(
+                                text("""
+                                    SELECT 
+                                        ux.user_id,
+                                        COALESCE(ux.total_xp, 0) as score,
+                                        0 as longest_streak,
+                                        0 as current_streak,
+                                        u.name,
+                                        u.email
+                                    FROM user_xp ux
+                                    JOIN auth.users u ON ux.user_id = u.id
+                                    WHERE ux.total_xp > 0
+                                    ORDER BY ux.total_xp DESC
+                                    LIMIT :limit
+                                """),
+                                {'limit': limit}
+                            )
+                        else:
+                            return []
+                else:
+                    # No XP data available
+                    return []
+                    
+            elif metric == 'words':
+                # Calculate words from learning_progress
+                if period == 'weekly':
+                    date_filter = "AND lp.learned_at >= NOW() - INTERVAL '7 days'"
+                elif period == 'monthly':
+                    date_filter = "AND lp.learned_at >= NOW() - INTERVAL '30 days'"
+                else:
+                    date_filter = ""
+                
+                result = self.db.execute(
+                    text(f"""
+                        SELECT 
+                            lp.user_id,
+                            COUNT(*) as score,
+                            0 as longest_streak,
+                            0 as current_streak,
+                            u.name,
+                            u.email
+                        FROM learning_progress lp
+                        JOIN auth.users u ON lp.user_id = u.id
+                        WHERE lp.status = 'verified'
+                        {date_filter}
+                        GROUP BY lp.user_id, u.name, u.email
+                        HAVING COUNT(*) > 0
+                        ORDER BY score DESC
+                        LIMIT :limit
+                    """),
+                    {'limit': limit}
+                )
+            else:  # streak
+                # Calculate streak from learning_progress (simplified)
+                result = self.db.execute(
+                    text("""
+                        SELECT 
+                            lp.user_id,
+                            COUNT(DISTINCT DATE(lp.learned_at)) as score,
+                            COUNT(DISTINCT DATE(lp.learned_at)) as longest_streak,
+                            COUNT(DISTINCT DATE(lp.learned_at)) as current_streak,
+                            u.name,
+                            u.email
+                        FROM learning_progress lp
+                        JOIN auth.users u ON lp.user_id = u.id
+                        WHERE lp.status = 'verified'
+                        AND lp.learned_at >= NOW() - INTERVAL '90 days'
+                        GROUP BY lp.user_id, u.name, u.email
+                        HAVING COUNT(DISTINCT DATE(lp.learned_at)) > 0
+                        ORDER BY score DESC
+                        LIMIT :limit
+                    """),
+                    {'limit': limit}
+                )
+        
+        # Build leaderboard from results
+        rows = result.fetchall()
+        if not rows:
+            return []
         
         leaderboard = []
         rank = 1
-        for row in result.fetchall():
+        
+        for row in rows:
+            # All queries now return: user_id, score, longest_streak, current_streak, name, email
+            user_id = str(row[0])
+            score = row[1]
+            longest_streak = row[2] if len(row) > 2 else 0
+            current_streak = row[3] if len(row) > 3 else 0
+            
+            # Name and email are in columns 4 and 5 (if present)
+            if len(row) >= 6:
+                name = row[4] or 'Anonymous'
+                email = row[5] if row[5] else None
+            else:
+                # Fallback: fetch user info separately (for XP queries that don't join users)
+                user_result = self.db.execute(
+                    text("SELECT name, email FROM auth.users WHERE id = :user_id"),
+                    {'user_id': user_id}
+                )
+                user_row = user_result.fetchone()
+                name = user_row[0] if user_row and user_row[0] else 'Anonymous'
+                email = user_row[1] if user_row and user_row[1] else None
+            
             leaderboard.append({
                 'rank': rank,
-                'user_id': str(row[0]),
-                'name': row[4] or 'Anonymous',
-                'email': row[5] if row[5] else None,
-                'score': row[1],
-                'longest_streak': row[2] or 0,
-                'current_streak': row[3] or 0
+                'user_id': user_id,
+                'name': name,
+                'email': email,
+                'score': score,
+                'longest_streak': longest_streak,
+                'current_streak': current_streak
             })
             rank += 1
         
