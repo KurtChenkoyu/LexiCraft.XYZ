@@ -1,0 +1,133 @@
+Vocabulary Quality Samples
+================================================================================
+
+
+================================================================================
+❌ FAILED VALIDATION (Needs Review)
+================================================================================
+
+--- Sample 1 ---
+Sense ID: in.r.01
+Word: in
+POS: r
+CEFR: A1
+Validated: False
+
+Definition EN: to or toward the inside of
+Definition ZH: 不誤
+
+Example EN: Don't forget to charge your EasyCard in case you need it.
+Example ZH: 別忘了幫你的悠遊卡儲值，以防你需要用到。
+
+Value: 100 XP
+
+--- Sample 2 ---
+Sense ID: in.s.02
+Word: in
+POS: s
+CEFR: A1
+Validated: False
+
+Definition EN: directed or bound inward
+Definition ZH: 冘
+
+Example EN: Don't forget to call in sick if you feel really awful before 學測.
+Example ZH: 學測前如果覺得非常不舒服，記得請病假喔。
+
+Value: 110 XP
+
+
+================================================================================
+📊 COMMON WORDS (Freq < 1000)
+================================================================================
+
+--- Sample 1 ---
+Sense ID: in.s.02
+Word: in
+POS: s
+CEFR: A1
+Validated: False
+
+Definition EN: directed or bound inward
+Definition ZH: 冘
+
+Example EN: Don't forget to call in sick if you feel really awful before 學測.
+Example ZH: 學測前如果覺得非常不舒服，記得請病假喔。
+
+Value: 110 XP
+
+--- Sample 2 ---
+Sense ID: in.r.01
+Word: in
+POS: r
+CEFR: A1
+Validated: False
+
+Definition EN: to or toward the inside of
+Definition ZH: 不誤
+
+Example EN: Don't forget to charge your EasyCard in case you need it.
+Example ZH: 別忘了幫你的悠遊卡儲值，以防你需要用到。
+
+Value: 100 XP
+
+
+================================================================================
+🔤 S Examples
+================================================================================
+
+--- Sample 1 ---
+Sense ID: in.s.02
+Word: in
+POS: s
+CEFR: A1
+Validated: False
+
+Definition EN: directed or bound inward
+Definition ZH: 冘
+
+Example EN: Don't forget to call in sick if you feel really awful before 學測.
+Example ZH: 學測前如果覺得非常不舒服，記得請病假喔。
+
+Value: 110 XP
+
+
+================================================================================
+🔤 R Examples
+================================================================================
+
+--- Sample 1 ---
+Sense ID: in.r.01
+Word: in
+POS: r
+CEFR: A1
+Validated: False
+
+Definition EN: to or toward the inside of
+Definition ZH: 不誤
+
+Example EN: Don't forget to charge your EasyCard in case you need it.
+Example ZH: 別忘了幫你的悠遊卡儲值，以防你需要用到。
+
+Value: 100 XP
+
+
+================================================================================
+📚 CEFR A1
+================================================================================
+
+--- Sample 1 ---
+Sense ID: in.r.01
+Word: in
+POS: r
+CEFR: A1
+Validated: False
+
+Definition EN: to or toward the inside of
+Definition ZH: 不誤
+
+Example EN: Don't forget to charge your EasyCard in case you need it.
+Example ZH: 別忘了幫你的悠遊卡儲值，以防你需要用到。
+
+Value: 100 XP
+

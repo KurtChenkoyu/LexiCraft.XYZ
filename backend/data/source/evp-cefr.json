@@ -1,0 +1,922 @@
+{
+  "the": {
+    "level": "A1",
+    "pos": "det"
+  },
+  "a": {
+    "level": "A1",
+    "pos": "det"
+  },
+  "an": {
+    "level": "A1",
+    "pos": "det"
+  },
+  "be": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "have": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "do": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "say": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "go": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "can": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "get": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "make": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "know": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "will": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "think": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "take": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "see": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "come": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "want": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "look": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "use": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "find": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "give": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "tell": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "work": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "call": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "try": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "ask": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "need": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "feel": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "become": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "leave": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "put": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "mean": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "keep": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "let": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "begin": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "seem": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "help": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "show": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "hear": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "play": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "run": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "move": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "live": {
+    "level": "A1",
+    "pos": "v"
+  },
+  "hello": {
+    "level": "A1",
+    "pos": "interj"
+  },
+  "goodbye": {
+    "level": "A1",
+    "pos": "interj"
+  },
+  "yes": {
+    "level": "A1",
+    "pos": "adv"
+  },
+  "no": {
+    "level": "A1",
+    "pos": "adv"
+  },
+  "good": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "new": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "first": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "last": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "long": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "great": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "little": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "own": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "other": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "old": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "right": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "big": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "high": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "different": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "small": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "large": {
+    "level": "A1",
+    "pos": "adj"
+  },
+  "time": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "year": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "people": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "way": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "day": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "man": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "thing": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "woman": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "life": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "child": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "world": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "school": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "state": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "family": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "student": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "group": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "country": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "problem": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "hand": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "part": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "place": {
+    "level": "A1",
+    "pos": "n"
+  },
+  "drop": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "break": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "catch": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "fall": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "carry": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "push": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "pull": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "throw": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "hold": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "spend": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "grow": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "open": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "walk": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "win": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "offer": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "remember": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "love": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "consider": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "appear": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "buy": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "wait": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "serve": {
+    "level": "A2",
+    "pos": "v"
+  },
+  "important": {
+    "level": "A2",
+    "pos": "adj"
+  },
+  "young": {
+    "level": "A2",
+    "pos": "adj"
+  },
+  "national": {
+    "level": "A2",
+    "pos": "adj"
+  },
+  "possible": {
+    "level": "A2",
+    "pos": "adj"
+  },
+  "able": {
+    "level": "A2",
+    "pos": "adj"
+  },
+  "social": {
+    "level": "A2",
+    "pos": "adj"
+  },
+  "achieve": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "acquire": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "afford": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "approach": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "assume": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "benefit": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "challenge": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "complex": {
+    "level": "B1",
+    "pos": "adj"
+  },
+  "confident": {
+    "level": "B1",
+    "pos": "adj"
+  },
+  "create": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "determine": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "encourage": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "establish": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "experience": {
+    "level": "B1",
+    "pos": "n"
+  },
+  "identify": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "improve": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "increase": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "influence": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "involve": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "maintain": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "obtain": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "opportunity": {
+    "level": "B1",
+    "pos": "n"
+  },
+  "perform": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "provide": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "reduce": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "require": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "significant": {
+    "level": "B1",
+    "pos": "adj"
+  },
+  "suggest": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "support": {
+    "level": "B1",
+    "pos": "v"
+  },
+  "acknowledge": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "advocate": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "allocate": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "anticipate": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "comprehensive": {
+    "level": "B2",
+    "pos": "adj"
+  },
+  "contemporary": {
+    "level": "B2",
+    "pos": "adj"
+  },
+  "demonstrate": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "elaborate": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "emphasize": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "ensure": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "evaluate": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "facilitate": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "generate": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "implement": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "inevitable": {
+    "level": "B2",
+    "pos": "adj"
+  },
+  "integrate": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "interpret": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "modify": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "perceive": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "phenomenon": {
+    "level": "B2",
+    "pos": "n"
+  },
+  "predominant": {
+    "level": "B2",
+    "pos": "adj"
+  },
+  "prospect": {
+    "level": "B2",
+    "pos": "n"
+  },
+  "relevant": {
+    "level": "B2",
+    "pos": "adj"
+  },
+  "sophisticated": {
+    "level": "B2",
+    "pos": "adj"
+  },
+  "substantial": {
+    "level": "B2",
+    "pos": "adj"
+  },
+  "sustain": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "transform": {
+    "level": "B2",
+    "pos": "v"
+  },
+  "abstraction": {
+    "level": "C1",
+    "pos": "n"
+  },
+  "ambiguous": {
+    "level": "C1",
+    "pos": "adj"
+  },
+  "arbitrary": {
+    "level": "C1",
+    "pos": "adj"
+  },
+  "coherent": {
+    "level": "C1",
+    "pos": "adj"
+  },
+  "commence": {
+    "level": "C1",
+    "pos": "v"
+  },
+  "compensate": {
+    "level": "C1",
+    "pos": "v"
+  },
+  "conceive": {
+    "level": "C1",
+    "pos": "v"
+  },
+  "concurrent": {
+    "level": "C1",
+    "pos": "adj"
+  },
+  "constitute": {
+    "level": "C1",
+    "pos": "v"
+  },
+  "contradict": {
+    "level": "C1",
+    "pos": "v"
+  },
+  "controversial": {
+    "level": "C1",
+    "pos": "adj"
+  },
+  "deduce": {
+    "level": "C1",
+    "pos": "v"
+  },
+  "denote": {
+    "level": "C1",
+    "pos": "v"
+  },
+  "deviate": {
+    "level": "C1",
+    "pos": "v"
+  },
+  "discourse": {
+    "level": "C1",
+    "pos": "n"
+  },
+  "dispose": {
+    "level": "C1",
+    "pos": "v"
+  },
+  "distort": {
+    "level": "C1",
+    "pos": "v"
+  },
+  "empirical": {
+    "level": "C1",
+    "pos": "adj"
+  },
+  "explicit": {
+    "level": "C1",
+    "pos": "adj"
+  },
+  "fluctuate": {
+    "level": "C1",
+    "pos": "v"
+  },
+  "hierarchical": {
+    "level": "C1",
+    "pos": "adj"
+  },
+  "hypothesis": {
+    "level": "C1",
+    "pos": "n"
+  },
+  "implicit": {
+    "level": "C1",
+    "pos": "adj"
+  },
+  "inherent": {
+    "level": "C1",
+    "pos": "adj"
+  },
+  "invoke": {
+    "level": "C1",
+    "pos": "v"
+  },
+  "paradigm": {
+    "level": "C1",
+    "pos": "n"
+  },
+  "predominate": {
+    "level": "C1",
+    "pos": "v"
+  },
+  "presume": {
+    "level": "C1",
+    "pos": "v"
+  },
+  "propagate": {
+    "level": "C1",
+    "pos": "v"
+  },
+  "qualitative": {
+    "level": "C1",
+    "pos": "adj"
+  },
+  "quantitative": {
+    "level": "C1",
+    "pos": "adj"
+  },
+  "adjunct": {
+    "level": "C2",
+    "pos": "n"
+  },
+  "albeit": {
+    "level": "C2",
+    "pos": "conj"
+  },
+  "analogous": {
+    "level": "C2",
+    "pos": "adj"
+  },
+  "antecedent": {
+    "level": "C2",
+    "pos": "n"
+  },
+  "axiomatic": {
+    "level": "C2",
+    "pos": "adj"
+  },
+  "circumvent": {
+    "level": "C2",
+    "pos": "v"
+  },
+  "coalesce": {
+    "level": "C2",
+    "pos": "v"
+  },
+  "coerce": {
+    "level": "C2",
+    "pos": "v"
+  },
+  "commensurate": {
+    "level": "C2",
+    "pos": "adj"
+  },
+  "concomitant": {
+    "level": "C2",
+    "pos": "adj"
+  },
+  "confound": {
+    "level": "C2",
+    "pos": "v"
+  },
+  "conjecture": {
+    "level": "C2",
+    "pos": "n"
+  },
+  "dichotomy": {
+    "level": "C2",
+    "pos": "n"
+  },
+  "disseminate": {
+    "level": "C2",
+    "pos": "v"
+  },
+  "efficacious": {
+    "level": "C2",
+    "pos": "adj"
+  },
+  "elucidate": {
+    "level": "C2",
+    "pos": "v"
+  },
+  "epitomize": {
+    "level": "C2",
+    "pos": "v"
+  },
+  "equivocal": {
+    "level": "C2",
+    "pos": "adj"
+  },
+  "extrapolate": {
+    "level": "C2",
+    "pos": "v"
+  },
+  "germane": {
+    "level": "C2",
+    "pos": "adj"
+  },
+  "idiosyncratic": {
+    "level": "C2",
+    "pos": "adj"
+  },
+  "impinge": {
+    "level": "C2",
+    "pos": "v"
+  },
+  "infer": {
+    "level": "C2",
+    "pos": "v"
+  },
+  "juxtapose": {
+    "level": "C2",
+    "pos": "v"
+  },
+  "mitigate": {
+    "level": "C2",
+    "pos": "v"
+  },
+  "obviate": {
+    "level": "C2",
+    "pos": "v"
+  },
+  "paradoxical": {
+    "level": "C2",
+    "pos": "adj"
+  },
+  "pervasive": {
+    "level": "C2",
+    "pos": "adj"
+  },
+  "postulate": {
+    "level": "C2",
+    "pos": "v"
+  },
+  "predicate": {
+    "level": "C2",
+    "pos": "v"
+  }
+}

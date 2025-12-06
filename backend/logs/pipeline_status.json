@@ -1,0 +1,20 @@
+{
+  "state": "idle",
+  "started_at": null,
+  "updated_at": "2025-12-07T05:19:30.200189",
+  "completed_at": null,
+  "total_words": 0,
+  "processed_words": 2187,
+  "current_word": "tank",
+  "total_senses": 7440,
+  "validated_senses": 3633,
+  "failed_senses": 89,
+  "errors": 4,
+  "last_error": "invitation: line '04689048 07 n 01 invitation 0 003 @ 04688842 n 0000 + 01760143 v 0101 +   1 This software and database is being provided to you, the LICENSEE, by  \\n': not enough values to unpack (expected 2, got 1)",
+  "last_error_at": "2025-12-07T05:11:37.930370",
+  "consecutive_errors": 0,
+  "ai_calls": 17341,
+  "estimated_cost_usd": 1.7341,
+  "run_id": null,
+  "pid": null
+}
