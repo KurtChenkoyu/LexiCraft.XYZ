@@ -24,7 +24,7 @@ export function AchievementsSection({ achievements }: AchievementsSectionProps) 
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
 
   // Get unique categories
-  const categories = ['all', ...new Set(achievements.map((a) => a.category))]
+  const categories = ['all', ...Array.from(new Set(achievements.map((a) => a.category)))]
 
   // Filter achievements
   const filteredAchievements =

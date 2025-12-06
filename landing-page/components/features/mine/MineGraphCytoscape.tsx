@@ -1,8 +1,12 @@
 'use client'
 
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
+// @ts-ignore - No types available for react-cytoscapejs
 import CytoscapeComponent from 'react-cytoscapejs'
-import { Core, ElementDefinition, Stylesheet, LayoutOptions } from 'cytoscape'
+import type { Core, ElementDefinition, LayoutOptions } from 'cytoscape'
+
+// cytoscape Stylesheet type
+type Stylesheet = any
 import { vocabulary } from '@/lib/vocabulary'
 
 type LayoutMode = 'grid' | 'circle' | 'concentric' | 'cose' | 'breadthfirst'
@@ -85,7 +89,7 @@ function buildWordPOSGraph(
   const edges: ElementDefinition[] = []
   const seenEdges = new Set<string>()
 
-  for (const [id, data] of wordPOSMap) {
+  for (const [id, data] of Array.from(wordPOSMap.entries())) {
     // Determine status from user progress (any sense solid = solid, any hollow = hollow)
     let status: 'raw' | 'hollow' | 'solid' = 'raw'
     if (demoMode) {
@@ -117,7 +121,7 @@ function buildWordPOSGraph(
     })
 
     // Add edges
-    for (const targetId of data.connections) {
+    for (const targetId of Array.from(data.connections)) {
       const edgeKey = [id, targetId].sort().join('--')
       if (!seenEdges.has(edgeKey)) {
         seenEdges.add(edgeKey)

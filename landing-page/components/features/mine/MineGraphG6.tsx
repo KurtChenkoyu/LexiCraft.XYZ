@@ -188,7 +188,7 @@ function buildGraphData(
     })
 
     // Add edges
-    for (const targetKey of data.connections) {
+    for (const targetKey of Array.from(data.connections)) {
       const edgeKey = [key, targetKey].sort().join('--')
       if (!addedEdges.has(edgeKey)) {
         addedEdges.add(edgeKey)

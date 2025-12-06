@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { QuestionPayload } from '../../services/surveyApi'
+import { QuestionPayload } from '@/services/surveyApi'
 
 interface Props {
   question: QuestionPayload
@@ -39,7 +39,7 @@ const MultiSelectMatrix: React.FC<Props> = ({ question, onSubmit }) => {
 
       {/* The Matrix (Grid) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
-        {question.options.map((opt) => {
+        {question.options.map((opt: { id: string; text: string; icon?: string }) => {
           const isSelected = selected.has(opt.id)
           return (
             <button
