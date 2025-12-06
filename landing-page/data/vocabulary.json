@@ -1,0 +1,195 @@
+{
+  "version": "2.0",
+  "exportedAt": "2025-12-07T03:39:27.192237",
+  "stats": {
+    "words": 5,
+    "senses": 2,
+    "validated": 1,
+    "errors": 0
+  },
+  "words": {
+    "the": {
+      "name": "the",
+      "frequency_rank": 0,
+      "moe_level": 1,
+      "ngsl_rank": 1,
+      "senses": []
+    },
+    "of": {
+      "name": "of",
+      "frequency_rank": 1,
+      "moe_level": 1,
+      "ngsl_rank": 2,
+      "senses": []
+    },
+    "and": {
+      "name": "and",
+      "frequency_rank": 2,
+      "moe_level": 1,
+      "ngsl_rank": 3,
+      "senses": []
+    },
+    "to": {
+      "name": "to",
+      "frequency_rank": 3,
+      "moe_level": 1,
+      "ngsl_rank": 4,
+      "senses": []
+    },
+    "in": {
+      "name": "in",
+      "frequency_rank": 4,
+      "moe_level": 1,
+      "ngsl_rank": 6,
+      "senses": [
+        "in.s.02",
+        "in.r.01"
+      ]
+    }
+  },
+  "senses": {
+    "in.s.02": {
+      "id": "in.s.02",
+      "word": "in",
+      "pos": "s",
+      "cefr": "A1",
+      "tier": 1,
+      "definition_en": "directed or bound inward",
+      "definition_zh": "向內",
+      "definition_zh_explanation": "「向內」指的是朝著中心或內部的方向。如果某件事物是「in」的，表示它被導向或限制在內部。",
+      "translation_source": "ai",
+      "example_en": "I felt an inward pull, questioning if I'd made the right choice.",
+      "example_zh_translation": "我感到一种朝内的拉力，质疑我是否做了正确的选择。",
+      "example_zh_explanation": "「inward」 指向內部的、內心的。想像一下，你站在一個十字路口，感到一股力量將你拉向內心深處，讓你反思自己的決定。「朝內的拉力」表示一種內心的猶豫或懷疑。",
+      "example_context": "universal",
+      "validated": true,
+      "connections": {
+        "related": [
+          "incoming.a.01"
+        ],
+        "opposite": [],
+        "phrases": [],
+        "idioms": [],
+        "morphological": []
+      },
+      "connection_counts": {
+        "related": 1,
+        "opposite": 0,
+        "phrases": 0,
+        "idioms": 0,
+        "morphological": 0,
+        "total": 1
+      },
+      "value": {
+        "base_xp": 100,
+        "connection_bonus": 10,
+        "total_xp": 110
+      },
+      "hop_1": {
+        "senses": [],
+        "count": 0,
+        "unlock_next_at": 1
+      },
+      "hop_2": {
+        "senses": [],
+        "count": 0,
+        "unlock_next_at": 1
+      },
+      "hop_3": {
+        "count": 0
+      },
+      "network_value": {
+        "total_reachable": 0,
+        "potential_xp": 0
+      }
+    },
+    "in.r.01": {
+      "id": "in.r.01",
+      "word": "in",
+      "pos": "r",
+      "cefr": "A1",
+      "tier": 1,
+      "definition_en": "to or toward the inside of",
+      "definition_zh": "向內",
+      "definition_zh_explanation": "「向內」指的是朝著裡面、往裡面的方向。例如，如果有人叫你 \"Come in!\"，意思就是叫你「進來！」往裡面走。",
+      "translation_source": "ai",
+      "example_en": "I waited in line for bubble tea for almost half an hour!",
+      "example_zh_translation": "我排隊買珍珠奶茶等了將近半小時！",
+      "example_zh_explanation": "「in line」是指在隊伍裡面。想像一下，隊伍像一條線，你站在這條線裡面，就表示你在排隊。",
+      "example_context": "taiwan/daily life",
+      "validated": false,
+      "connections": {
+        "related": [],
+        "opposite": [],
+        "phrases": [],
+        "idioms": [],
+        "morphological": []
+      },
+      "connection_counts": {
+        "related": 0,
+        "opposite": 0,
+        "phrases": 0,
+        "idioms": 0,
+        "morphological": 0,
+        "total": 0
+      },
+      "value": {
+        "base_xp": 100,
+        "connection_bonus": 0,
+        "total_xp": 100
+      },
+      "hop_1": {
+        "senses": [],
+        "count": 0,
+        "unlock_next_at": 1
+      },
+      "hop_2": {
+        "senses": [],
+        "count": 0,
+        "unlock_next_at": 1
+      },
+      "hop_3": {
+        "count": 0
+      },
+      "network_value": {
+        "total_reachable": 0,
+        "potential_xp": 0
+      }
+    }
+  },
+  "bandIndex": {
+    "1000": [
+      "in.s.02",
+      "in.r.01"
+    ],
+    "2000": [],
+    "3000": [],
+    "4000": [],
+    "5000": [],
+    "6000": [],
+    "7000": [],
+    "8000": [],
+    "9999": []
+  },
+  "graph_data": {
+    "nodes": [
+      {
+        "id": "in.s.02",
+        "word": "in",
+        "pos": "s",
+        "value": 110,
+        "tier": 1,
+        "group": "5000"
+      },
+      {
+        "id": "in.r.01",
+        "word": "in",
+        "pos": "r",
+        "value": 100,
+        "tier": 1,
+        "group": "5000"
+      }
+    ],
+    "edges": []
+  }
+}
