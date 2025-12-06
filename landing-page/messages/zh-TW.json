@@ -1,0 +1,507 @@
+{
+  "hero": {
+    "headline": "你出資，他挖礦。知識與財富，同步繼承。",
+    "subtitle": "LexiCraft.xyz • 字塊所：全台首創知識資產交易所。把補習費轉成待解鎖的字塊。",
+    "description": "我們不賣課程，我們販售「未來的資產」。每一個單字都是一塊待琢磨的金磚。",
+    "valueProp1": "字塊信託：您的錢鎖在字塊裡，直到他們證明認識",
+    "valueProp2": "腦力挖礦：孩子透過驗證解鎖字塊，賺取真實獎勵",
+    "valueProp3": "資產轉移：把教育消費轉型為可轉移的知識資產",
+    "cta": "檢測資產",
+    "ctaSecondary": "加入候補名單",
+    "trustBar": "🔒 隨時提領 | ✓ 已驗證 $5,000,000+ | 📊 99.54%準確度",
+    "platformName": "LexiCraft.xyz • 字塊所"
+  },
+  "navbar": {
+    "surveyLink": "啟動字塊探勘",
+    "surveyLinkEn": "START BLOCK SURVEY"
+  },
+  "howItWorks": {
+    "title": "運作方式",
+    "subtitle": "把補習消費轉型為待解鎖的知識資產",
+    "step1": {
+      "title": "購買字塊信託包",
+      "description": "家長購買字塊信託包（例如：國中核心1000字塊包）。錢鎖在託管帳戶，不是花掉。狀態：🔒 鎖定中（資金託管）。"
+    },
+    "step2": {
+      "title": "看到鎖定的字塊",
+      "description": "孩子看到1000個灰磚塊堆成的牆。點擊一塊：「價值 $5，開始驗證？」這不是考試，這是打怪掉寶。"
+    },
+    "step3": {
+      "title": "挖礦行動（驗證）",
+      "description": "驗證測驗 = 用十字鎬挖礦。答對 = 爆擊。系統使用對抗式陷阱題（Adapt vs Adopt）確保真實識別。"
+    },
+    "step4": {
+      "title": "解鎖金色字塊",
+      "description": "成功！字塊翻轉變成金色 ✨。帳戶餘額 +$5。孩子感受：「我靠自己的腦袋賺到了錢！」成就感解鎖。"
+    },
+    "step5": {
+      "title": "贖回與追蹤",
+      "description": "家長收到通知：「您的孩子已解鎖 50% 信託金。學習進度：500 實心磚。」這錢花得太值得了，有憑有據。"
+    }
+  },
+  "benefitsParents": {
+    "title": "家長的優勢",
+    "subtitle": "驗證教育投資的成果，知道孩子是否真的認識基礎元素",
+    "verify": {
+      "title": "驗證基礎識別",
+      "description": "驗證孩子是否認識基礎元素，不是測試是否學會。更實際的評估方式。"
+    },
+    "identify": {
+      "title": "識別學習缺口",
+      "description": "清楚看到孩子認識哪些基礎元素，哪些領域需要加強。診斷報告，不是成績單。"
+    },
+    "structure": {
+      "title": "更實際的結構",
+      "description": "使用知識圖譜結構（關係架構），不是字母順序。更符合語言學習的實際方式。"
+    },
+    "roi": {
+      "title": "看見投資回報",
+      "description": "知道教育投資是否真的有效。補習班花了那麼多錢，到底有沒有效？"
+    },
+    "motivate": {
+      "title": "激發持續接觸",
+      "description": "驗證獎學金鼓勵孩子持續接觸基礎元素，建立識別基礎。"
+    },
+    "ahead": {
+      "title": "領先於官方數字",
+      "description": "官方說4,000-5,000個單字，但實際期望8,000+。我們幫您驗證孩子是否真的領先。"
+    }
+  },
+  "benefitsKids": {
+    "title": "孩子的優勢",
+    "subtitle": "驗證獎學金鼓勵持續接觸基礎元素，建立識別基礎",
+    "scholarship": {
+      "title": "驗證獎學金",
+      "description": "通過驗證基礎元素識別，獲得驗證獎學金。這是對學習成果的認可。"
+    },
+    "recognition": {
+      "title": "看見識別進度",
+      "description": "清楚看到自己認識哪些基礎元素，哪些還需要接觸。知識圖譜視覺化你的學習軌跡。"
+    },
+    "portfolio": {
+      "title": "學習歷程證據",
+      "description": "自動產出學習日誌，成為108學習歷程的有力佐證。證明你的自主學習過程。"
+    },
+    "diagnostic": {
+      "title": "診斷報告",
+      "description": "不是成績單，是診斷報告。告訴你哪些領域需要加強，而不是告訴你失敗了。"
+    },
+    "structure": {
+      "title": "知識圖譜結構",
+      "description": "使用關係架構，不是字母順序。更符合語言學習的實際方式。"
+    },
+    "confidence": {
+      "title": "建立自信",
+      "description": "每個認識的基礎元素都是進步。看著你的知識圖譜成長，感到驕傲！"
+    }
+  },
+  "pricing": {
+    "title": "字塊信託包",
+    "subtitle": "把補習費轉成待解鎖的知識資產",
+    "tier": {
+      "name": "搶先體驗優惠",
+      "price": "新台幣500-1,000元",
+      "description": "字塊信託包保證金"
+    },
+    "features": {
+      "daily": "每天透過驗證解鎖10-20個字塊",
+      "sessions": "知識圖譜結構挖礦",
+      "quizzes": "間隔重複驗證（第3、7、14天）",
+      "withdrawal": "隨時提領信託資金",
+      "dashboard": "家長資產儀表板",
+      "tracking": "字塊解鎖進度追蹤",
+      "discount": "Beta優惠：存1000送500字塊"
+    },
+    "note": "這是字塊信託包。您的錢在託管帳戶，直到字塊被解鎖。孩子透過驗證解鎖字塊，然後資金釋放。您完全掌控提領。",
+    "regular": "正式價格將為新台幣1,000-2,000元（搶先體驗期後）"
+  },
+  "faq": {
+    "title": "常見問題",
+    "subtitle": "關於 LexiCraft.xyz • 字塊所 您需要知道的一切",
+    "teaching": {
+      "question": "你們教英文嗎？",
+      "answer": "不，我們不教英文。我們是驗證平台，不是教學平台。孩子在其他地方學習（學校、補習班），我們驗證他們是否認識基礎元素。"
+    },
+    "different": {
+      "question": "你們跟教學App有什麼不同？",
+      "answer": "教學App負責教，我們負責驗收成果。我們提供客觀的第三方驗證，驗證您的教育投資是否真的有效。"
+    },
+    "verify": {
+      "question": "你們驗證什麼？",
+      "answer": "我們驗證孩子是否認識基礎元素（單字、片語、慣用語）。我們驗證識別能力，不是深度理解（那是我們的未來目標）。識別是理解的基礎。"
+    },
+    "scholarship": {
+      "question": "字塊信託如何運作？",
+      "answer": "家長購買字塊信託包（新台幣500-1,000元）。錢在託管帳戶，鎖在字塊裡。孩子透過驗證測驗解鎖字塊。解鎖後，資金釋放到孩子的帳戶。家長可隨時提領。達到驗證標準，100%信託資金解鎖。"
+    },
+    "mining": {
+      "question": "什麼是腦力挖礦？",
+      "answer": "腦力挖礦是我們的遊戲化驗證系統。孩子看到鎖定的字塊（灰色），每個都有價值。他們使用驗證測驗（十字鎬）來解鎖字塊。答對 = 爆擊。解鎖的字塊變成金色，現金入帳。這不是被迫讀書，這是合法挖礦。"
+    },
+    "trust": {
+      "question": "這跟一般補習有什麼不同？",
+      "answer": "一般補習：你付錢，錢沒了，希望他們學到。字塊信託：你投資，錢在託管，他們透過證明學習來解鎖。這把教育消費從消費轉型為資產轉移。你的錢在他們證明認識之前不會被花掉。"
+    },
+    "scam": {
+      "question": "這不是詐騙嗎？",
+      "answer": "不是。我們是教育認證平台，不是金流驗證平台。您的錢在平台託管帳戶，孩子驗證後解鎖。商業模式完全透明，隨時可提領。"
+    },
+    "withdraw": {
+      "question": "錢真的可以隨時領回來？",
+      "answer": "可以。零手續費，綁定銀行帳戶後1天內到帳。這是您的錢，不是我們的。您完全掌控。"
+    },
+    "methodology": {
+      "question": "為什麼你們的驗證方式更好？",
+      "answer": "我們使用知識圖譜結構（關係架構），不是字母順序。間隔重複驗證（第3、7、14天）確保長期識別，不是短期記憶。99.54%信心度，不是25%猜對率。"
+    },
+    "gap": {
+      "question": "為什麼要領先於官方數字？",
+      "answer": "官方說高中需要4,000-5,000個單字，但實際期望8,000+。只達到官方數字 = 實際上落後。我們幫您驗證孩子是否真的領先，準備好面對真實期望。"
+    }
+  },
+  "waitlist": {
+    "title": "加入候補名單",
+    "subtitle": "成為首批體驗「基礎元素認證平台」的家長。享Beta優惠：存1000送500！",
+    "success": {
+      "title": "您已加入名單！",
+      "message": "我們準備好推出時會立即發送電子郵件通知您。準備好讓孩子主動學習吧！",
+      "another": "加入另一個電子郵件"
+    },
+    "form": {
+      "email": "電子郵件地址",
+      "numKids": "孩子數量",
+      "submit": "加入候補名單 - 享5折優惠",
+      "loading": "加入中...",
+      "privacy": "加入即表示您同意接收關於搶先體驗推出的更新。",
+      "privacyLink": "查看隱私權政策"
+    },
+    "options": {
+      "one": "1個孩子",
+      "two": "2個孩子",
+      "three": "3個孩子",
+      "four": "4個以上孩子"
+    }
+  },
+  "footer": {
+    "tagline": "你出資，他挖礦。知識與財富，同步繼承。",
+    "legal": "法律",
+    "privacy": "隱私權政策",
+    "contact": "聯絡我們",
+    "questions": "有問題？請聯絡我們：",
+    "copyright": "© {year} LexiCraft.xyz • 字塊所。版權所有。",
+    "taiwan": "專為台灣市場設計。20歲以下用戶需由家長帳戶管理。"
+  },
+  "language": {
+    "switch": "切換語言",
+    "zh-TW": "繁體中文",
+    "en": "English"
+  },
+  "parentQuestions": {
+    "title": "三個家長最常問的問題",
+    "question1": "補習班花了那麼多錢，到底有沒有效？",
+    "answer1": "我們提供客觀的第三方驗證。驗證您的教育投資是否真的有效。",
+    "question2": "學校考試為什麼看不出真實程度？",
+    "answer2": "因為學校測短期記憶，我們測長期識別。間隔重複驗證確保不是死記硬背。",
+    "question3": "你們跟教學App有什麼不同？",
+    "answer3": "他們負責教，我們負責驗收成果。我們不教英文，我們驗證。"
+  },
+  "vocabularyCliff": {
+    "title": "您的孩子現在在這條曲線的哪個位置？",
+    "subtitle": "學校準備他們達到1,200字的底線。考試要求7,000字的天花板。",
+    "table": {
+      "stage": "階段",
+      "official": "官方要求",
+      "reality": "實際期望",
+      "words": "個單字",
+      "junior": "國中會考",
+      "comfortable": "舒適區",
+      "senior": "高中學測",
+      "listed": "（官方列出）",
+      "actuallyNeed": "實際需要7,000+個單字",
+      "cliff": "落差",
+      "gap": "5,800個單字差距",
+      "crash": "學生在十年級崩潰的地方"
+    },
+    "diagnostic": "我們提供診斷報告，告訴您孩子在哪些領域需要加強，而不是告訴您失敗了。",
+    "keyQuestion": "您的孩子現在在這條曲線的哪個位置？",
+    "cta": "診斷我的差距"
+  },
+  "dashboard": {
+    "title": "家長控制台",
+    "subtitle": "管理孩子的學習帳戶與信託資金",
+    "deposit": {
+      "title": "存入信託資金",
+      "description": "為孩子的學習帳戶存入資金。孩子完成學習任務後，即可解鎖提領。"
+    },
+    "balance": {
+      "title": "帳戶餘額",
+      "available": "可用點數",
+      "locked": "鎖定點數"
+    },
+    "quickActions": {
+      "title": "快速操作",
+      "startSurvey": "開始測驗",
+      "backHome": "返回首頁",
+      "settings": "帳戶設定"
+    },
+    "howItWorks": {
+      "title": "💡 如何運作",
+      "step1": "存入信託資金",
+      "step2": "孩子完成學習任務",
+      "step3": "解鎖並提領獎勵"
+    },
+    "noChildren": {
+      "message": "您還沒有建立任何孩子的帳戶。",
+      "hint": "請在設定中建立孩子的帳戶。"
+    },
+    "selectChild": "選擇孩子",
+    "loading": "載入中...",
+    "childrenOverview": {
+      "title": "孩子帳戶",
+      "manageAll": "管理全部",
+      "startSurvey": "開始測驗",
+      "yearsOld": "歲",
+      "unnamed": "未命名"
+    }
+  },
+  "settings": {
+    "title": "帳戶設定",
+    "subtitle": "管理您的帳戶和孩子資料",
+    "backToDashboard": "返回控制台",
+    "account": {
+      "title": "帳戶資訊",
+      "email": "電子郵件",
+      "name": "姓名",
+      "age": "年齡",
+      "roles": "身份"
+    },
+    "children": {
+      "title": "孩子管理",
+      "addChild": "新增孩子",
+      "createTitle": "建立孩子帳戶",
+      "childName": "孩子姓名",
+      "childAge": "孩子年齡",
+      "ageHint": "必須未滿 20 歲",
+      "cancel": "取消",
+      "create": "建立帳戶",
+      "creating": "建立中...",
+      "noChildren": "您還沒有建立任何孩子的帳戶",
+      "noChildrenHint": "點擊「新增孩子」開始建立"
+    },
+    "stats": {
+      "title": "帳戶概覽",
+      "totalChildren": "孩子數量",
+      "accountStatus": "帳戶狀態"
+    },
+    "quickActions": {
+      "title": "快速操作",
+      "dashboard": "返回控制台",
+      "survey": "開始測驗",
+      "home": "返回首頁"
+    }
+  },
+  "profile": {
+    "title": "個人資料",
+    "level": "等級",
+    "xp": "經驗值",
+    "totalXP": "總經驗值",
+    "nextLevel": "距離下一級",
+    "streak": "連勝天數",
+    "vocabulary": "單字量",
+    "thisWeek": "本週學習",
+    "achievements": "成就",
+    "unlocked": "已解鎖",
+    "recentAchievements": "最近解鎖",
+    "allAchievements": "所有成就",
+    "categories": {
+      "all": "全部",
+      "streak": "連勝",
+      "vocabulary": "詞彙",
+      "mastery": "精通",
+      "social": "社交",
+      "special": "特殊"
+    },
+    "setGoals": "設定目標",
+    "viewLeaderboards": "排行榜",
+    "startLearning": "開始學習"
+  },
+  "mine": {
+    "title": "礦區",
+    "starterTitle": "探索礦區",
+    "starterSubtitle": "選擇字塊開始挖礦，系統會從你的探索中了解你的程度",
+    "personalizedTitle": "你的挖礦路徑",
+    "personalizedSubtitle": "根據你的評估結果，發現了 {gapsCount} 個知識缺口和 {prerequisitesCount} 個前置字塊",
+    "stats": {
+      "discovered": "已發現",
+      "solid": "實心磚",
+      "hollow": "鍛造中",
+      "raw": "原始字塊"
+    },
+    "block": {
+      "startForging": "開始鍛造",
+      "starting": "開始中...",
+      "started": "已開始鍛造！",
+      "close": "關閉",
+      "definitionEn": "英文定義",
+      "definitionZh": "中文解釋",
+      "examples": "例句",
+      "connections": "相關字塊",
+      "progress": "學習進度",
+      "status": "狀態",
+      "mastery": "熟練度",
+      "startedAt": "開始時間"
+    },
+    "loading": "載入礦區中...",
+    "error": "無法載入礦區",
+    "retry": "重試",
+    "noBlocks": "目前沒有可探索的字塊"
+  },
+  "goals": {
+    "title": "學習目標",
+    "subtitle": "設定目標，追蹤進度，達成成就",
+    "createGoal": "新增目標",
+    "suggestions": "建議目標",
+    "active": "進行中",
+    "completed": "已完成",
+    "failed": "未達成",
+    "progress": "進度",
+    "deadline": "截止日期",
+    "types": {
+      "daily_words": "每日單字",
+      "weekly_words": "每週單字",
+      "monthly_words": "每月單字",
+      "streak": "連勝目標",
+      "vocabulary_size": "詞彙量目標"
+    },
+    "form": {
+      "type": "目標類型",
+      "target": "目標數值",
+      "endDate": "截止日期",
+      "cancel": "取消",
+      "create": "建立目標"
+    }
+  },
+  "leaderboards": {
+    "title": "排行榜",
+    "subtitle": "和其他學習者比較，看看你的排名",
+    "global": "全球排行",
+    "friends": "朋友排行",
+    "yourRank": "你的排名",
+    "periods": {
+      "weekly": "本週",
+      "monthly": "本月",
+      "all_time": "總排行"
+    },
+    "metrics": {
+      "xp": "經驗值",
+      "words": "單字數",
+      "streak": "連勝"
+    },
+    "noData": "暫無排行資料",
+    "noFriends": "還沒有朋友加入排行榜"
+  },
+  "notifications": {
+    "title": "通知中心",
+    "unread": "未讀",
+    "all": "全部",
+    "markAllRead": "全部已讀",
+    "noNotifications": "暫無通知",
+    "types": {
+      "achievement": "成就解鎖",
+      "streak_risk": "連勝警告",
+      "goal_progress": "目標進度",
+      "milestone": "里程碑",
+      "level_up": "升級"
+    }
+  },
+  "coachDashboard": {
+    "title": "學習分析",
+    "subtitle": "了解孩子的學習進度和表現",
+    "selectChild": "選擇孩子",
+    "overview": "總覽",
+    "activity": "學習活動",
+    "performance": "學習表現",
+    "insights": "學習洞察",
+    "goals": "學習目標",
+    "achievements": "最近成就",
+    "stats": {
+      "vocabulary": "單字量",
+      "xp": "總經驗值",
+      "streak": "連勝天數",
+      "achievements": "成就解鎖"
+    },
+    "activityStats": {
+      "thisWeek": "本週學習",
+      "thisMonth": "本月學習",
+      "rate": "學習速率",
+      "lastActive": "最後活動"
+    },
+    "performanceStats": {
+      "totalReviews": "總複習次數",
+      "retention": "記憶率",
+      "responseTime": "平均反應時間",
+      "correct": "正確次數"
+    }
+  },
+  "privacy": {
+    "back": "返回首頁",
+    "title": "隱私權政策",
+    "section1": {
+      "title": "1. 我們收集的資訊",
+      "intro": "當您加入候補名單時，我們會收集以下資訊：",
+      "email": "電子郵件地址",
+      "emailDesc": "用於發送關於搶先體驗推出的更新",
+      "numKids": "孩子數量",
+      "numKidsDesc": "幫助我們了解家庭規模並規劃搶先體驗計劃"
+    },
+    "section2": {
+      "title": "2. 我們如何使用您的資訊",
+      "intro": "我們使用您提供的資訊來：",
+      "use1": "發送關於搶先體驗推出和產品開發的更新",
+      "use2": "在平台準備好進行搶先體驗測試時通知您",
+      "use3": "根據家庭規模規劃我們的搶先體驗計劃",
+      "use4": "發送關於 LexiCraft.xyz 平台的相關資訊",
+      "noShare": "我們不會為了行銷目的向第三方出售、出租或分享您的個人資訊。"
+    },
+    "section3": {
+      "title": "3. 資料儲存與安全",
+      "content": "您的資訊使用符合資料保護法規的行業標準電子郵件服務提供商（ConvertKit 或 Mailchimp）安全儲存。我們實施適當的技術和組織措施來保護您的個人資訊。"
+    },
+    "section4": {
+      "title": "4. 您的權利",
+      "intro": "您有權：",
+      "access": "存取",
+      "accessDesc": "要求我們提供我們持有的關於您的個人資訊副本",
+      "update": "更新",
+      "updateDesc": "更正任何不準確的資訊",
+      "delete": "刪除",
+      "deleteDesc": "要求刪除您的個人資訊",
+      "optout": "退出",
+      "optoutDesc": "隨時使用每封電子郵件中的取消訂閱連結取消訂閱我們的電子郵件"
+    },
+    "section5": {
+      "title": "5. 退出/取消訂閱",
+      "intro": "您可以隨時透過以下方式退出接收我們的電子郵件：",
+      "method1": "點擊我們發送給您的任何電子郵件底部的「取消訂閱」連結",
+      "method2": "直接透過下面提供的電子郵件地址聯絡我們",
+      "note": "一旦您取消訂閱，您將不再收到關於我們搶先體驗推出的更新，但除非您要求刪除，否則您的電子郵件將保留在我們的系統中以供記錄保存。"
+    },
+    "section6": {
+      "title": "6. 兒童隱私",
+      "content": "此候補名單僅供家長使用。我們不會故意收集20歲以下兒童的個人資訊（台灣法定成年年齡）。當我們的平台推出時，我們將實施適當的家長同意機制，以符合台灣的個人資料保護法（PDPA）。"
+    },
+    "section7": {
+      "title": "7. 本政策的變更",
+      "content": "我們可能會不時更新此隱私權政策。我們將透過在此頁面上發布新的隱私權政策並更新「最後更新」日期來通知您任何變更。"
+    },
+    "section8": {
+      "title": "8. 聯絡我們",
+      "intro": "如果您對此隱私權政策有任何疑問或希望行使您的權利，請透過以下方式聯絡我們：",
+      "email": "電子郵件：",
+      "subject": "主旨：",
+      "subjectText": "隱私權政策查詢"
+    },
+    "lastUpdated": "最後更新："
+  }
+}
+

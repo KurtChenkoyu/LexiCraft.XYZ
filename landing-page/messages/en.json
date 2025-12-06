@@ -1,0 +1,507 @@
+{
+  "hero": {
+    "headline": "You Invest, They Mine. Knowledge and Wealth, Inherited Together.",
+    "subtitle": "LexiCraft.xyz • 字塊所: Taiwan's First Knowledge Asset Exchange. Turn tuition into unlockable blocks.",
+    "description": "We don't sell courses, we sell future assets. Every word is a block waiting to be unlocked. Complete learning journey from A to Z.",
+    "valueProp1": "Block Trust: Your money stays locked in blocks until they prove recognition",
+    "valueProp2": "Brain Mining: Kids unlock blocks through validation, earning real rewards",
+    "valueProp3": "Asset Exchange: Transform education spending into transferable knowledge assets",
+    "cta": "CHECK ASSET VALUE",
+    "ctaSecondary": "Join Waitlist",
+    "trustBar": "🔒 Withdraw anytime | ✓ Verified $5M+ | 📊 99.54% accuracy",
+    "platformName": "LexiCraft.xyz • 字塊所"
+  },
+  "navbar": {
+    "surveyLink": "START BLOCK SURVEY",
+    "surveyLinkZh": "啟動字塊探勘"
+  },
+  "howItWorks": {
+    "title": "How It Works",
+    "subtitle": "Transform tuition spending into unlockable knowledge assets",
+    "step1": {
+      "title": "Purchase Block Trust Package",
+      "description": "Parents buy a Block Trust Package (e.g., 1000-word core set). Money is locked in escrow, not spent. Status: 🔒 Locked (Funds in Trust)."
+    },
+    "step2": {
+      "title": "See Locked Blocks",
+      "description": "Kids see a wall of gray locked blocks. Each block shows its value (e.g., $5 NTD). Click to start validation: \"Value $5, Start Mining?\""
+    },
+    "step3": {
+      "title": "Mining Action (Validation)",
+      "description": "Validation quiz = mining with pickaxe. Answer correctly = critical hit. System uses adversarial traps (Adapt vs Adopt) to ensure real recognition."
+    },
+    "step4": {
+      "title": "Unlock Gold Blocks",
+      "description": "Success! Block flips to gold ✨. Account balance +$5. Kids feel: \"I earned this with my brain!\" Achievement unlocked."
+    },
+    "step5": {
+      "title": "Redeem & Track",
+      "description": "Parents receive notification: \"Your child unlocked 50% of trust funds. Learning progress: 500 solid blocks.\" This is the receipt for your investment."
+    }
+  },
+  "benefitsParents": {
+    "title": "Benefits for Parents",
+    "subtitle": "Verify education investment results, know if children truly recognize foundation elements",
+    "verify": {
+      "title": "Verify Foundation Recognition",
+      "description": "Verify if children recognize foundation elements, not test if they learned. More realistic assessment method."
+    },
+    "identify": {
+      "title": "Identify Learning Gaps",
+      "description": "Clearly see which foundation elements children recognize, which areas need strengthening. Diagnostic report, not report card."
+    },
+    "structure": {
+      "title": "More Realistic Structure",
+      "description": "Use Knowledge Graph structure (relationship-based), not alphabetical order. More aligned with how language learning actually works."
+    },
+    "roi": {
+      "title": "See Investment ROI",
+      "description": "Know if education investment actually worked. Spent so much on cram school, did it actually work?"
+    },
+    "motivate": {
+      "title": "Encourage Continued Exposure",
+      "description": "Verification scholarship encourages children to continue exposure to foundation elements, building recognition foundation."
+    },
+    "ahead": {
+      "title": "Stay Ahead of Official Numbers",
+      "description": "Official numbers say 4,000-5,000 words, but reality expects 8,000+. We help you verify if your child is truly ahead."
+    }
+  },
+  "benefitsKids": {
+    "title": "Benefits for Kids",
+    "subtitle": "Verification scholarship encourages continued exposure to foundation elements, building recognition foundation",
+    "scholarship": {
+      "title": "Verification Scholarship",
+      "description": "Pass verification of foundation element recognition, earn verification scholarship. This is recognition of learning results."
+    },
+    "recognition": {
+      "title": "See Recognition Progress",
+      "description": "Clearly see which foundation elements you recognize, which still need exposure. Knowledge Graph visualizes your learning trajectory."
+    },
+    "portfolio": {
+      "title": "Learning Portfolio Evidence",
+      "description": "Automatically generate learning logs, become strong evidence for 108 learning portfolio. Prove your autonomous learning process."
+    },
+    "diagnostic": {
+      "title": "Diagnostic Report",
+      "description": "Not a report card, but a diagnostic report. Tells you which areas need strengthening, not that you failed."
+    },
+    "structure": {
+      "title": "Knowledge Graph Structure",
+      "description": "Uses relationship structure, not alphabetical order. More aligned with how language learning actually works."
+    },
+    "confidence": {
+      "title": "Build Confidence",
+      "description": "Every recognized foundation element is progress. Watch your Knowledge Graph grow and feel proud!"
+    }
+  },
+  "pricing": {
+    "title": "Block Trust Packages",
+    "subtitle": "Transform tuition into unlockable knowledge assets",
+    "tier": {
+      "name": "Beta Special",
+      "price": "NT$500-1,000",
+      "description": "Block Trust Package Deposit"
+    },
+    "features": {
+      "daily": "Unlock 10-20 blocks per day through validation",
+      "sessions": "Knowledge Graph structure mining",
+      "quizzes": "Spaced repetition validation (Day 3, 7, 14)",
+      "withdrawal": "Withdraw trust funds anytime",
+      "dashboard": "Parent asset dashboard",
+      "tracking": "Block unlock progress tracking",
+      "discount": "Beta special: Deposit 1000, get 500 bonus blocks"
+    },
+    "note": "This is a Block Trust Package. Your money stays in escrow until blocks are unlocked. Children unlock blocks through validation, then funds are released. You maintain full control over withdrawals.",
+    "regular": "Regular pricing will be NT$1,000-2,000 after beta period ends"
+  },
+  "faq": {
+    "title": "Frequently Asked Questions",
+    "subtitle": "Everything you need to know about LexiCraft.xyz • 字塊所",
+    "teaching": {
+      "question": "Do you teach English?",
+      "answer": "No, we don't teach English. We are a verification platform, not a teaching platform. Children learn elsewhere (school, cram school), we verify if they recognize foundation elements."
+    },
+    "different": {
+      "question": "How are you different from teaching apps?",
+      "answer": "Teaching apps teach, we verify results. We provide objective third-party verification, verifying if your education investment actually worked."
+    },
+    "verify": {
+      "question": "What do you verify?",
+      "answer": "We verify if children recognize foundation elements (words, phrases, idioms). We verify recognition ability, not deep understanding (that's our future goal). Recognition is the foundation of understanding."
+    },
+    "scholarship": {
+      "question": "How does the Block Trust work?",
+      "answer": "Parents purchase a Block Trust Package (NT$500-1,000). Money stays in escrow, locked in blocks. Kids unlock blocks through validation quizzes. Once unlocked, funds are released to the child's account. Parents can withdraw anytime. Meet validation standards, 100% of trust funds unlocked."
+    },
+    "mining": {
+      "question": "What is Brain Mining?",
+      "answer": "Brain Mining is our gamified validation system. Kids see locked blocks (gray), each with a value. They use validation quizzes (the pickaxe) to unlock blocks. Correct answers = critical hits. Unlocked blocks turn gold and cash is deposited. It's not forced study, it's legal mining."
+    },
+    "trust": {
+      "question": "How is this different from regular tuition?",
+      "answer": "Regular tuition: You pay, money is gone, hope they learned. Block Trust: You invest, money stays in escrow, they unlock it through proof of learning. It transforms education spending from consumption into asset transfer. Your money isn't spent until they prove recognition."
+    },
+    "scam": {
+      "question": "Isn't this a scam?",
+      "answer": "No. We are an educational verification platform, not a cash flow verification platform. Your money is in platform escrow account, unlocks after child verification. Business model is completely transparent, withdrawable anytime."
+    },
+    "withdraw": {
+      "question": "Can money really be withdrawn anytime?",
+      "answer": "Yes. Zero handling fees, arrives within 1 day after linking bank account. This is your money, not ours. You have full control."
+    },
+    "methodology": {
+      "question": "Why is your verification method better?",
+      "answer": "We use Knowledge Graph structure (relationship-based), not alphabetical order. Spaced repetition verification (Day 3, 7, 14) ensures long-term recognition, not short-term memory. 99.54% confidence, not 25% guessing rate."
+    },
+    "gap": {
+      "question": "Why stay ahead of official numbers?",
+      "answer": "Official numbers say senior high needs 4,000-5,000 words, but reality expects 8,000+. Meeting only official numbers = actually behind. We help you verify if your child is truly ahead, ready to face real expectations."
+    }
+  },
+  "waitlist": {
+    "title": "Join the Waitlist",
+    "subtitle": "Be among the first to try Foundation Verification Platform. Beta special: Deposit 1000, get 500 bonus!",
+    "success": {
+      "title": "You're on the list!",
+      "message": "We'll send you an email as soon as we're ready to launch. Get ready to motivate your kids to learn!",
+      "another": "Join another email"
+    },
+    "form": {
+      "email": "Email Address",
+      "numKids": "Number of Children",
+      "submit": "Join Waitlist - Get 50% Off Beta",
+      "loading": "Joining...",
+      "privacy": "By joining, you agree to receive updates about our beta launch.",
+      "privacyLink": "View Privacy Policy"
+    },
+    "options": {
+      "one": "1 child",
+      "two": "2 children",
+      "three": "3 children",
+      "four": "4+ children"
+    }
+  },
+  "footer": {
+    "tagline": "You invest, they mine. Knowledge and wealth, inherited together.",
+    "legal": "Legal",
+    "privacy": "Privacy Policy",
+    "contact": "Contact",
+    "questions": "Questions? Reach out to us at",
+    "copyright": "© {year} LexiCraft.xyz • 字塊所. All rights reserved.",
+    "taiwan": "Designed for Taiwan market. Parent accounts required for users under 20."
+  },
+  "language": {
+    "switch": "Switch Language",
+    "zh-TW": "繁體中文",
+    "en": "English"
+  },
+  "parentQuestions": {
+    "title": "Three Questions Parents Ask Most",
+    "question1": "Spent so much on cram school, did it actually work?",
+    "answer1": "We provide objective third-party verification. Verify if your education investment actually worked.",
+    "question2": "Why can't school tests show real level?",
+    "answer2": "Because schools test short-term memory, we test long-term recognition. Spaced repetition ensures it's not just memorization.",
+    "question3": "How are you different from teaching apps?",
+    "answer3": "They teach, we verify the results. We don't teach English, we verify."
+  },
+  "vocabularyCliff": {
+    "title": "Where on This Curve Is Your Child Right Now?",
+    "subtitle": "Schools prepare them for the 1,200-word floor. Exams demand the 7,000-word ceiling.",
+    "table": {
+      "stage": "Stage",
+      "official": "Official Requirement",
+      "reality": "Reality Gap",
+      "words": "words",
+      "junior": "Junior High",
+      "comfortable": "Comfortable zone",
+      "senior": "Senior High",
+      "listed": "(officially listed)",
+      "actuallyNeed": "Actually need 7,000+ words",
+      "cliff": "The Cliff",
+      "gap": "5,800-word gap",
+      "crash": "Where students crash in Grade 10"
+    },
+    "diagnostic": "We provide a diagnostic report telling you which areas your child needs to strengthen, not telling you they failed.",
+    "keyQuestion": "Where on this curve is your child right now?",
+    "cta": "Diagnose My Gap"
+  },
+  "dashboard": {
+    "title": "Parent Dashboard",
+    "subtitle": "Manage your child's learning account and trust funds",
+    "deposit": {
+      "title": "Deposit Trust Funds",
+      "description": "Deposit funds into your child's learning account. Funds can be unlocked and withdrawn after learning tasks are completed."
+    },
+    "balance": {
+      "title": "Account Balance",
+      "available": "Available Points",
+      "locked": "Locked Points"
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "startSurvey": "Start Survey",
+      "backHome": "Back to Home",
+      "settings": "Account Settings"
+    },
+    "howItWorks": {
+      "title": "💡 How It Works",
+      "step1": "Deposit trust funds",
+      "step2": "Child completes learning tasks",
+      "step3": "Unlock and withdraw rewards"
+    },
+    "noChildren": {
+      "message": "You haven't created any child accounts yet.",
+      "hint": "Please create child accounts in settings."
+    },
+    "selectChild": "Select Child",
+    "loading": "Loading...",
+    "childrenOverview": {
+      "title": "Children Accounts",
+      "manageAll": "Manage All",
+      "startSurvey": "Start Survey",
+      "yearsOld": "years old",
+      "unnamed": "Unnamed"
+    }
+  },
+  "settings": {
+    "title": "Account Settings",
+    "subtitle": "Manage your account and children",
+    "backToDashboard": "Back to Dashboard",
+    "account": {
+      "title": "Account Information",
+      "email": "Email",
+      "name": "Name",
+      "age": "Age",
+      "roles": "Roles"
+    },
+    "children": {
+      "title": "Children Management",
+      "addChild": "Add Child",
+      "createTitle": "Create Child Account",
+      "childName": "Child Name",
+      "childAge": "Child Age",
+      "ageHint": "Must be under 20 years old",
+      "cancel": "Cancel",
+      "create": "Create Account",
+      "creating": "Creating...",
+      "noChildren": "You haven't created any child accounts yet",
+      "noChildrenHint": "Click \"Add Child\" to get started"
+    },
+    "stats": {
+      "title": "Account Overview",
+      "totalChildren": "Total Children",
+      "accountStatus": "Account Status"
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "dashboard": "Back to Dashboard",
+      "survey": "Start Survey",
+      "home": "Back to Home"
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "level": "Level",
+    "xp": "XP",
+    "totalXP": "Total XP",
+    "nextLevel": "To Next Level",
+    "streak": "Day Streak",
+    "vocabulary": "Vocabulary Size",
+    "thisWeek": "This Week",
+    "achievements": "Achievements",
+    "unlocked": "Unlocked",
+    "recentAchievements": "Recently Unlocked",
+    "allAchievements": "All Achievements",
+    "categories": {
+      "all": "All",
+      "streak": "Streak",
+      "vocabulary": "Vocabulary",
+      "mastery": "Mastery",
+      "social": "Social",
+      "special": "Special"
+    },
+    "setGoals": "Set Goals",
+    "viewLeaderboards": "Leaderboards",
+    "startLearning": "Start Learning"
+  },
+  "mine": {
+    "title": "The Mine",
+    "starterTitle": "Explore The Mine",
+    "starterSubtitle": "Pick blocks to start mining, the system will learn your level from your exploration",
+    "personalizedTitle": "Your Mining Path",
+    "personalizedSubtitle": "Based on your assessment, found {gapsCount} knowledge gaps and {prerequisitesCount} prerequisite blocks",
+    "stats": {
+      "discovered": "Discovered",
+      "solid": "Solid",
+      "hollow": "Forging",
+      "raw": "Raw Blocks"
+    },
+    "block": {
+      "startForging": "Start Forging",
+      "starting": "Starting...",
+      "started": "Forging Started!",
+      "close": "Close",
+      "definitionEn": "English Definition",
+      "definitionZh": "Chinese Explanation",
+      "examples": "Examples",
+      "connections": "Connected Blocks",
+      "progress": "Learning Progress",
+      "status": "Status",
+      "mastery": "Mastery Level",
+      "startedAt": "Started At"
+    },
+    "loading": "Loading The Mine...",
+    "error": "Failed to load The Mine",
+    "retry": "Retry",
+    "noBlocks": "No blocks available to explore"
+  },
+  "goals": {
+    "title": "Learning Goals",
+    "subtitle": "Set goals, track progress, achieve more",
+    "createGoal": "Create Goal",
+    "suggestions": "Suggested Goals",
+    "active": "Active",
+    "completed": "Completed",
+    "failed": "Failed",
+    "progress": "Progress",
+    "deadline": "Deadline",
+    "types": {
+      "daily_words": "Daily Words",
+      "weekly_words": "Weekly Words",
+      "monthly_words": "Monthly Words",
+      "streak": "Streak Goal",
+      "vocabulary_size": "Vocabulary Goal"
+    },
+    "form": {
+      "type": "Goal Type",
+      "target": "Target Value",
+      "endDate": "End Date",
+      "cancel": "Cancel",
+      "create": "Create Goal"
+    }
+  },
+  "leaderboards": {
+    "title": "Leaderboards",
+    "subtitle": "Compare with other learners and see your rank",
+    "global": "Global",
+    "friends": "Friends",
+    "yourRank": "Your Rank",
+    "periods": {
+      "weekly": "This Week",
+      "monthly": "This Month",
+      "all_time": "All Time"
+    },
+    "metrics": {
+      "xp": "XP",
+      "words": "Words",
+      "streak": "Streak"
+    },
+    "noData": "No ranking data available",
+    "noFriends": "No friends on the leaderboard yet"
+  },
+  "notifications": {
+    "title": "Notification Center",
+    "unread": "Unread",
+    "all": "All",
+    "markAllRead": "Mark All Read",
+    "noNotifications": "No notifications",
+    "types": {
+      "achievement": "Achievement Unlocked",
+      "streak_risk": "Streak at Risk",
+      "goal_progress": "Goal Progress",
+      "milestone": "Milestone",
+      "level_up": "Level Up"
+    }
+  },
+  "coachDashboard": {
+    "title": "Learning Analytics",
+    "subtitle": "Understand your child's learning progress and performance",
+    "selectChild": "Select Child",
+    "overview": "Overview",
+    "activity": "Learning Activity",
+    "performance": "Performance",
+    "insights": "Insights",
+    "goals": "Goals",
+    "achievements": "Recent Achievements",
+    "stats": {
+      "vocabulary": "Vocabulary",
+      "xp": "Total XP",
+      "streak": "Day Streak",
+      "achievements": "Achievements"
+    },
+    "activityStats": {
+      "thisWeek": "This Week",
+      "thisMonth": "This Month",
+      "rate": "Learning Rate",
+      "lastActive": "Last Active"
+    },
+    "performanceStats": {
+      "totalReviews": "Total Reviews",
+      "retention": "Retention Rate",
+      "responseTime": "Avg Response Time",
+      "correct": "Correct Answers"
+    }
+  },
+  "privacy": {
+    "back": "Back to Home",
+    "title": "Privacy Policy",
+    "section1": {
+      "title": "1. Information We Collect",
+      "intro": "We collect the following information when you join our waitlist:",
+      "email": "Email address",
+      "emailDesc": "Used to send you updates about our beta launch",
+      "numKids": "Number of children",
+      "numKidsDesc": "Helps us understand family size and plan our beta program"
+    },
+    "section2": {
+      "title": "2. How We Use Your Information",
+      "intro": "We use the information you provide to:",
+      "use1": "Send you updates about our beta launch and product development",
+      "use2": "Notify you when the platform is ready for beta testing",
+      "use3": "Plan our beta program based on family sizes",
+      "use4": "Send you relevant information about the LexiCraft.xyz platform",
+      "noShare": "We do not sell, rent, or share your personal information with third parties for marketing purposes."
+    },
+    "section3": {
+      "title": "3. Data Storage and Security",
+      "content": "Your information is stored securely using industry-standard email service providers (ConvertKit or Mailchimp) that comply with data protection regulations. We implement appropriate technical and organizational measures to protect your personal information."
+    },
+    "section4": {
+      "title": "4. Your Rights",
+      "intro": "You have the right to:",
+      "access": "Access",
+      "accessDesc": "Request a copy of the personal information we hold about you",
+      "update": "Update",
+      "updateDesc": "Correct any inaccurate information",
+      "delete": "Delete",
+      "deleteDesc": "Request deletion of your personal information",
+      "optout": "Opt-out",
+      "optoutDesc": "Unsubscribe from our emails at any time using the unsubscribe link in every email"
+    },
+    "section5": {
+      "title": "5. Opt-Out / Unsubscribe",
+      "intro": "You can opt-out of receiving emails from us at any time by:",
+      "method1": "Clicking the \"Unsubscribe\" link at the bottom of any email we send you",
+      "method2": "Contacting us directly at the email address provided below",
+      "note": "Once you unsubscribe, you will no longer receive updates about our beta launch, but your email will remain in our system for record-keeping purposes unless you request deletion."
+    },
+    "section6": {
+      "title": "6. Children's Privacy",
+      "content": "This waitlist is for parents only. We do not knowingly collect personal information from children under the age of 20 (Taiwan's age of majority). When our platform launches, we will implement appropriate parental consent mechanisms in compliance with Taiwan's Personal Data Protection Act (PDPA)."
+    },
+    "section7": {
+      "title": "7. Changes to This Policy",
+      "content": "We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the \"Last Updated\" date."
+    },
+    "section8": {
+      "title": "8. Contact Us",
+      "intro": "If you have any questions about this Privacy Policy or wish to exercise your rights, please contact us at:",
+      "email": "Email:",
+      "subject": "Subject:",
+      "subjectText": "Privacy Policy Inquiry"
+    },
+    "lastUpdated": "Last Updated:"
+  }
+}
+
