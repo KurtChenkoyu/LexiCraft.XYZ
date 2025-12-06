@@ -1,0 +1,5 @@
+backend/data/vocabulary*.json filter=lfs diff=lfs merge=lfs -text
+backend/data/backups/vocabulary*.json filter=lfs diff=lfs merge=lfs -text
+landing-page/data/vocabulary*.json filter=lfs diff=lfs merge=lfs -text
+landing-page/public/vocabulary*.json filter=lfs diff=lfs merge=lfs -text
+landing-page/public/audio/**/*.mp3 filter=lfs diff=lfs merge=lfs -text
