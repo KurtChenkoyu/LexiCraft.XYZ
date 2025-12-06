@@ -1,0 +1,13 @@
+# PDF extraction libraries for Taiwan MOE word list extraction
+# Install with: pip install -r requirements_pdf.txt
+
+# Recommended: Best for tables and structured data
+pdfplumber>=0.10.0
+
+# Alternative options (install one or more):
+# PyMuPDF - Fast and good quality
+PyMuPDF>=1.23.0
+
+# PyPDF2 - Basic extraction
+PyPDF2>=3.0.0
+

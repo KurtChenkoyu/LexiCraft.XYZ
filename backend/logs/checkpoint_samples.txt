@@ -1,0 +1,33 @@
+Checkpoint Quality Samples
+================================================================================
+
+Total senses: 2929
+Validated: 2767
+Failed: 162
+Problematic Chinese: 240
+
+
+================================================================================
+PROBLEMATIC CHINESE DEFINITIONS
+================================================================================
+
+in.s.02: in - directed or bound inward → 冘
+on.r.03: on - Working or operating correctly; ready to use. → 鑷
+on.a.01: on - in operation or operational → IP
+oregon.n.01: or - A place in the United States, on the west coast near the Pacific Ocean. → 家
+operating_room.n.01: or - A special room in a hospital where doctors do operations. → 家
+more.r.02: more - To a greater amount or level than before. → 更
+one.n.02: one - a single person or thing → 的
+other.a.01: other - A different one, not the one we talked about before. → 哦
+use.v.01: used - To do something with something for a certain reason or job. → 盉
+use.n.01: use - the act of using → 享
+world_health_organization.n.01: who - A part of the UN that helps countries with health problems. → 的
+besides.r.02: too - in addition → 也
+some.a.01: some - A few; an amount that is not exact or known. → 些
+date.n.06: date - A day in a month or year when something happened. → 以
+back.n.01: back - The part of your body behind you, from your neck to your bottom. → 的
+over.r.01: over - Across a space or distance, from one side to the other. → 櫓
+state.n.02: state - How something is at a certain time; its condition. → 尃
+add.v.01: added - To put something with something else; to make more. → 熘
+such.s.01: such - of so extreme a degree or extent → IP
+such.r.01: such - to so extreme a degree → 偌

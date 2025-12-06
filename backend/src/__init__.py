@@ -1,0 +1,4 @@
+"""
+LexiCraft Backend Package
+"""
+
