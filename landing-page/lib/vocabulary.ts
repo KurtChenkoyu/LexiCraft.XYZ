@@ -101,7 +101,7 @@ class VocabularyStore {
   private _isLoaded: boolean = false
 
   constructor() {
-    this.data = vocabularyData as VocabularyData
+    this.data = vocabularyData as unknown as VocabularyData
     this._isLoaded = Object.keys(this.data.senses || {}).length > 0
   }
 
@@ -315,11 +315,11 @@ class VocabularyStore {
 
     // Get other senses of the same word
     const otherSenses = this.getSensesForWord(sense.word)
-      .filter(s => s.id !== senseId)
+      .filter(s => s.id !== senseId && s.id)
       .map(s => ({
-        sense_id: s.id,
+        sense_id: s.id as string,
         word: s.word,
-        pos: s.pos,
+        pos: s.pos || undefined,
         definition_preview: (s.definition_en || s.definition || '').slice(0, 80),
       }))
 
@@ -530,7 +530,7 @@ class VocabularyStore {
 
     // Get second-degree connections (hop 2)
     if (maxHops >= 2) {
-      for (const firstHopId of hop1) {
+      for (const firstHopId of Array.from(hop1)) {
         const secondConnections = this.getConnections(firstHopId)
         for (const conn of secondConnections) {
           if (!visited.has(conn.sense_id)) {

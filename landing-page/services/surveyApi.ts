@@ -13,7 +13,7 @@ import {
   TriMetricReport,
   QuestionHistoryItem,
   Methodology,
-} from '../components/survey/types'
+} from '@/components/features/survey/types'
 
 // API Configuration
 // Ensure we always use an absolute URL

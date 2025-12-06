@@ -115,7 +115,7 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center py-3 border-b border-gray-100">
                   <span className="text-gray-600">{t('account.email')}</span>
-                  <span className="font-medium text-gray-900">{profile?.email || user.email}</span>
+                  <span className="font-medium text-gray-900">{profile?.email || user?.email}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b border-gray-100">
                   <span className="text-gray-600">{t('account.name')}</span>

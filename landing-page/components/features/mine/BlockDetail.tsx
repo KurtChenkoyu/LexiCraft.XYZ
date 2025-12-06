@@ -15,7 +15,7 @@ export function BlockDetailModal({
   blockDetail,
   isLoading,
   onClose,
-}: BlockDetailProps) {
+}: BlockDetailModalProps) {
   const [isStarting, setIsStarting] = useState(false)
   const [started, setStarted] = useState(false)
 

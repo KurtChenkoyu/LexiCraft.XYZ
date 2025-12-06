@@ -27,8 +27,8 @@ interface GraphNode {
   y?: number
   vx?: number
   vy?: number
-  fx?: number | null
-  fy?: number | null
+  fx?: number
+  fy?: number
 }
 
 interface GraphEdge {
@@ -159,7 +159,7 @@ export function MineGraph({
       : new Set(allGraphData.nodes.slice(0, 10).map(n => n.id))
 
     // Add expanded nodes and their connections
-    for (const nodeId of nodesToExpand) {
+    for (const nodeId of Array.from(nodesToExpand)) {
       const node = nodeMap.get(nodeId)
       if (!node || seenNodes.has(nodeId)) continue
       
@@ -326,7 +326,7 @@ export function MineGraph({
   }, [layoutMode, graphData.nodes, dimensions, simulatedProgress])
 
   // Handle node click
-  const handleNodeClick = useCallback((node: GraphNode) => {
+  const handleNodeClick = useCallback((node: any) => {
     setExpandedNodes(prev => {
       const next = new Set(prev)
       if (next.has(node.id)) {
@@ -342,7 +342,7 @@ export function MineGraph({
   }, [])
 
   // Handle node double-click (open detail)
-  const handleNodeDoubleClick = useCallback((node: GraphNode) => {
+  const handleNodeDoubleClick = useCallback((node: any) => {
     onNodeSelect?.(node.id)
   }, [onNodeSelect])
 
@@ -407,7 +407,7 @@ export function MineGraph({
         height={dimensions.height}
         
         // Custom node rendering - rounded rectangles (blocks)
-        nodeCanvasObject={(node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
+        nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
           const status = simulatedProgress[node.id] || 'raw'
           const isExpanded = expandedNodes.has(node.id)
           
@@ -458,7 +458,7 @@ export function MineGraph({
             ctx.fillText(node.word, node.x || 0, (node.y || 0) + blockHeight / 2 + 6)
           }
         }}
-        nodePointerAreaPaint={(node: GraphNode, color: string, ctx: CanvasRenderingContext2D) => {
+        nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
           const blockWidth = 12
           const blockHeight = 8
           ctx.fillStyle = color
@@ -509,26 +509,12 @@ export function MineGraph({
         // Interactions
         onNodeClick={handleNodeClick}
         onNodeRightClick={handleNodeDoubleClick}
-        onNodeHover={(node: GraphNode | null) => setHoveredNode(node)}
+        onNodeHover={(node: any) => setHoveredNode(node)}
         
         // Physics - tighter clustering
         cooldownTicks={200}
         d3AlphaDecay={0.01}
         d3VelocityDecay={0.4}
-        d3Force={(forceName: string, force: any) => {
-          if (forceName === 'charge') {
-            // Reduce repulsion for tighter clustering
-            force.strength(-30).distanceMax(150)
-          }
-          if (forceName === 'link') {
-            // Shorter links
-            force.distance(40)
-          }
-          if (forceName === 'center') {
-            // Stronger centering
-            force.strength(0.1)
-          }
-        }}
         
         // Zoom/Pan
         enableZoomInteraction={true}
