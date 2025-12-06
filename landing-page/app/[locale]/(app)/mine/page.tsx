@@ -278,7 +278,7 @@ export default function MinePage() {
           matchingPosValues.some(p => s.pos === p || s.pos?.toLowerCase() === p)
         ) || matchingSenses[0]
         
-        if (matchedSense) {
+        if (matchedSense && matchedSense.id) {
           senseId = matchedSense.id
           console.log('Matched sense:', senseId)
           blockDetail = vocabulary.getBlockDetail(senseId)
