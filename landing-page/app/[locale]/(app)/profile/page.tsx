@@ -19,12 +19,20 @@ import {
 // Default empty profile - show UI immediately, never block
 const defaultProfile: LearnerProfile = {
   user_id: '',
-  level: { level: 1, xp: 0, xp_to_next: 100 },
-  total_xp: 0,
-  words_learned: 0,
+  level: {
+    level: 1,
+    total_xp: 0,
+    xp_to_next_level: 100,
+    xp_in_current_level: 0,
+    progress_percentage: 0,
+  },
+  vocabulary_size: 0,
   current_streak: 0,
-  longest_streak: 0,
+  words_learned_this_week: 0,
+  words_learned_this_month: 0,
   recent_achievements: [],
+  total_achievements: 0,
+  unlocked_achievements: 0,
 }
 
 export default function ProfilePage() {
