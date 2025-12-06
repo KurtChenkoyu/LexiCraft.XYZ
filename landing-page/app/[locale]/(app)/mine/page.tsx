@@ -279,7 +279,7 @@ export default function MinePage() {
         ) || matchingSenses[0]
         
         if (matchedSense) {
-          senseId = matchedSense.sense_id || matchedSense.id
+          senseId = matchedSense.id
           console.log('Matched sense:', senseId)
           blockDetail = vocabulary.getBlockDetail(senseId)
         }
