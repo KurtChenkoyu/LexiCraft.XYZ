@@ -13,7 +13,7 @@ from sqlalchemy import text
 
 from ..database.postgres_connection import PostgresConnection
 from ..database.postgres_crud import users as user_crud
-from ..middleware.auth import get_current_user_id
+from ..middleware.auth import get_current_user_id, get_or_create_user
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -57,20 +57,17 @@ def get_db_session():
 
 
 @router.get("/me", response_model=UserInfo)
-async def get_current_user(
-    user_id: UUID = Depends(get_current_user_id),  # Get from auth middleware
+async def get_me(
+    current_user = Depends(get_or_create_user),  # Auto-creates user if not exists
     db: Session = Depends(get_db_session)
 ):
     """
     Get current user information.
+    Auto-creates user record if they authenticated via Supabase but don't exist in DB.
     """
     try:
-        user = user_crud.get_user_by_id(db, user_id)
-        
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        roles = user_crud.get_user_roles(db, user_id)
+        user = current_user
+        roles = user_crud.get_user_roles(db, user.id)
         
         return UserInfo(
             id=str(user.id),
