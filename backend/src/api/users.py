@@ -67,6 +67,12 @@ class AddRoleRequest(BaseModel):
     role: str = Field(..., description="Role to add: 'parent' or 'learner'")
 
 
+class SetBirthdayRequest(BaseModel):
+    """Request to set birthday (for birthday celebrations)."""
+    month: int = Field(..., ge=1, le=12, description="Birth month (1-12)")
+    day: int = Field(..., ge=1, le=31, description="Birth day (1-31)")
+
+
 def get_db_session():
     """Get database session."""
     conn = PostgresConnection()
@@ -207,6 +213,106 @@ async def add_role(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to add role: {str(e)}")
+    finally:
+        db.close()
+
+
+@router.get("/me/birthday")
+async def get_birthday(
+    user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db_session)
+):
+    """
+    Get current user's birthday info.
+    """
+    try:
+        user = user_crud.get_user_by_id(db, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        has_birthday = user.birth_month is not None and user.birth_day is not None
+        edits_remaining = 3 - (user.birthday_edit_count or 0)
+        
+        return {
+            "has_birthday": has_birthday,
+            "birth_month": user.birth_month,
+            "birth_day": user.birth_day,
+            "edits_remaining": max(0, edits_remaining),
+            "can_edit": edits_remaining > 0
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get birthday: {str(e)}")
+    finally:
+        db.close()
+
+
+@router.put("/me/birthday")
+async def set_birthday(
+    data: SetBirthdayRequest,
+    user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db_session)
+):
+    """
+    Set or update birthday (for birthday celebrations).
+    
+    🎂 Add your birthday for a special surprise on your special day!
+    
+    Note: You can only edit this 3 times, so choose carefully!
+    """
+    try:
+        user = user_crud.get_user_by_id(db, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Check edit limit
+        current_edits = user.birthday_edit_count or 0
+        if current_edits >= 3:
+            raise HTTPException(
+                status_code=400,
+                detail="You've used all 3 birthday edits! Contact support if you made a mistake. 😅"
+            )
+        
+        # Validate day for the month (basic validation)
+        days_in_month = {
+            1: 31, 2: 29, 3: 31, 4: 30, 5: 31, 6: 30,
+            7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31
+        }
+        if data.day > days_in_month.get(data.month, 31):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid day {data.day} for month {data.month}"
+            )
+        
+        # Update birthday
+        user.birth_month = data.month
+        user.birth_day = data.day
+        user.birthday_edit_count = current_edits + 1
+        db.commit()
+        
+        edits_remaining = 3 - user.birthday_edit_count
+        
+        # Fun messages based on edits remaining
+        if edits_remaining == 2:
+            message = "🎂 Birthday set! You have 2 edits remaining."
+        elif edits_remaining == 1:
+            message = "🎂 Birthday updated! ⚠️ Only 1 edit left - make it count!"
+        else:
+            message = "🎂 Birthday updated! That was your last edit - hope it's correct! 🎉"
+        
+        return {
+            "success": True,
+            "birth_month": data.month,
+            "birth_day": data.day,
+            "edits_remaining": edits_remaining,
+            "message": message
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to set birthday: {str(e)}")
     finally:
         db.close()
 

@@ -34,7 +34,11 @@ class User(Base, BaseModel):
     name = Column(Text)
     phone = Column(Text)
     country = Column(Text, default='TW')
-    age = Column(Integer)  # Can be NULL for adults
+    age = Column(Integer)  # Required during onboarding
+    # Birthday fields (optional - for birthday celebrations)
+    birth_month = Column(Integer, nullable=True)  # 1-12
+    birth_day = Column(Integer, nullable=True)  # 1-31
+    birthday_edit_count = Column(Integer, default=0, nullable=False)  # Max 3 edits allowed
     email_confirmed = Column(Boolean, default=False, nullable=False)
     email_confirmed_at = Column(DateTime, nullable=True)
     
