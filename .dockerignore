@@ -1,0 +1,50 @@
+# Frontend (not needed for backend)
+landing-page/
+frontend/
+
+# Virtual environments
+venv/
+.venv/
+backend/venv/
+backend/.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
+backend/logs/
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+backend/docs/
+
+# Tests
+backend/tests/
+
+# Local files
+.env
+.env.local
+*.local
+
+# Downloads and data files not needed
+downloads/
+scripts/
+data/
+examples/
+
+# Node modules
+node_modules/
+
