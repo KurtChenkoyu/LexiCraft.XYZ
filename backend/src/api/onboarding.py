@@ -9,7 +9,7 @@ from uuid import UUID
 
 from ..database.postgres_connection import PostgresConnection
 from ..database.postgres_crud import users as user_crud
-from ..middleware.auth import get_current_user_id, get_or_create_user, get_db_session as auth_get_db_session
+from ..middleware.auth import get_current_user_id, get_current_user_id_and_email
 
 router = APIRouter(prefix="/api/users", tags=["onboarding"])
 
@@ -39,10 +39,52 @@ def get_db_session():
     return conn.get_session()
 
 
+def get_or_create_user_with_session(
+    auth_info: tuple,
+    db: Session
+):
+    """Get or create user using the provided session."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    user_id, email, name = auth_info
+    
+    user = user_crud.get_user_by_id(db, user_id)
+    
+    if not user and email:
+        logger.info(f"Auto-creating user {user_id} with email {email}")
+        try:
+            existing = user_crud.get_user_by_email(db, email)
+            if existing:
+                return existing
+            
+            from ..database.models import User
+            new_user = User(
+                id=user_id,
+                email=email,
+                name=name,
+                country='TW'
+            )
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+            logger.info(f"Created user {user_id}")
+            return new_user
+        except Exception as e:
+            logger.error(f"Failed to auto-create user: {e}")
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found and could not be created")
+    
+    return user
+
+
 @router.post("/onboarding/complete", response_model=OnboardingCompleteResponse)
 async def complete_onboarding(
     data: OnboardingCompleteRequest,
-    current_user = Depends(get_or_create_user),  # Auto-creates user if not exists
+    auth_info: tuple = Depends(get_current_user_id_and_email),
     db: Session = Depends(get_db_session)
 ):
     """
@@ -56,12 +98,14 @@ async def complete_onboarding(
     
     Args:
         data: Onboarding data
-        current_user: User object (auto-created if not exists)
+        auth_info: Auth info from JWT token
         db: Database session
     
     Returns:
         Onboarding completion response with user info and redirect path
     """
+    # Get or create user using the SAME session for all operations
+    current_user = get_or_create_user_with_session(auth_info, db)
     parent_uuid = current_user.id
     parent_user = current_user
     
@@ -194,7 +238,7 @@ async def complete_onboarding(
 
 @router.get("/onboarding/status")
 async def get_onboarding_status(
-    current_user = Depends(get_or_create_user),  # Auto-creates user if not exists
+    auth_info: tuple = Depends(get_current_user_id_and_email),
     db: Session = Depends(get_db_session)
 ):
     """
@@ -205,6 +249,8 @@ async def get_onboarding_status(
         - roles: list of roles
         - missing_info: list of missing information
     """
+    # Get or create user using the SAME session
+    current_user = get_or_create_user_with_session(auth_info, db)
     user_uuid = current_user.id
     user = current_user
     
