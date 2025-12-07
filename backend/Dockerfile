@@ -10,15 +10,15 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for caching (from backend/ directory)
-COPY backend/requirements.txt .
+# Copy requirements first for caching
+COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code (from backend/ directory)
-COPY backend/src ./src
-COPY backend/data ./data
+# Copy application code
+COPY src ./src
+COPY data ./data
 
 # Expose port (Railway sets PORT env var)
 EXPOSE 8000
