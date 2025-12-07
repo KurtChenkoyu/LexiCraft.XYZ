@@ -1,0 +1,38 @@
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
+logs/
+
+# Git
+.git/
+.gitignore
+
+# Documentation (not needed in production)
+*.md
+docs/
+
+# Tests (not needed in production)
+tests/
+
+# Local development files
+.env
+.env.local
+*.local
+
+# Nix files (using Dockerfile now)
+nixpacks.toml
+
