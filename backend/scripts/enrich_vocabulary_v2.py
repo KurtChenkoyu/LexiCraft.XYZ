@@ -776,6 +776,13 @@ class VocabularyPipelineV2:
         completed = 0
         last_checkpoint_time = time.time()
         last_status_update = time.time()
+        last_progress_time = time.time()
+        last_progress_count = 0
+        
+        print(f"🚀 Starting parallel processing with {self.workers} workers")
+        print(f"📊 Total words to process: {total_words:,}")
+        print(f"💾 Checkpoint will save every 25 words or 15 seconds")
+        print(f"📈 Progress updates every 5 words\n")
         
         with ThreadPoolExecutor(max_workers=self.workers) as executor:
             # Submit all tasks
@@ -795,21 +802,35 @@ class VocabularyPipelineV2:
                 
                 word = future_to_word[future]
                 completed += 1
+                current_time = time.time()
                 
                 try:
                     success, _, enriched = future.result()
                     status_icon = "✅" if success else "⚠️"
                     
-                    # Progress update every 10 words or every 5 seconds
-                    if completed % 10 == 0 or completed == total_words:
-                        print(f"[{completed}/{total_words} ({completed/total_words*100:.1f}%)] {status_icon} {word}")
+                    # Progress update every 5 words (more frequent)
+                    if completed % 5 == 0 or completed == total_words:
+                        elapsed_since_last = current_time - last_progress_time
+                        words_since_last = completed - last_progress_count
+                        rate = (words_since_last / elapsed_since_last * 60) if elapsed_since_last > 0 else 0
+                        
+                        with self.stats_lock:
+                            progress_pct = (self.stats.words_processed / total_words * 100) if total_words > 0 else 0
+                            print(f"[{completed}/{total_words}] {status_icon} {word} | "
+                                  f"Processed: {self.stats.words_processed:,} ({progress_pct:.1f}%) | "
+                                  f"Rate: {rate:.1f} words/min | "
+                                  f"Senses: {self.stats.senses_created:,}")
+                        
+                        last_progress_time = current_time
+                        last_progress_count = completed
                     
                 except Exception as e:
                     print(f"[{completed}/{total_words}] ❌ {word}: {e}")
+                    import traceback
+                    traceback.print_exc()
                 
-                # Update status periodically (every 5 seconds or every 50 words)
-                current_time = time.time()
-                if current_time - last_status_update > 5 or completed % 50 == 0:
+                # Update status more frequently (every 3 seconds or every 25 words)
+                if current_time - last_status_update > 3 or completed % 25 == 0:
                     with self.stats_lock:
                         estimated_cost = self.stats.ai_calls * self.COST_PER_CALL_USD
                         self.status_manager.update_progress(
@@ -823,12 +844,12 @@ class VocabularyPipelineV2:
                         )
                     last_status_update = current_time
                 
-                # Save checkpoint every 50 words or every 30 seconds
-                if completed % 50 == 0 or (current_time - last_checkpoint_time > 30):
+                # Save checkpoint more frequently (every 25 words or every 15 seconds)
+                if completed % 25 == 0 or (current_time - last_checkpoint_time > 15):
                     self._save_checkpoint()
                     last_checkpoint_time = current_time
                     
-                    # Calculate ETA
+                    # Calculate ETA with better accuracy
                     with self.stats_lock:
                         if self.stats.start_time:
                             try:
@@ -841,7 +862,23 @@ class VocabularyPipelineV2:
                         rate = self.stats.words_processed / elapsed if elapsed > 0 else 0
                         remaining = total_words - self.stats.words_processed
                         eta_minutes = (remaining / (rate * self.workers)) / 60 if rate > 0 else 0
-                        print(f"  💾 Checkpoint saved. Rate: {rate*60:.1f} words/min, ETA: {eta_minutes:.1f} min")
+                        eta_hours = eta_minutes / 60
+                        current_cost = self.stats.ai_calls * self.COST_PER_CALL_USD
+                        
+                        print(f"  💾 Checkpoint saved | "
+                              f"Rate: {rate*60:.1f} words/min | "
+                              f"ETA: {eta_hours:.1f}h ({eta_minutes:.0f}min) | "
+                              f"Cost: ${current_cost:.2f}")
+                
+                # Heartbeat check - detect if stuck
+                if current_time - last_progress_time > 300:  # 5 minutes without progress
+                    with self.stats_lock:
+                        if self.stats.words_processed == last_progress_count:
+                            print(f"\n⚠️ WARNING: No progress in 5 minutes!")
+                            print(f"   Last processed: {last_progress_count} words")
+                            print(f"   Current: {self.stats.words_processed} words")
+                            print(f"   This may indicate workers are stuck. Consider restarting.")
+                            last_progress_time = current_time  # Reset to avoid spam
                 
                 # Check for too many errors
                 status = self.status_manager.get_status()

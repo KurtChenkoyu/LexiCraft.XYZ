@@ -9,7 +9,7 @@ from uuid import UUID
 
 from ..database.postgres_connection import PostgresConnection
 from ..database.postgres_crud import users as user_crud
-from ..middleware.auth import get_current_user_id
+from ..middleware.auth import get_current_user_id, get_or_create_user, get_db_session as auth_get_db_session
 
 router = APIRouter(prefix="/api/users", tags=["onboarding"])
 
@@ -42,7 +42,7 @@ def get_db_session():
 @router.post("/onboarding/complete", response_model=OnboardingCompleteResponse)
 async def complete_onboarding(
     data: OnboardingCompleteRequest,
-    user_id: UUID = Depends(get_current_user_id),  # Get from auth middleware
+    current_user = Depends(get_or_create_user),  # Auto-creates user if not exists
     db: Session = Depends(get_db_session)
 ):
     """
@@ -56,18 +56,14 @@ async def complete_onboarding(
     
     Args:
         data: Onboarding data
-        user_id: User ID (extracted from JWT token via auth middleware)
+        current_user: User object (auto-created if not exists)
         db: Database session
     
     Returns:
         Onboarding completion response with user info and redirect path
     """
-    parent_uuid = user_id
-    
-    # Get current user
-    parent_user = user_crud.get_user_by_id(db, parent_uuid)
-    if not parent_user:
-        raise HTTPException(status_code=404, detail="User not found")
+    parent_uuid = current_user.id
+    parent_user = current_user
     
     child_user = None
     
@@ -198,7 +194,7 @@ async def complete_onboarding(
 
 @router.get("/onboarding/status")
 async def get_onboarding_status(
-    user_id: UUID = Depends(get_current_user_id),  # Get from auth middleware
+    current_user = Depends(get_or_create_user),  # Auto-creates user if not exists
     db: Session = Depends(get_db_session)
 ):
     """
@@ -209,11 +205,8 @@ async def get_onboarding_status(
         - roles: list of roles
         - missing_info: list of missing information
     """
-    user_uuid = user_id
-    
-    user = user_crud.get_user_by_id(db, user_uuid)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user_uuid = current_user.id
+    user = current_user
     
     roles = user_crud.get_user_roles(db, user_uuid)
     missing_info = []

@@ -197,6 +197,85 @@ def get_current_user_id(
     return user_id
 
 
+def get_current_user_id_and_email(
+    authorization: Optional[str] = Header(None)
+) -> tuple[UUID, Optional[str], Optional[str]]:
+    """
+    Get current authenticated user ID, email, and name from JWT token.
+    
+    Returns:
+        Tuple of (user_id, email, name)
+    """
+    token = extract_token_from_header(authorization)
+    payload = verify_supabase_token(token)
+    
+    user_id_str = payload.get("sub") or payload.get("user_id") or payload.get("id")
+    if not user_id_str:
+        raise HTTPException(status_code=401, detail="Token does not contain user ID")
+    
+    try:
+        user_id = UUID(user_id_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid user ID format: {user_id_str}")
+    
+    # Extract email and name from token
+    email = payload.get("email")
+    user_metadata = payload.get("user_metadata", {})
+    name = user_metadata.get("full_name") or user_metadata.get("name")
+    
+    return user_id, email, name
+
+
+def get_or_create_user(
+    auth_info: tuple = Depends(get_current_user_id_and_email),
+    db: Session = Depends(get_db_session)
+):
+    """
+    Get current user or create if not exists.
+    
+    This auto-creates a user record when they first authenticate via Supabase.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    user_id, email, name = auth_info
+    
+    user = user_crud.get_user_by_id(db, user_id)
+    
+    if not user and email:
+        # Auto-create user from Supabase auth info
+        logger.info(f"Auto-creating user {user_id} with email {email}")
+        try:
+            # Check if user exists by email (might have different ID)
+            existing = user_crud.get_user_by_email(db, email)
+            if existing:
+                logger.warning(f"User with email {email} exists with different ID")
+                return existing
+            
+            # Create new user with Supabase user ID
+            from ..database.models import User
+            new_user = User(
+                id=user_id,
+                email=email,
+                name=name,
+                country='TW'
+            )
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+            logger.info(f"Created user {user_id}")
+            return new_user
+        except Exception as e:
+            logger.error(f"Failed to auto-create user: {e}")
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found and could not be created")
+    
+    return user
+
+
 def get_current_user(
     user_id: UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db_session)
