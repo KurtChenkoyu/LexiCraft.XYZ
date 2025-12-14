@@ -528,4 +528,141 @@ class MineService:
             block['total_value'] = base_xp + (connection_count * 10)
         
         return blocks
+    
+    def process_mining_batch(
+        self,
+        user_id: UUID,
+        sense_ids: List[str],
+        tier: int = 1
+    ) -> Dict:
+        """
+        Process a batch of mined blocks (Phase 5b - Backend Persistence).
+        
+        Creates learning progress entries and awards points.
+        
+        Args:
+            user_id: User ID
+            sense_ids: List of sense IDs that were mined
+            tier: Tier for all blocks (default 1)
+            
+        Returns:
+            Dictionary with:
+                - success: bool
+                - mined_count: int (how many were newly added)
+                - skipped_count: int (how many already existed)
+                - new_wallet_balance: dict
+                - xp_gained: int
+        """
+        try:
+            from ..database.postgres_crud.progress import (
+                create_learning_progress,
+                get_learning_progress_by_learning_point
+            )
+            from ..database.postgres_crud.points import (
+                get_points_account,
+                create_points_transaction
+            )
+            
+            # Track newly mined vs already in inventory
+            mined_count = 0
+            skipped_count = 0
+            
+            for sense_id in sense_ids:
+                # Check if already exists
+                existing = get_learning_progress_by_learning_point(
+                    self.db,
+                    user_id,
+                    sense_id,
+                    tier
+                )
+                
+                if existing:
+                    skipped_count += 1
+                    continue
+                
+                # Create new learning progress entry
+                create_learning_progress(
+                    self.db,
+                    user_id=user_id,
+                    learning_point_id=sense_id,
+                    tier=tier,
+                    status='learning'
+                )
+                mined_count += 1
+            
+            # Award points (10 XP per newly mined word)
+            xp_gained = mined_count * 10
+            
+            if xp_gained > 0:
+                # Get or create points account
+                points_account = get_points_account(self.db, user_id)
+                if not points_account:
+                    # Create initial points account
+                    from ..database.models import PointsAccount
+                    points_account = PointsAccount(
+                        user_id=user_id,
+                        total_earned=0,
+                        available_points=0,
+                        locked_points=0,
+                        withdrawn_points=0
+                    )
+                    self.db.add(points_account)
+                    self.db.commit()
+                    self.db.refresh(points_account)
+                
+                # Create transaction
+                create_points_transaction(
+                    self.db,
+                    user_id=user_id,
+                    transaction_type='earned',
+                    points=xp_gained,
+                    tier=tier,
+                    description=f'Mined {mined_count} words'
+                )
+                
+                # Update account balance
+                points_account.total_earned += xp_gained
+                points_account.available_points += xp_gained
+                self.db.commit()
+                self.db.refresh(points_account)
+                
+                new_wallet = {
+                    'total_earned': points_account.total_earned,
+                    'available_points': points_account.available_points,
+                    'locked_points': points_account.locked_points,
+                    'withdrawn_points': points_account.withdrawn_points,
+                }
+            else:
+                # No points gained, return current balance
+                points_account = get_points_account(self.db, user_id)
+                if points_account:
+                    new_wallet = {
+                        'total_earned': points_account.total_earned,
+                        'available_points': points_account.available_points,
+                        'locked_points': points_account.locked_points,
+                        'withdrawn_points': points_account.withdrawn_points,
+                    }
+                else:
+                    new_wallet = {
+                        'total_earned': 0,
+                        'available_points': 0,
+                        'locked_points': 0,
+                        'withdrawn_points': 0,
+                    }
+            
+            return {
+                'success': True,
+                'mined_count': mined_count,
+                'skipped_count': skipped_count,
+                'new_wallet_balance': new_wallet,
+                'xp_gained': xp_gained,
+            }
+            
+        except Exception as e:
+            print(f"Error in process_mining_batch: {e}")
+            import traceback
+            traceback.print_exc()
+            # Rollback on error
+            self.db.rollback()
+            raise ValueError(f"Failed to process mining batch: {str(e)}")
 

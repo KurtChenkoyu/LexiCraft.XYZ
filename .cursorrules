@@ -1,0 +1,650 @@
+# LEXICRAFT PROJECT CONTEXT (The Bible)
+
+## 1. Core Philosophy
+- **App Vibe:** "Last War" / Mobile Game responsiveness. **Eager Load** over Lazy Load.
+- **MVP Mechanics:** "Learning = Earning". Users grind vocab (Inventory) to earn real cash (Withdrawal).
+- **Mental Model:** The UI feels like a Game (Instant, Snappy, Rich), even though the logic is currently MVP (Quiz & Wallet).
+
+## 2. Design Philosophy (Product Vision)
+
+These principles guide ALL feature design and UX decisions:
+
+- **Vocabulary is power:** More than XP (which shows effort), vocabulary is tangible inventory. Words are assets users collect and own.
+- **Prior knowledge valued:** Survey identifies known words, fast-tracks proving. Respect what users already know.
+- **Learning feels like progress:** Visible inventory, structures being built. Every word learned is a visible achievement.
+- **No effort has stakes:** Structures crack, emotional attachment. Consequences create engagement and care.
+- **Multiple paths:** Grind XP → Buy tools, or prove knowledge → Big inventory. Different playstyles, same goal.
+- **Family First:** Onboarding is a "Relay Race." Parent starts the car (Budget/Rules), Child drives it out (Hero/Theme).
+- **The Creator Gradient (Process, not Switch):**
+  - **Tier 1 (Decorator):** Customize personal Workshop (Private).
+  - **Tier 2 (Curator):** Organize words into "Collections" (Personal Study).
+  - **Tier 3 (Master):** Publish Collections to the "Studio" (Community Content).
+- **Progression Granularity (Critical for Engagement):**
+  - **Many small steps, not few big jumps:** Learners need frequent, visible progress milestones to maintain engagement.
+  - **Avoid "endgame unlocks":** Never lock major features behind distant level requirements. Progression should feel continuous, not gated.
+  - **Visible rewards at every step:** Each milestone should unlock something tangible (item, feature, visual change) that the learner can see immediately.
+  - **Process over destination:** The journey itself should be rewarding, not just reaching a final goal.
+
+**When designing features:** Ask "Does this make vocabulary feel like a collectible asset?" and "Does this create emotional stakes?"
+
+## 3. Technical Gameplay Architecture
+- **Traffic Cop:** `/start` is the **Loading Screen**. It pre-loads Family Context (Parent settings + Learner profile) and ALL critical data (User, Wallet, Progress) before redirecting.
+- **No Spinners:** Once inside `/parent` or `/learner`, data must be instant (served from Store/IndexedDB).
+- **Folder Structure:**
+  - `learner/workshop`: The **Visual Game**. Placing items, decorating, crafting.
+  - `learner/studio`: The **Curator Tool**. Starts as private list organizer, upgrades to public publisher.
+- **Agents (Backend):**
+  - **Database First:** Agents READ/WRITE directly to PostgreSQL/Neo4j.
+  - **No JSON DB:** `vocabulary.json` is a READ-ONLY artifact for the frontend. Agents MUST NOT write to it.
+  - **Concurrency:** Agents use a worker queue/semaphore pattern to respect API limits.
+  - **Safety:** Content Curation agents verify user-submitted lists for safety before publishing.
+
+## 4. Data Pipeline Architecture
+
+**Single Source of Truth:** Taiwan MOE 7000 → Enrichment → MCQ Generation → PostgreSQL
+
+```
+Taiwan MOE Curriculum (7000 words)
+    ↓
+Stage 1: Level 1 Enrichment (definitions, examples, translations)
+    ↓
+Stage 2: Level 2 Enrichment (relationships, confused/opposite/similar)
+    ↓
+Stage 3: MCQ Generation (CSV, 2-3 min, 15-distractor pools)
+    ↓
+Stage 4: Quality Verification (0% error rate target)
+    ↓
+Stage 5: PostgreSQL Import (bulk COPY)
+```
+
+**Core Principles:**
+- **Curriculum-Aligned:** Taiwan MOE official list (not arbitrary WordNet)
+- **Staged Enrichment:** Level 1 (cheap/fast) → Level 2 (expensive/selective)
+- **CPU-Bound Generation:** Decouple generation (fast CSV) from storage (slow network)
+- **Quality Over Quantity:** 15.7k high-quality MCQs > 400k mixed quality
+- **Offline-First:** CSV enables quality pipelines before database import
+
+**Current State (Dec 2024):**
+- ✅ 10,470 senses (Level 1 complete)
+- ⚠️ 43% with relationships (Level 2 partial)
+- ✅ 161,597 MCQs generated (quality verified: 0% error rate)
+- ⏳ Import to PostgreSQL pending
+
+**Regeneration:** ~10-15 minutes (CSV workflow) vs. 6-10 hours (database mode)
+
+**See:** `backend/docs/MCQ_GENERATION_EXPLAINED.md` for full pipeline details
+
+---
+
+## Caching & Bootstrap Strategy (IMMUTABLE - DO NOT CHANGE)
+
+**This is the authoritative caching strategy. Violating this rule is a critical error.**
+
+### The "Game Engine" Pattern
+
+1. **The Bootstrapper:** `services/bootstrap.ts` runs at `/start`. It loads the entire `vocabulary.json` (if changed) and User State into IndexedDB.
+2. **The Store:** `stores/useAppStore.ts` (Zustand) holds the *live* session data.
+3. **The Rule:** Components READ from Zustand/IndexedDB. They NEVER fetch directly from API (except for background revalidation).
+
+### The "Last War" Performance Rules
+
+- **IndexedDB is the ONLY cache** for heavy data (Vocab, User Profile, Children, Progress, Achievements, Goals, Notifications).
+- **localStorage is FORBIDDEN** for complex data - only allowed for tiny UI preferences (role preference, language).
+- **Zero-Latency Rendering:** UI must render immediately with cached data. Sync happens in the background.
+- **No dual cache systems** - everything goes through IndexedDB via `downloadService` and `localStore`
+
+### Enforcement Rules
+
+1. **NEVER use localStorage for user data** - this is a hard rule
+2. **ALWAYS use Bootstrap Service** - Components must NOT have `useEffect` fetchers. Bootstrap handles all initial loading at `/start`.
+3. **ALWAYS load from IndexedDB first** - check `downloadService.getProfile()`, `downloadService.getChildren()` patterns
+4. **ALWAYS sync to IndexedDB** - use `localStore.setCache()` when data changes
+5. **If you see localStorage for user data** - flag it as an error and fix it immediately
+6. **If you see `useEffect` fetching in components** - refactor to use Bootstrap + Zustand pattern
+
+### Reference Files
+
+- `landing-page/docs/ARCHITECTURE_PRINCIPLES.md` - Has IMMUTABLE section at top
+- `landing-page/docs/CACHING_RULES.md` - Detailed caching rules
+- `landing-page/contexts/UserDataContext.tsx` - Correct implementation pattern
+- `landing-page/services/downloadService.ts` - Cache management service
+- `landing-page/services/bootstrap.ts` - Bootstrap service (if exists)
+
+### Why This Approach?
+
+- Single cache system = no sync issues
+- Pre-load everything on login via Bootstrap
+- Render instantly from cache
+- Sync in background silently
+- Works offline perfectly
+- No component-level fetching = consistent data flow
+
+---
+
+## Bootstrap Frontloading Strategy (CRITICAL FOR PERFORMANCE)
+
+**This section explains HOW to achieve the "Last War" instant feel. All new pages MUST follow this pattern.**
+
+### The Problem
+
+Without frontloading, each page has its own `useEffect` that fetches data from the API. This causes:
+- **Visible loading spinners** on every page visit
+- **Slow tab switching** (~1-5 seconds per page)
+- **Inconsistent state** between pages
+- **Duplicate API calls** when switching tabs
+
+### The Solution: Bootstrap Everything Once
+
+The Bootstrap service (`landing-page/services/bootstrap.ts`) runs **once** during the loading screen and loads ALL page data into Zustand. After Bootstrap completes, every page renders **instantly** from Zustand.
+
+### Bootstrap Steps (14 Total)
+
+| Step | Data | Target Store Key | Used By |
+|------|------|------------------|---------|
+| 1 | User Profile | `user` | All pages |
+| 2 | Children | `children` | Family page |
+| 3 | Children Summaries | `childrenSummaries` | Family page |
+| 4 | Learner Profile | `learnerProfile` | Profile, Mine pages |
+| 5 | Progress Stats | `progress` | Stats display |
+| 6 | Achievements | `achievements` | Profile page |
+| 7 | Goals | `goals` | Goals page |
+| 8 | Currencies | `currencies` | Build page |
+| 9 | Rooms | `rooms` | Build page |
+| 10 | Vocabulary | IndexedDB | Mine, Verification |
+| 11 | Mine Blocks | `mineBlocks` | Mine page |
+| 12 | Due Cards | `dueCards` | Verification page |
+| 13 | Leaderboard | `leaderboardData` | Leaderboards page |
+| 14 | Finalize | `isBootstrapped: true` | All pages |
+
+### Implementation Pattern
+
+#### 1. Add State to Zustand Store (`stores/useAppStore.ts`)
+
+```typescript
+// State
+interface AppState {
+  // ... existing state
+  myPageData: MyDataType | null
+}
+
+// Actions
+interface AppActions {
+  setMyPageData: (data: MyDataType | null) => void
+}
+
+// Initial value
+myPageData: null,
+
+// Action implementation
+setMyPageData: (data) => set({ myPageData: data }, false, 'setMyPageData'),
+
+// Selector (for performance)
+export const selectMyPageData = (state: AppState) => state.myPageData
+```
+
+#### 2. Add Bootstrap Step (`services/bootstrap.ts`)
+
+```typescript
+// Step N: Load My Page Data
+updateProgress(BOOTSTRAP_STEPS[N])
+try {
+  const data = await downloadService.getMyPageData()
+  if (data) {
+    store.setMyPageData(data)
+    console.log('✅ Bootstrap: Loaded my page data')
+  }
+} catch (err) {
+  console.warn('⚠️ Bootstrap: Failed to load my page data (non-critical)')
+}
+```
+
+#### 3. Page Component Pattern
+
+```typescript
+'use client'
+import { useAppStore, selectMyPageData } from '@/stores/useAppStore'
+
+export default function MyPage() {
+  // ⚡ ZUSTAND-FIRST: Read from store (pre-loaded by Bootstrap)
+  const myPageData = useAppStore(selectMyPageData)
+  const isBootstrapped = useAppStore((state) => state.isBootstrapped)
+  
+  // If Bootstrap is complete, data is guaranteed to be in Zustand
+  // No useEffect fetching needed!
+  
+  if (!isBootstrapped) {
+    return null // Loading screen is shown by layout
+  }
+  
+  // Render instantly with data from Zustand
+  return <div>{myPageData?.value}</div>
+}
+```
+
+### Progress Data & Starter Pack Strategy
+
+The Mine page has special handling because its data depends on user progress:
+
+#### 1. IndexedDB-First Progress Loading
+
+```typescript
+// FIRST: Load from IndexedDB (instant, offline-first)
+const progressMap = new Map<string, string>() // senseId -> status
+const localProgress = await localStore.getAllProgress()
+localProgress.forEach(p => progressMap.set(p.senseId, p.status))
+
+// THEN: Try backend API (with 5s timeout)
+try {
+  const freshProgress = await Promise.race([
+    progressApi.getUserProgress(),
+    timeout(5000)
+  ])
+  // Update progressMap with fresh data
+  freshProgress.forEach(p => progressMap.set(p.sense_id, p.status))
+} catch {
+  // Use IndexedDB data (already loaded above)
+}
+```
+
+#### 2. Starter Pack Generation
+
+```typescript
+// Check if cached starter pack IDs match user's progress
+const cachedIds = await localStore.getCache('starter_pack_ids')
+const hasUnmatchedProgress = progressMap.size > 0 && 
+  Array.from(progressMap.keys()).some(id => !cachedIdsSet.has(id))
+
+if (hasUnmatchedProgress) {
+  // Regenerate from progress words + random fill
+  for (const [senseId, status] of progressMap.entries()) {
+    blocks.push({ ...blockData, status })
+  }
+  if (blocks.length < 50) {
+    blocks.push(...await vocabulary.getStarterPack(50 - blocks.length))
+  }
+}
+```
+
+### Loading Screen Integration
+
+The `(app)/layout.tsx` displays a loading screen until Bootstrap completes:
+
+```typescript
+const isBootstrapped = useAppStore((state) => state.isBootstrapped)
+
+// Show loading screen until Bootstrap is done
+if (!isBootstrapped) {
+  return <LoadingScreen steps={INITIAL_STEPS} />
+}
+
+// Once bootstrapped, render children (all pages have instant data)
+return <>{children}</>
+```
+
+### When to Add New Bootstrap Steps
+
+Add a new Bootstrap step when:
+1. A page needs data that would otherwise require an API call
+2. The data is needed immediately on page render
+3. The data is relatively static (doesn't change every second)
+
+Do NOT add Bootstrap steps for:
+1. Data that's only needed after user interaction
+2. Real-time data that changes frequently
+3. Large datasets that would slow down initial load
+
+### Debugging Tips
+
+1. **Check console logs** for Bootstrap progress:
+   - `📦 Bootstrap: Loaded X items from IndexedDB`
+   - `✅ Bootstrap: Loaded Y`
+   - `⚠️ Bootstrap: Failed to load Z (non-critical)`
+
+2. **Verify Zustand state** in React DevTools
+
+3. **Check `isBootstrapped`** - pages should not render content until this is `true`
+
+### Reference Files
+
+- `landing-page/services/bootstrap.ts` - Bootstrap service (THE source of truth)
+- `landing-page/stores/useAppStore.ts` - Zustand store with all state
+- `landing-page/app/[locale]/(app)/layout.tsx` - Loading screen integration
+- `landing-page/lib/local-store.ts` - IndexedDB operations
+
+---
+
+## App Architecture Bible (IMMUTABLE - DO NOT CHANGE)
+
+**This is the authoritative routing and architecture standard. All route changes must follow this structure.**
+
+### 1. Core Philosophy: Role-Based Routing
+
+We strictly separate user contexts using folder structure.
+Do NOT mix Parent and Learner logic in the same views.
+
+- **parent/**: Administrative, Financial, and Monitoring views (URL: `/parent/*`)
+- **learner/**: Gamified, Learning, and Arcade views (URL: `/learner/*`)
+- **(shared)/**: Full-screen pages with NO navigation context (`/onboarding` only - notifications live in role folders to preserve nav)
+
+**IMPORTANT**: Use parentheses `(name)` ONLY when you want the folder invisible in the URL.
+- `parent/dashboard` → URL: `/parent/dashboard` (correct)
+- `(parent)/dashboard` → URL: `/dashboard` (WRONG - loses parent segment)
+
+### 2. Directory Structure Standard
+
+```
+app/[locale]/
+├── (marketing)/              # PUBLIC - Landing pages (serves /)
+│   ├── page.tsx              # Home/landing page (URL: /)
+│   ├── privacy/              # Privacy policy
+│   └── survey/               # Public survey
+│
+├── (auth)/                   # PUBLIC - Auth flow
+│   ├── login/
+│   └── signup/
+│
+└── (app)/                    # PROTECTED - Authenticated users only
+    ├── layout.tsx            # AuthGuard + UserDataProvider + SidebarProvider
+    ├── start/                # TRAFFIC COP (URL: /start)
+    │   └── page.tsx          # Redirects based on role
+    │
+    ├── parent/               # PARENT WORLD (URL: /parent/*)
+    │   ├── layout.tsx        # Renders <ParentSidebar>
+    │   ├── dashboard/        # Main Hub with Tabs
+    │   │   ├── layout.tsx    # Renders <DashboardTabs>
+    │   │   ├── page.tsx      # Redirects -> /parent/dashboard/overview
+    │   │   ├── overview/     # Combined summary
+    │   │   ├── analytics/    # Learning metrics (deep dive)
+    │   │   └── finance/      # Wallet & transactions
+    │   ├── children/         # Manage child accounts
+    │   ├── goals/            # Goal tracking
+    │   ├── achievements/     # Achievement gallery
+    │   ├── notifications/     # Notifications (Keeps Sidebar)
+    │   └── settings/         # Parent-specific settings
+    │
+    ├── learner/              # LEARNER WORLD (URL: /learner/*)
+    │   ├── layout.tsx        # Renders <LearnerBottomNav> + GamificationProvider
+    │   ├── home/             # The "City" view or Map
+    │   ├── mine/             # Vocabulary Mining (MCQ)
+    │   ├── workshop/         # The Crafting Game (Room/City Builder)
+    │   ├── studio/           # The Creator Ecosystem (Curate/Publish Word Lists)
+    │   ├── verification/     # Due Reviews / Quiz
+    │   ├── leaderboards/     # Rankings
+    │   ├── notifications/     # Notifications (Keeps BottomNav)
+    │   ├── settings/         # Game Settings (Audio/SFX/Language)
+    │   └── profile/          # Stats, Badges, Avatar
+    │
+    └── (shared)/             # SHARED - Full Screen / No Nav
+        └── onboarding/       # The "Relay Race" Flow
+            ├── family-setup/ # Step 1: Parent Budget & Rules
+            ├── handoff/      # Step 2: "Pass Device" / Summon
+            └── learner-setup/ # Step 3: The Game Tutorial
+                ├── avatar/   # "Choose your Hero"
+                ├── theme/    # "Choose your Biome"
+                └── tutorial/ # "First Mine & Craft"
+```
+
+### 3. The "Traffic Cop" Pattern
+
+Because `(marketing)/page.tsx` owns the root `/`, we use `/start` as the post-login entry point.
+
+```typescript
+// app/[locale]/(app)/start/page.tsx
+// Pre-loads Family Context (Parent settings + Learner profile) and all critical data
+import { redirect } from 'next/navigation'
+import { getUserRole } from '@/lib/auth'
+
+export default async function StartPage() {
+  const role = await getUserRole()
+  
+  if (role === 'parent') redirect('/parent/dashboard')
+  if (role === 'learner') redirect('/learner/home')
+  redirect('/onboarding') // No role yet
+}
+```
+
+**Login Flow:**
+1. User logs in at `/login`
+2. Auth redirects to `/start`
+3. Traffic Cop pre-loads Family Context and checks role, then redirects to appropriate home
+
+### 4. The "Tabbed Page" Pattern
+
+When a page needs sub-views (like Parent Dashboard), use NESTED ROUTES, not state-based tabs.
+
+**Structure:**
+- `dashboard/layout.tsx` - Contains the `<DashboardTabs>` component
+- `dashboard/page.tsx` - Redirects to default tab
+- `dashboard/overview/page.tsx` - First tab content
+- `dashboard/analytics/page.tsx` - Second tab content
+- `dashboard/finance/page.tsx` - Third tab content
+
+**Rules:**
+- URL MUST change when tab changes (`/parent/dashboard/analytics`)
+- Root page MUST redirect to default tab
+- Tabs are `<Link>` components, NOT onClick state handlers
+
+### 5. Context Providers Hierarchy
+
+| Context | Root Layout | (app) Layout | parent/ Layout | learner/ Layout |
+|---------|-------------|--------------|----------------|-----------------|
+| `AuthProvider` | YES | NO | NO | NO |
+| `UserDataProvider` | NO | YES | NO | NO |
+| `SidebarProvider` | NO | YES | NO | NO |
+| `GamificationProvider` | NO | NO | NO | YES |
+
+### 6. Navigation Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `ParentSidebar.tsx` | parent/layout.tsx | Desktop sidebar for /parent/* |
+| `LearnerBottomNav.tsx` | learner/layout.tsx | Mobile bottom nav for /learner/* |
+| `AppTopNav.tsx` | (app)/layout.tsx | Top bar for all authenticated pages |
+| `DashboardTabs.tsx` | parent/dashboard/layout.tsx | Tab navigation |
+
+### 7. Navigation Rules
+
+**Hard Boundaries:**
+- Parent views should NEVER link directly to Learner views
+- Learner views should NEVER link directly to Parent views
+- For role switching, redirect through `/start`
+
+**URL Patterns:**
+- Parent links: `/parent/*` (e.g., `/parent/dashboard/finance`, `/parent/notifications`)
+- Learner links: `/learner/*` (e.g., `/learner/mine`, `/learner/notifications`)
+- Shared links: Direct path (e.g., `/onboarding` only - notifications preserve nav context in role folders)
+
+### 8. How to Discover Routes
+
+NEVER assume documentation is complete. Always verify:
+
+1. **Check file system**: `ls app/[locale]/(app)/parent/`
+2. **Check navigation components**: ParentSidebar, LearnerBottomNav
+3. **Search for links**: `grep -r "href=" components/layout/`
+
+### 9. Critical Rules (Privacy & Security)
+
+1. **NEVER put UserDataProvider in root layout** - Visitors would load cached user data (privacy issue)
+2. **Landing pages are PUBLIC** - No auth, no user data, no IndexedDB user cache
+3. **Auth pages are PUBLIC** - Auth context only, no user data
+4. **App pages are AUTHENTICATED** - Full context stack (Auth + UserData + Sidebar)
+
+### Reference Files
+
+- `app/[locale]/layout.tsx` - Root layout (AuthProvider only)
+- `app/[locale]/(app)/layout.tsx` - App layout (UserDataProvider + SidebarProvider)
+- `app/[locale]/(app)/start/page.tsx` - Traffic Cop redirect
+- `components/layout/ParentSidebar.tsx` - Parent navigation
+- `components/layout/LearnerBottomNav.tsx` - Learner navigation
+- `components/layout/DashboardTabs.tsx` - Dashboard tab navigation
+
+---
+
+## UI/UX & Game Feel Standards (The "Last War" Look)
+
+**This section enforces mobile game viewport constraints. It kills "web page thinking" (scrolling body, navbar links) and establishes "game viewport thinking" (fixed screen, layers, absolute positioning).**
+
+### 1. The "Game Viewport" Law (CRITICAL)
+
+- **Fixed Container:** The root app container MUST be `h-[100dvh] w-screen overflow-hidden fixed`.
+- **No Body Scroll:** The HTML `body` must NEVER scroll. Scrolling is only allowed within specific internal containers (e.g., a list of items inside a modal).
+- **Mobile Safe Areas:** All UI must respect safe areas (`pt-safe`, `pb-safe`) to avoid notches and home bars.
+
+### 2. The Persistence Architecture (Layout vs. Page)
+
+To achieve the "Stacked Layers" feel using Next.js Routing:
+
+- **The Layout (HUD Layer - z-40):** The `learner/layout.tsx` holds the absolute positioned Top Bar and Bottom Dock. These NEVER unmount during navigation.
+
+- **The Page (Content Layer - z-0):**
+  - `/learner/home`: Renders the **Interactive World/Map**.
+  - `/learner/mine`, `/learner/workshop`: Render as **Full-Screen Activities**.
+  - **Transition:** Use Framer Motion `AnimatePresence` in the `template.tsx` to slide activities over the map, creating the *illusion* of layers even if the map unmounts.
+
+### 3. Navigation = Object Interaction (Diegetic UI)
+
+- **Map as Menu:** On `/learner/home`, users navigate by clicking **Objects** in the World (e.g., clicking "Cave" routes to `/learner/mine`).
+- **No Text Links:** Do not use text hyperlinks for main interactions. Use "Buttons that look like Game Objects."
+- **Touch Targets:** All interactive elements must be "Thumb-Sized" (min 44x44px).
+
+### 4. Visual Hierarchy
+
+- **Game Scale:** UI elements should be chunky, bold, and tactile (Game Style), not thin and airy (SaaS Style).
+- **Feedback:** Every tap MUST have a visual response (scale down, ripple, or sound).
+
+### Why These Rules Matter
+
+| Rule | What It Kills | What It Enables |
+|------|---------------|-----------------|
+| `h-[100dvh]` | Safari address bar issues | Exact screen fit |
+| `overflow-hidden` | Vertical stacking divs | Forces Flexbox/Grid within screen |
+| Layout persistence | HUD disappearing on navigation | Continuous game feel |
+| Framer Motion transitions | Abrupt page swaps | Smooth layer-like animations |
+| No text links | Web-app navigation | Game-like object interaction |
+
+---
+
+## Documentation Organization
+
+### Single Source of Truth
+- **ONE status file**: `CURRENT_STATUS.md` at root. Update it, never create new status files.
+- **ONE next-steps section**: Lives inside `CURRENT_STATUS.md`, not separate files.
+- When information changes, UPDATE existing docs. Never create "CORRECTED" or "V2" files.
+
+### File Locations
+| Content Type | Location |
+|-------------|----------|
+| Project-wide docs | `/docs/` |
+| Backend implementation notes | `/backend/docs/` (no duplication from /docs/) |
+| Frontend implementation notes | `/landing-page/docs/` |
+| Root directory | ONLY: README.md, CURRENT_STATUS.md, config files, Dockerfile |
+
+### Forbidden Patterns
+- ❌ NO debug notes in root (use `/docs/troubleshooting/` with dates)
+- ❌ NO one-off setup guides in root (put in `/docs/guides/`)
+- ❌ NO duplicate documentation across directories
+- ❌ NO numbered docs with the same prefix (e.g., two "10-*.md" files)
+- ❌ NO files named `*_CORRECTED.md`, `*_V2.md`, `*_NEW.md`, `*_BACKUP.md`
+
+## Data Files
+
+### Vocabulary Data
+- **Source of truth**: `backend/data/vocabulary.json`
+- Frontend copies/imports from backend during build
+- Never edit `landing-page/data/vocabulary.json` directly
+- **CRITICAL:** `vocabulary.json` is READ-ONLY for backend agents. Agents MUST write to PostgreSQL/Neo4j, NOT to JSON files.
+
+### General Data Rule
+- Each data entity has ONE canonical location
+- Other locations should import/copy, not duplicate
+
+### Backend Agent Rules (CRITICAL)
+- **Database-First:** All agent writes go to PostgreSQL/Neo4j
+- **vocabulary.json is READ-ONLY:** Agents MUST NOT write to `vocabulary.json` or any JSON data files
+- **Concurrency:** Use worker queue/semaphore patterns to prevent file locking and API rate limit issues
+- **Safety:** Content Curation agents verify user-submitted lists for safety before publishing
+- **If you see agents writing to JSON files** - flag it as a critical error and refactor to database writes
+
+## Decision-Making Protocol
+
+### Before Creating Any New `.md` File
+Ask these questions in order:
+1. Does this belong in an EXISTING doc? → **Update instead**
+2. Is this a one-time note? → **Don't create a file**, use git commit message or comments
+3. Is this superseding another doc? → **Delete/archive the old one FIRST**
+4. Is this debugging notes? → Put in `/docs/troubleshooting/YYYY-MM-DD-topic.md`
+
+### When Making Architecture Decisions
+Document in `/docs/decisions/` using ADR format:
+```
+ADR-NNN-short-title.md
+- Status: Proposed | Accepted | Deprecated | Superseded
+- Context: Why we needed to decide
+- Decision: What we chose
+- Consequences: Pros and cons
+```
+
+## Cleanup Triggers
+
+### Immediate Action Required When You See:
+| Pattern | Action |
+|---------|--------|
+| Multiple files about same topic | Consolidate into ONE |
+| "OUTDATED" warnings in docs | Delete the outdated doc |
+| Files named `*_CORRECTED`, `*_V2` | Merge into original, delete variant |
+| Status info scattered in multiple places | Move ALL to `CURRENT_STATUS.md` |
+| Duplicate folders with similar content | Merge into one, delete other |
+
+## Code Organization
+
+### Avoid Duplication
+- Check if similar functionality exists before creating new modules
+- One service per concern, not multiple variations
+- When refactoring, delete old code immediately (no "backup" files in repo)
+
+### API Consistency
+- All API responses follow the same shape
+- All error handling uses the same pattern
+- Document deviations in `/docs/architecture/api-conventions.md`
+
+### Naming Conventions
+- Use consistent naming across frontend and backend
+- When renaming, update ALL references (don't leave old names)
+
+## Status Updates
+
+### Weekly Ritual
+Update `CURRENT_STATUS.md` with:
+- What's completed since last update
+- What's currently in progress
+- What's blocked and why
+- Updated progress percentages
+
+### After Major Milestones
+- Archive superseded documentation to `/docs/archive/`
+- Update the main README.md if user-facing info changed
+- Remove any temporary debugging files
+
+## AI Assistant Behavior
+
+When working on this project:
+
+1. **Before creating documentation**: Search for existing files on the topic. Suggest updating existing rather than creating new.
+
+2. **When encountering conflicts**: Flag documentation discrepancies and suggest consolidation before proceeding with the task.
+
+3. **After completing features**: Suggest updating `CURRENT_STATUS.md` and removing any related temporary files.
+
+4. **When adding new functionality**: Check for existing similar code/patterns and follow established conventions.
+
+5. **Proactive cleanup**: When you notice files that violate these rules, mention them and offer to help consolidate/archive.
+
+## Recent Cleanup (December 2025)
+
+✅ Archived all debug/status files from root to `/docs/archive/`
+✅ Deleted duplicate `backend/docs/core-learning-system/` folder
+✅ Fixed numbered doc collisions in `/docs/`
+✅ Consolidated status info into `CURRENT_STATUS.md`
+
+**Remaining:** `vocabulary.json` exists in both backend and landing-page (backend is authoritative)
+

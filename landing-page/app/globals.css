@@ -16,17 +16,82 @@
   }
 }
 
+/* ============================================
+   GAME VIEWPORT LAW (IMMUTABLE)
+   See: .cursorrules - "UI/UX & Game Feel Standards"
+   ============================================ */
+
+/* Kill web defaults - this is a game, not a website */
+html, body {
+  height: 100dvh;
+  width: 100vw;
+  overflow: hidden;
+  position: fixed;
+  margin: 0;
+  padding: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none; /* Prevent pull-to-refresh */
+}
+
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
+  background: #0f172a; /* Solid dark (game background) */
+}
+
+/* Disable text selection (game feel) */
+* {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Allow text selection only in specific areas */
+.text-selectable,
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Disable default touch behaviors (prevent iOS zoom, etc) */
+* {
+  touch-action: pan-x pan-y;
+  -webkit-touch-callout: none;
+}
+
+/* Allow scrolling only in designated containers */
+.scrollable {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+
+  /* ============================================
+     GAME VIEWPORT UTILITIES
+     ============================================ */
+
+  /* Game Container (replaces old body styling) */
+  .game-container {
+    @apply h-[100dvh] w-screen overflow-hidden fixed inset-0;
+  }
+
+  /* Z-Index Layers (enforced hierarchy) */
+  .z-world { z-index: 0; }
+  .z-content { z-index: 10; }
+  .z-overlay { z-index: 20; }
+  .z-modal { z-index: 30; }
+  .z-hud { z-index: 40; }
+  .z-toast { z-index: 50; }
+  .z-debug { z-index: 9999; }
 
   /* Safe Area Utilities for notched phones */
   .pb-safe {
@@ -48,6 +113,17 @@ body {
   /* Combined bottom nav padding (nav height + safe area) */
   .pb-bottom-nav {
     padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Top navbar padding (navbar height + safe area) */
+  .pt-top-nav {
+    padding-top: calc(4rem + env(safe-area-inset-top, 0px)); /* h-16 = 4rem on mobile */
+  }
+  
+  @screen lg {
+    .pt-top-nav {
+      padding-top: calc(5rem + env(safe-area-inset-top, 0px)); /* h-20 = 5rem on desktop */
+    }
   }
 
   /* Section Containers */
@@ -144,6 +220,40 @@ body {
   }
 }
 
+/* Gamification Animations */
+@keyframes slideUp {
+  from {
+    transform: translate(-50%, 100%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes xpPop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-xp-pop {
+  animation: xpPop 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
 @keyframes float-wave {
   0% {
     transform: translate(0, 0);
@@ -174,4 +284,65 @@ body {
   to {
     background-position: -200% 0;
   }
+}
+
+/* Enhanced Gamification Animations */
+@keyframes scale-in {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in {
+  0% {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-down {
+  0% {
+    transform: translate(-50%, -100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes confetti {
+  0% {
+    transform: translateY(-10vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-slide-down {
+  animation: slide-down 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-confetti {
+  animation: confetti 3s ease-in-out forwards;
 }

@@ -62,7 +62,11 @@ export function AchievementCard({ achievement }: AchievementCardProps) {
       {/* Progress or Reward */}
       {isUnlocked ? (
         <div className={`text-sm font-medium ${isUnlocked ? 'text-gray-700' : 'text-white/80'}`}>
-          ✅ 已解鎖 · +{achievement.xp_reward || 0} XP
+          <span>✅ 已解鎖</span>
+          <span className="ml-2">+{achievement.xp_reward || 0} XP</span>
+          {achievement.crystal_reward && achievement.crystal_reward > 0 && (
+            <span className="ml-2">+{achievement.crystal_reward} 💎</span>
+          )}
         </div>
       ) : (
         <div>

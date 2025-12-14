@@ -135,6 +135,16 @@ class LevelService:
         
         level_up = new_level > old_level
         
+        # Get new unlocks if level up occurred
+        new_unlocks = []
+        if level_up:
+            # Get all unlocks for levels between old and new
+            for level in range(old_level + 1, new_level + 1):
+                unlocks_at_level = self.get_new_unlocks_for_level(level)
+                for unlock in unlocks_at_level:
+                    unlock['unlocked_at_level'] = level
+                    new_unlocks.append(unlock)
+        
         return {
             'old_level': old_level,
             'new_level': new_level,
@@ -144,7 +154,8 @@ class LevelService:
             'level_up': level_up,
             'xp_to_next_level': xp_to_next,
             'xp_in_current_level': xp_in_level,
-            'progress_percentage': int((xp_in_level / xp_to_next) * 100) if xp_to_next > 0 else 0
+            'progress_percentage': int((xp_in_level / xp_to_next) * 100) if xp_to_next > 0 else 0,
+            'new_unlocks': new_unlocks  # List of features unlocked by this level up
         }
     
     def get_level_info(self, user_id: UUID) -> Dict:
@@ -318,5 +329,318 @@ class LevelService:
             {'user_id': user_id}
         )
         self.db.commit()
+
+    # ============================================
+    # LEVEL UNLOCK METHODS
+    # ============================================
+    
+    def get_unlocked_features(self, user_id: UUID) -> List[Dict]:
+        """
+        Get all features unlocked by user's current level.
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            List of unlocked features with their details
+        """
+        level_info = self.get_level_info(user_id)
+        user_level = level_info['level']
+        
+        result = self.db.execute(
+            text("""
+                SELECT unlock_code, unlock_type, name_en, name_zh, 
+                       description_en, description_zh, icon, level
+                FROM level_unlocks
+                WHERE level <= :user_level
+                ORDER BY level, unlock_type
+            """),
+            {'user_level': user_level}
+        )
+        
+        unlocks = []
+        for row in result.fetchall():
+            unlocks.append({
+                'code': row[0],
+                'type': row[1],
+                'name_en': row[2],
+                'name_zh': row[3],
+                'description_en': row[4],
+                'description_zh': row[5],
+                'icon': row[6],
+                'level': row[7]
+            })
+        
+        return unlocks
+    
+    def has_unlock(self, user_id: UUID, unlock_code: str) -> bool:
+        """
+        Check if user has unlocked a specific feature.
+        
+        Args:
+            user_id: User ID
+            unlock_code: The unlock code to check (e.g., 'tier_3_blocks', 'friend_list')
+            
+        Returns:
+            True if unlocked, False otherwise
+        """
+        result = self.db.execute(
+            text("SELECT has_unlock(:user_id, :unlock_code)"),
+            {'user_id': user_id, 'unlock_code': unlock_code}
+        )
+        return result.scalar() or False
+    
+    def get_new_unlocks_for_level(self, level: int) -> List[Dict]:
+        """
+        Get features that unlock at a specific level.
+        
+        Args:
+            level: The level to check
+            
+        Returns:
+            List of features unlocking at that level
+        """
+        result = self.db.execute(
+            text("""
+                SELECT unlock_code, unlock_type, name_en, name_zh, 
+                       description_en, description_zh, icon
+                FROM level_unlocks
+                WHERE level = :level
+                ORDER BY unlock_type
+            """),
+            {'level': level}
+        )
+        
+        unlocks = []
+        for row in result.fetchall():
+            unlocks.append({
+                'code': row[0],
+                'type': row[1],
+                'name_en': row[2],
+                'name_zh': row[3],
+                'description_en': row[4],
+                'description_zh': row[5],
+                'icon': row[6]
+            })
+        
+        return unlocks
+    
+    def get_next_unlock(self, user_id: UUID) -> Optional[Dict]:
+        """
+        Get the next feature that will be unlocked.
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            Next unlock info or None if all unlocked
+        """
+        level_info = self.get_level_info(user_id)
+        user_level = level_info['level']
+        
+        result = self.db.execute(
+            text("""
+                SELECT unlock_code, unlock_type, name_en, name_zh, 
+                       description_en, description_zh, icon, level
+                FROM level_unlocks
+                WHERE level > :user_level
+                ORDER BY level, unlock_type
+                LIMIT 1
+            """),
+            {'user_level': user_level}
+        )
+        
+        row = result.fetchone()
+        if not row:
+            return None
+        
+        return {
+            'code': row[0],
+            'type': row[1],
+            'name_en': row[2],
+            'name_zh': row[3],
+            'description_en': row[4],
+            'description_zh': row[5],
+            'icon': row[6],
+            'level': row[7]
+        }
+    
+    def get_tier_access(self, user_id: UUID) -> List[int]:
+        """
+        Get list of block tiers accessible to user based on level.
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            List of accessible tier numbers
+        """
+        level_info = self.get_level_info(user_id)
+        user_level = level_info['level']
+        
+        # Tier access based on level
+        accessible_tiers = [1, 2]  # Always accessible
+        
+        if user_level >= 5:
+            accessible_tiers.append(3)  # Phrases
+        if user_level >= 10:
+            accessible_tiers.append(4)  # Idioms
+        if user_level >= 15:
+            accessible_tiers.extend([5, 6, 7])  # Patterns, Register, Context
+        
+        return accessible_tiers
+    
+    # ============================================
+    # PRESTIGE METHODS
+    # ============================================
+    
+    def get_prestige_info(self, user_id: UUID) -> Dict:
+        """
+        Get user's prestige information.
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            Prestige level and bonus info
+        """
+        # Ensure prestige record exists
+        self.db.execute(
+            text("SELECT initialize_user_prestige(:user_id)"),
+            {'user_id': user_id}
+        )
+        
+        result = self.db.execute(
+            text("""
+                SELECT prestige_level, total_xp_earned_lifetime, 
+                       last_prestige_at, xp_bonus_multiplier
+                FROM user_prestige
+                WHERE user_id = :user_id
+            """),
+            {'user_id': user_id}
+        )
+        
+        row = result.fetchone()
+        if not row:
+            return {
+                'prestige_level': 0,
+                'total_xp_lifetime': 0,
+                'last_prestige_at': None,
+                'xp_bonus_multiplier': 1.0,
+                'can_prestige': False
+            }
+        
+        level_info = self.get_level_info(user_id)
+        can_prestige = level_info['level'] >= 60 and row[0] < 10
+        
+        return {
+            'prestige_level': row[0],
+            'total_xp_lifetime': row[1],
+            'last_prestige_at': row[2].isoformat() if row[2] else None,
+            'xp_bonus_multiplier': float(row[3]),
+            'can_prestige': can_prestige
+        }
+    
+    def prestige(self, user_id: UUID) -> Dict:
+        """
+        Perform prestige reset for user.
+        
+        Requirements:
+        - User must be level 60+
+        - Prestige level must be < 10
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            New prestige info and rewards
+        """
+        level_info = self.get_level_info(user_id)
+        prestige_info = self.get_prestige_info(user_id)
+        
+        if level_info['level'] < 60:
+            raise ValueError("Must be level 60 or higher to prestige")
+        
+        if prestige_info['prestige_level'] >= 10:
+            raise ValueError("Maximum prestige level (10) reached")
+        
+        new_prestige = prestige_info['prestige_level'] + 1
+        new_multiplier = 1.0 + (new_prestige * 0.05)  # +5% per prestige
+        
+        # Update prestige
+        self.db.execute(
+            text("""
+                UPDATE user_prestige
+                SET prestige_level = :prestige,
+                    total_xp_earned_lifetime = total_xp_earned_lifetime + :current_xp,
+                    last_prestige_at = NOW(),
+                    xp_bonus_multiplier = :multiplier,
+                    updated_at = NOW()
+                WHERE user_id = :user_id
+            """),
+            {
+                'user_id': user_id,
+                'prestige': new_prestige,
+                'current_xp': level_info['total_xp'],
+                'multiplier': new_multiplier
+            }
+        )
+        
+        # Reset XP to 0 (level 1)
+        self.db.execute(
+            text("""
+                UPDATE user_xp
+                SET total_xp = 0,
+                    current_level = 1,
+                    xp_to_next_level = 100,
+                    xp_in_current_level = 0,
+                    updated_at = NOW()
+                WHERE user_id = :user_id
+            """),
+            {'user_id': user_id}
+        )
+        
+        # Award prestige crystals (100 per prestige level)
+        crystal_reward = new_prestige * 100
+        try:
+            self.db.execute(
+                text("""
+                    SELECT add_crystals(
+                        :user_id, :amount, 'prestige', NULL,
+                        :desc_en, :desc_zh
+                    )
+                """),
+                {
+                    'user_id': user_id,
+                    'amount': crystal_reward,
+                    'desc_en': f'Prestige {new_prestige} reward',
+                    'desc_zh': f'榮耀 {new_prestige} 獎勵'
+                }
+            )
+        except Exception:
+            pass  # Crystal tables might not exist yet
+        
+        self.db.commit()
+        
+        return {
+            'new_prestige_level': new_prestige,
+            'xp_bonus_multiplier': new_multiplier,
+            'crystal_reward': crystal_reward,
+            'new_level': 1,
+            'total_xp_lifetime': prestige_info['total_xp_lifetime'] + level_info['total_xp']
+        }
+    
+    def get_xp_multiplier(self, user_id: UUID) -> float:
+        """
+        Get user's total XP multiplier (from prestige).
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            XP multiplier (1.0 = no bonus)
+        """
+        prestige_info = self.get_prestige_info(user_id)
+        return prestige_info.get('xp_bonus_multiplier', 1.0)
 
 

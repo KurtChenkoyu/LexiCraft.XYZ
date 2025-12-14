@@ -1,8 +1,209 @@
 # LexiCraft Architecture Principles
 
+## ⚠️ IMMUTABLE CACHING RULE - DO NOT CHANGE
+
+**This is the authoritative caching strategy. Do not modify without explicit approval.**
+
+### Single Cache System (IndexedDB Only)
+
+- **IndexedDB is the ONLY cache** for all user data (profile, children, progress, achievements, goals, notifications, etc.)
+- **localStorage is FORBIDDEN** for user data - only allowed for tiny UI preferences (role preference, language)
+- **Load from IndexedDB first** (~10ms async), then sync from API in background
+- **Never block UI** - always render immediately from cache, update silently when API responds
+- **No dual cache systems** - everything goes through IndexedDB via `downloadService` and `localStore`
+
+### Why This Approach?
+
+Following the "Last War" game pattern:
+- Games use ONE persistent cache (IndexedDB)
+- Pre-load everything on login
+- Render instantly from cache
+- Sync in background silently
+
+### Enforcement
+
+Any code that uses localStorage for user data is WRONG and must be fixed.
+Check `UserDataContext.tsx` and `downloadService.ts` for the correct pattern.
+
+---
+
+## ⚠️ Landing Page vs App Separation (IMMUTABLE)
+
+**Landing pages and app pages are SEPARATE. Do not confuse them.**
+
+### Route Groups
+
+- **`(marketing)/`** - Public landing pages (no auth, no user data)
+- **`(auth)/`** - Auth flow pages (auth only, no user data)
+- **`(app)/`** - Authenticated app pages (auth + user data)
+
+### Context Providers Location
+
+**Root Layout** (`app/[locale]/layout.tsx`):
+- ✅ `AuthProvider` - Needed for AppTopNav login button
+- ❌ `UserDataProvider` - **FORBIDDEN** (privacy issue for visitors)
+- ❌ `SidebarProvider` - **FORBIDDEN** (only for app pages)
+
+**App Layout** (`app/[locale]/(app)/layout.tsx`):
+- ✅ `UserDataProvider` - Loads user data from IndexedDB
+- ✅ `SidebarProvider` - Manages sidebar state
+
+### Why This Separation?
+
+1. **Privacy**: Visitors never load cached user data
+2. **Performance**: Landing pages are lighter
+3. **Security**: User data only for authenticated users
+4. **Standard Practice**: Common Next.js SaaS pattern
+
+### Common Mistakes
+
+❌ **WRONG**: Putting `UserDataProvider` in root layout
+```tsx
+// Root layout - WRONG
+<UserDataProvider>  // ❌ Visitors would load cached data
+  {children}
+</UserDataProvider>
+```
+
+✅ **CORRECT**: Only in app layout
+```tsx
+// Root layout - CORRECT
+<AuthProvider>  // ✅ Only auth, no user data
+  {children}
+</AuthProvider>
+
+// App layout - CORRECT
+<UserDataProvider>  // ✅ Only for authenticated users
+  <SidebarProvider>
+    {children}
+  </SidebarProvider>
+</UserDataProvider>
+```
+
+---
+
 ## 🎮 Core Principle: "As Snappy as Last War"
 
 **Reference**: Mobile games like Last War load instantly. Users expect immediate feedback. Our app must feel the same.
+
+---
+
+## 🚀 Bootstrap Frontloading Strategy (December 2024)
+
+**This is the implementation of the "Last War" pattern. All pages load instantly after Bootstrap.**
+
+### How It Works
+
+1. **Loading Screen** - User sees a game-style loading screen with progress steps
+2. **Bootstrap Service** - Loads ALL page data into Zustand (14 steps)
+3. **Page Render** - Pages read from Zustand instantly (no API calls!)
+
+### Bootstrap Steps
+
+```typescript
+// services/bootstrap.ts - THE source of truth
+const BOOTSTRAP_STEPS = [
+  'Loading profile...',
+  'Loading children...',
+  'Loading children summaries...',
+  'Loading wallet...',
+  'Loading progress...',
+  'Loading achievements...',
+  'Loading goals...',
+  'Loading currencies...',
+  'Loading rooms...',
+  'Loading vocabulary...',
+  'Preparing mining area...',
+  'Loading due cards...',
+  'Loading leaderboard...',
+  'Finalizing...',
+]
+```
+
+### Page Component Pattern
+
+```typescript
+'use client'
+import { useAppStore, selectMyData } from '@/stores/useAppStore'
+
+export default function MyPage() {
+  // ⚡ Read from Zustand (pre-loaded by Bootstrap)
+  const myData = useAppStore(selectMyData)
+  const isBootstrapped = useAppStore((state) => state.isBootstrapped)
+  
+  // Layout shows loading screen until this is true
+  if (!isBootstrapped) return null
+  
+  // Render instantly with pre-loaded data
+  return <div>{myData}</div>
+}
+```
+
+### ❌ NEVER Do This
+
+```typescript
+// WRONG: Fetching in useEffect
+useEffect(() => {
+  fetch('/api/mydata').then(setData)  // ❌ Causes loading delay
+}, [])
+```
+
+### ✅ Always Do This
+
+```typescript
+// CORRECT: Read from Zustand
+const data = useAppStore(selectData)  // ✅ Instant!
+```
+
+### Adding New Data to Bootstrap
+
+1. **Add to Zustand** (`stores/useAppStore.ts`):
+   ```typescript
+   myData: null,
+   setMyData: (data) => set({ myData: data }),
+   export const selectMyData = (state) => state.myData
+   ```
+
+2. **Add to Bootstrap** (`services/bootstrap.ts`):
+   ```typescript
+   // Step N: Load My Data
+   const data = await downloadService.getMyData()
+   store.setMyData(data)
+   ```
+
+3. **Use in Page**:
+   ```typescript
+   const myData = useAppStore(selectMyData)
+   ```
+
+### Progress & Starter Pack Handling
+
+The Mine page has special logic because its data depends on user progress:
+
+```typescript
+// 1. Load from IndexedDB first (instant, offline-first)
+const progressMap = new Map()
+const localProgress = await localStore.getAllProgress()
+localProgress.forEach(p => progressMap.set(p.senseId, p.status))
+
+// 2. Try backend API (with timeout)
+try {
+  const fresh = await Promise.race([api.getProgress(), timeout(5000)])
+  fresh.forEach(p => progressMap.set(p.sense_id, p.status))
+} catch { /* use IndexedDB data */ }
+
+// 3. Build blocks with correct status
+for (const [senseId, status] of progressMap) {
+  blocks.push({ ...blockData, status })
+}
+```
+
+### Reference Files
+
+- `services/bootstrap.ts` - Bootstrap logic
+- `stores/useAppStore.ts` - Zustand store
+- `app/[locale]/(app)/layout.tsx` - Loading screen
+- `lib/local-store.ts` - IndexedDB operations
 
 ---
 
@@ -77,9 +278,19 @@ return (
 - `vocabulary.json` - Word definitions, connections
 - Static assets, UI components
 
+### Vocabulary Data Model
+- **Lemma-based indexing**: `byLemma` index built at load time from sense_ids
+- **Lemma extraction**: `be.v.01` → `be` (first segment of sense_id)
+- **Why**: The `word` field may contain inflected forms (`were`), but lookups need lemmas (`be`)
+- **Result**: `getSensesForWord("be")` correctly returns `["be.v.01", "be.v.02", ...]`
+
 ### Priority 2: IndexedDB Cache (Fast, ~10ms)
-- `localStore` - User progress, cached API responses
+- **IndexedDB is the ONLY cache** for all user data
+- `localStore.progress` - User block progress
+- `localStore.verificationBundles` - Pre-cached MCQs for instant verification
+- `downloadService` - User profile, children, achievements, goals, notifications, etc.
 - Survives app restarts
+- **localStorage is FORBIDDEN for user data** - only allowed for tiny UI preferences
 
 ### Priority 3: API Fetch (Background)
 - Server data - leaderboards, notifications
@@ -102,19 +313,21 @@ Page Load
 
 | Page | Bundled/Default | Background Fetch |
 |------|-----------------|------------------|
-| **Mine** | `vocabulary.json` | User progress from API |
+| **Mine** | `vocabulary.json` | User progress + pre-cache verification bundles |
 | **Profile** | Default Level 1 profile | Full profile from API |
 | **Leaderboards** | Empty list | Rankings from API |
-| **Verification** | "No cards due" 🎉 | Due cards from API |
+| **Verification** | Cached MCQs from bundles | Submit results (background) |
 
 ---
 
 ## 5. Key Files
 
 - `lib/vocabulary.ts` - Bundled vocabulary data
-- `lib/local-store.ts` - IndexedDB for offline cache
+- `lib/local-store.ts` - IndexedDB for offline cache (progress + verification bundles + user data)
 - `services/syncService.ts` - Background sync queue
-- `services/downloadService.ts` - Pre-download user data
+- `services/bundleCacheService.ts` - Pre-cache verification bundles for entire inventory
+- `services/downloadService.ts` - Pre-download user data (uses IndexedDB only)
+- `contexts/UserDataContext.tsx` - User data context (uses IndexedDB via downloadService, NOT localStorage)
 
 ---
 

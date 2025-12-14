@@ -331,8 +331,9 @@ def get_algorithm_for_user(user_id: UUID, db_session=None) -> SpacedRepetitionAl
     
     algorithm_type = get_user_algorithm(user_id, db_session)
     
-    if algorithm_type == 'fsrs':
-        return FSRSService()
-    else:
-        return SM2PlusService()
+    # TEMPORARY: Force SM-2+ until FSRS library API is updated
+    # The fsrs 6.x library changed API significantly (repeat() -> review_card())
+    # if algorithm_type == 'fsrs':
+    #     return FSRSService()
+    return SM2PlusService()
 

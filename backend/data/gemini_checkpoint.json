@@ -1,0 +1,35 @@
+{
+  "batch_num": 524,
+  "timestamp": "2025-12-12T09:39:33.759757",
+  "stats": {
+    "total_words": 10470,
+    "processed": 10376,
+    "failed": 30,
+    "api_calls": 524,
+    "tokens_used": 11243907
+  },
+  "failed_batches": [
+    [
+      "tutor.v.01",
+      "truthful.a.01",
+      "tulip.n.01",
+      "typist.n.01",
+      "twinkle.v.02",
+      "typewriter.n.01",
+      "branchlet.n.01",
+      "submerged.s.01",
+      "unite.v.01",
+      "express.v.02",
+      "vacant.s.02",
+      "useless.a.01",
+      "untouched.a.03",
+      "conceited.s.01",
+      "vase.n.01",
+      "vapor.n.01",
+      "undefined.a.01",
+      "vein.n.01",
+      "feasible.s.01",
+      "vibrate.v.01"
+    ]
+  ]
+}

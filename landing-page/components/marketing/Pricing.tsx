@@ -80,7 +80,7 @@ export default function Pricing() {
 
             {/* CTA Button */}
             <Link
-              href="/dashboard"
+              href="/parent/dashboard"
               className="block w-full px-8 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white rounded-lg font-bold text-center transition-all shadow-lg hover:shadow-xl"
             >
               立即開始 →

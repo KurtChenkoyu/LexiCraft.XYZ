@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Vocabulary Debug Tool</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #1e293b;
+      color: #e2e8f0;
+    }
+    button {
+      background: #0ea5e9;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px 5px 10px 0;
+    }
+    button:hover {
+      background: #0284c7;
+    }
+    .info {
+      background: #334155;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 10px 0;
+      font-family: monospace;
+      font-size: 13px;
+    }
+    .success {
+      background: #10b981;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+    .error {
+      background: #ef4444;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+    pre {
+      background: #0f172a;
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
+      max-height: 300px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Vocabulary Debug Tool</h1>
+  
+  <div class="info">
+    <strong>Expected State:</strong><br>
+    • Database: LexiCraftVocab_V3<br>
+    • Version: 5.0-gemini<br>
+    • Words: 10,470+
+  </div>
+
+  <button onclick="checkStatus()">🔍 Check Status</button>
+  <button onclick="clearOldDbs()">🗑️ Clear Old Databases</button>
+  <button onclick="forceReload()">🔄 Force Reload</button>
+
+  <div id="output"></div>
+
+  <script src="https://unpkg.com/dexie@3.2.7/dist/dexie.min.js"></script>
+  <script>
+    const output = document.getElementById('output')
+
+    async function checkStatus() {
+      output.innerHTML = '<div class="info">Checking...</div>'
+      
+      try {
+        const dbs = await indexedDB.databases()
+        let html = '<div class="info"><strong>All Databases:</strong><br>'
+        
+        for (const db of dbs) {
+          html += `• ${db.name} (v${db.version})<br>`
+        }
+        html += '</div>'
+        
+        // Check vocabulary database specifically
+        const vocabDb = new Dexie('LexiCraftVocab_V3')
+        vocabDb.version(1).stores({
+          senses: 'id, word, frequency_rank, cefr, tier, [word+pos]',
+          metadata: 'key'
+        })
+        
+        try {
+          const count = await vocabDb.senses.count()
+          const versionRecord = await vocabDb.metadata.get('version')
+          const version = versionRecord ? versionRecord.value : 'not set'
+          
+          if (count >= 10000 && version === '5.0-gemini') {
+            html += `<div class="success">✅ Vocabulary Ready!<br>
+              • Words: ${count.toLocaleString()}<br>
+              • Version: ${version}<br>
+              • Database: LexiCraftVocab_V3
+            </div>`
+          } else {
+            html += `<div class="error">❌ Vocabulary NOT Ready<br>
+              • Words: ${count.toLocaleString()} (expected 10,470+)<br>
+              • Version: ${version} (expected 5.0-gemini)<br>
+              • Database: LexiCraftVocab_V3
+            </div>`
+          }
+          
+          // Show sample words
+          const sampleWords = await vocabDb.senses.limit(5).toArray()
+          html += '<div class="info"><strong>Sample Words:</strong><pre>'
+          html += JSON.stringify(sampleWords.map(w => ({ 
+            word: w.word, 
+            id: w.id,
+            connections: Object.keys(w.connections || {})
+          })), null, 2)
+          html += '</pre></div>'
+          
+        } catch (err) {
+          html += `<div class="error">❌ Error accessing V3 database:<br>${err.message}</div>`
+        }
+        
+        output.innerHTML = html
+      } catch (error) {
+        output.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`
+      }
+    }
+
+    async function clearOldDbs() {
+      const dbs = await indexedDB.databases()
+      let deleted = 0
+      
+      for (const db of dbs) {
+        // Only delete old vocabulary databases
+        if (db.name && (db.name.includes('LexiCraftVocab_V2') || db.name === 'LexiCraftVocabulary')) {
+          indexedDB.deleteDatabase(db.name)
+          deleted++
+          console.log(`Deleted ${db.name}`)
+        }
+      }
+      
+      output.innerHTML = `<div class="success">✅ Deleted ${deleted} old database(s)</div>`
+      setTimeout(checkStatus, 1000)
+    }
+
+    async function forceReload() {
+      if (!confirm('This will clear ALL vocabulary databases and trigger a fresh 126MB download. Continue?')) {
+        return
+      }
+      
+      const dbs = await indexedDB.databases()
+      for (const db of dbs) {
+        if (db.name && db.name.includes('LexiCraft') && !db.name.includes('supabase')) {
+          indexedDB.deleteDatabase(db.name)
+        }
+      }
+      
+      output.innerHTML = '<div class="success">✅ Cache cleared! Redirecting to Mining page...</div>'
+      setTimeout(() => {
+        window.location.href = '/learner/mine'
+      }, 2000)
+    }
+
+    // Auto-check on load
+    checkStatus()
+  </script>
+</body>
+</html>
+
+
+

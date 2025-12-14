@@ -76,8 +76,8 @@ class SM2PlusService(SpacedRepetitionAlgorithm):
             learning_progress_id=learning_progress_id,
             learning_point_id=learning_point_id,
             algorithm_type='sm2_plus',
-            current_interval=1,
-            scheduled_date=date.today() + timedelta(days=1),
+            current_interval=0,  # New cards are due immediately
+            scheduled_date=date.today(),  # Due today for first review
             ease_factor=initial_ef,
             consecutive_correct=0,
             difficulty=initial_difficulty,

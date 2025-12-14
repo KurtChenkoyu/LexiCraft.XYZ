@@ -58,7 +58,7 @@ export async function createAuthenticatedClient(): Promise<AxiosInstance> {
   
   const client = axios.create({
     baseURL: API_BASE,
-    timeout: 30000,
+    timeout: 60000, // 60s timeout (increased for parallel requests on dev backend)
     headers: {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),

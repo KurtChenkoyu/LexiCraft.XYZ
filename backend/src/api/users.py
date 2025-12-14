@@ -355,6 +355,122 @@ async def get_my_children(
         db.close()
 
 
+class ChildSummary(BaseModel):
+    """Lightweight child summary for parent quick view."""
+    id: str
+    name: Optional[str]
+    age: Optional[int]
+    email: str
+    # Summary stats
+    level: int
+    total_xp: int
+    current_streak: int
+    vocabulary_size: int
+    words_learned_this_week: int
+    last_active_date: Optional[str]
+
+
+@router.get("/me/children/summary", response_model=List[ChildSummary])
+async def get_children_summary(
+    user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db_session)
+):
+    """
+    Get lightweight summary of all children for quick parent view.
+    
+    Returns minimal data (level, streak, today's progress) for each child.
+    Much faster than full CoachDashboard.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        logger.info(f"📊 Getting children summary for user {user_id}")
+        
+        # Verify parent role
+        if not user_crud.user_has_role(db, user_id, 'parent'):
+            raise HTTPException(status_code=403, detail="Must be a parent")
+        
+        # Get children
+        children = user_crud.get_user_children(db, user_id)
+        logger.info(f"📊 Found {len(children)} children")
+        summaries = []
+        
+        # Import services
+        from ..services.levels import LevelService
+        from ..services.learning_velocity import LearningVelocityService
+        from ..services.vocabulary_size import VocabularySizeService
+        
+        for child in children:
+            logger.info(f"📊 Processing child {child.id} ({child.name})")
+            
+            # Check if child user actually exists (handle orphaned relationships)
+            user_exists = user_crud.get_user_by_id(db, child.id)
+            if not user_exists:
+                logger.warning(f"  ⚠️ Child {child.id} has no user record (orphaned relationship), skipping")
+                continue
+            
+            try:
+                # Get basic stats (lightweight queries)
+                level_service = LevelService(db)
+                level_info = level_service.get_level_info(child.id)
+                logger.info(f"  ✅ Level: {level_info}")
+                
+                velocity_service = LearningVelocityService(db)
+                activity = velocity_service.get_activity_summary(child.id)
+                logger.info(f"  ✅ Activity: {activity}")
+                
+                vocab_service = VocabularySizeService(db)
+                vocab = vocab_service.get_vocabulary_stats(child.id)
+                logger.info(f"  ✅ Vocab: {vocab}")
+                
+                summaries.append(ChildSummary(
+                    id=str(child.id),
+                    name=child.name,
+                    age=child.age,
+                    email=child.email,
+                    level=level_info['level'],
+                    total_xp=level_info['total_xp'],
+                    current_streak=activity['activity_streak_days'],
+                    vocabulary_size=vocab['vocabulary_size'],
+                    words_learned_this_week=activity.get('words_learned_this_week', 0),
+                    last_active_date=activity.get('last_active_date')
+                ))
+                logger.info(f"  ✅ Added summary for {child.name}")
+            except Exception as child_error:
+                logger.error(f"  ❌ Failed to get stats for child {child.id}: {child_error}")
+                import traceback
+                traceback.print_exc()
+                # Rollback the transaction to recover
+                db.rollback()
+                # Add child with default values (Level 1, no progress)
+                summaries.append(ChildSummary(
+                    id=str(child.id),
+                    name=child.name,
+                    age=child.age,
+                    email=child.email,
+                    level=1,
+                    total_xp=0,
+                    current_streak=0,
+                    vocabulary_size=0,
+                    words_learned_this_week=0,
+                    last_active_date=None
+                ))
+                logger.info(f"  ⚠️ Added default summary for {child.name} (new learner with no progress yet)")
+        
+        logger.info(f"✅ Returning {len(summaries)} summaries")
+        return summaries
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Children summary failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to get children summary: {str(e)}")
+    finally:
+        db.close()
+
+
 @router.get("/debug/token")
 async def debug_token(
     authorization: Optional[str] = Header(None)

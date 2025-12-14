@@ -342,12 +342,46 @@ LIMIT 10
 - **Statistical monitoring**: Track pass rates, adjust difficulty
 - **User feedback**: Improve questions based on feedback
 
+## Verification Bundle Pre-Caching
+
+### Strategy
+
+MCQs are pre-cached for the user's entire block inventory when they visit the Mine page. This enables instant MCQ loading without API calls during verification.
+
+### Flow
+
+1. User visits Mine → Starter pack loads from `vocabulary.json`
+2. Background: Fetch verification bundles for all inventory blocks (`POST /api/v1/mcq/bundles`)
+3. Store in IndexedDB (`localStore.verificationBundles`)
+4. User forges/verifies any word → MCQs load instantly from cache (~10ms)
+5. Answer feedback is immediate (correct_index available locally)
+6. Server submission happens in background for gamification
+
+### Bundle Structure
+
+Each bundle contains:
+- `senseId`: The sense identifier
+- `word`: The vocabulary word
+- `mcqs`: Array of MCQ objects with `correct_index` for instant feedback
+- `cachedAt`: Timestamp for cache freshness
+
+### Storage
+
+~2.5KB per sense. 500 senses = 1.25MB (minimal for IndexedDB).
+
+### Key Files
+
+- `services/bundleCacheService.ts` - Pre-cache logic
+- `lib/local-store.ts` - IndexedDB storage (verificationBundles store)
+- `components/features/mcq/MCQSession.tsx` - Cache-first loading
+- `components/features/mcq/MCQCard.tsx` - Instant feedback using cached correct_index
+
 ## Next Steps
 
-1. **Implement MCQ generation** from Learning Point Cloud
-2. **Build verification scheduler** (spaced repetition)
-3. **Create scoring system** (with partial credit option)
-4. **Test with sample components**
+1. ~~Implement MCQ generation from Learning Point Cloud~~ ✅
+2. ~~Build verification scheduler (spaced repetition)~~ ✅
+3. ~~Create scoring system (with partial credit option)~~ ✅
+4. ~~Implement verification bundle pre-caching~~ ✅
 5. **Monitor and adjust** based on results
 
 See `verification-rules.md` for complete verification requirements.

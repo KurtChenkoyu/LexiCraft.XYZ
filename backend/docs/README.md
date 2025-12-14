@@ -78,8 +78,11 @@ Engagement and motivation features (XP, achievements, levels).
 
 ### MCQ & Adaptive Systems
 - `ADAPTIVE_STATISTICAL_INTEGRATION.md` - MCQ + Spaced Repetition integration
-- `MCQ_GENERATION_EXPLAINED.md` - How MCQs are generated
+- `MCQ_GENERATION_EXPLAINED.md` - How MCQs are generated (V3: VocabularyStore-based)
 - `MCQ_INDUSTRY_STANDARDS_COMPARISON.md` - Quality standards
+
+### Data Schema
+- `VOCABULARY_JSON_SCHEMA_V3.md` - Vocabulary JSON V3 schema (denormalized, embedded connections)
 
 ---
 

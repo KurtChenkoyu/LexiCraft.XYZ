@@ -35,6 +35,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Set, Tuple
 from dataclasses import dataclass, asdict
+from difflib import SequenceMatcher
 from tqdm import tqdm
 
 # Add parent directory to path
@@ -291,6 +292,156 @@ class VocabularyPipelineV2:
             'related': list(related),
             'opposite': list(opposite)
         }
+    
+    # Common ESL confusion pairs (curated list for Taiwan learners)
+    COMMON_CONFUSIONS = {
+        'accept': [('except', 'spelling'), ('expect', 'spelling')],
+        'affect': [('effect', 'spelling')],
+        'effect': [('affect', 'spelling')],
+        'advice': [('advise', 'spelling')],
+        'advise': [('advice', 'spelling')],
+        'lose': [('loose', 'spelling')],
+        'loose': [('lose', 'spelling')],
+        'quite': [('quiet', 'spelling')],
+        'quiet': [('quite', 'spelling')],
+        'then': [('than', 'spelling')],
+        'than': [('then', 'spelling')],
+        'their': [('there', 'sound'), ('they\'re', 'sound')],
+        'there': [('their', 'sound'), ('they\'re', 'sound')],
+        'to': [('too', 'sound'), ('two', 'sound')],
+        'too': [('to', 'sound'), ('two', 'sound')],
+        'two': [('to', 'sound'), ('too', 'sound')],
+        'your': [('you\'re', 'sound')],
+        'its': [('it\'s', 'spelling')],
+        'principal': [('principle', 'spelling')],
+        'principle': [('principal', 'spelling')],
+        'stationary': [('stationery', 'spelling')],
+        'stationery': [('stationary', 'spelling')],
+        'complement': [('compliment', 'spelling')],
+        'compliment': [('complement', 'spelling')],
+        'desert': [('dessert', 'spelling')],
+        'dessert': [('desert', 'spelling')],
+        'lead': [('led', 'spelling')],
+        'breath': [('breathe', 'spelling')],
+        'breathe': [('breath', 'spelling')],
+        'cloth': [('clothe', 'spelling')],
+        'clothe': [('cloth', 'spelling')],
+        'through': [('thorough', 'spelling'), ('threw', 'sound')],
+        'threw': [('through', 'sound')],
+        'weather': [('whether', 'sound')],
+        'whether': [('weather', 'sound')],
+        'where': [('were', 'sound'), ('wear', 'sound')],
+        'were': [('where', 'sound'), ('wear', 'sound')],
+        'wear': [('where', 'sound'), ('were', 'sound')],
+        'hear': [('here', 'sound')],
+        'here': [('hear', 'sound')],
+        'knew': [('new', 'sound')],
+        'new': [('knew', 'sound')],
+        'know': [('no', 'sound')],
+        'no': [('know', 'sound')],
+        'right': [('write', 'sound')],
+        'write': [('right', 'sound')],
+        'sea': [('see', 'sound')],
+        'see': [('sea', 'sound')],
+        'week': [('weak', 'sound')],
+        'weak': [('week', 'sound')],
+        'borrow': [('lend', 'semantic')],
+        'lend': [('borrow', 'semantic')],
+        'bring': [('take', 'semantic')],
+        'take': [('bring', 'semantic')],
+        'learn': [('teach', 'semantic')],
+        'teach': [('learn', 'semantic')],
+        'say': [('tell', 'semantic')],
+        'tell': [('say', 'semantic')],
+        'listen': [('hear', 'semantic')],
+        'look': [('see', 'semantic'), ('watch', 'semantic')],
+        'see': [('look', 'semantic'), ('watch', 'semantic')],
+        'watch': [('look', 'semantic'), ('see', 'semantic')],
+        'make': [('do', 'semantic')],
+        'do': [('make', 'semantic')],
+    }
+    
+    def _levenshtein_distance(self, s1: str, s2: str) -> int:
+        """Calculate Levenshtein edit distance between two strings."""
+        if len(s1) < len(s2):
+            return self._levenshtein_distance(s2, s1)
+        
+        if len(s2) == 0:
+            return len(s1)
+        
+        previous_row = range(len(s2) + 1)
+        for i, c1 in enumerate(s1):
+            current_row = [i + 1]
+            for j, c2 in enumerate(s2):
+                insertions = previous_row[j + 1] + 1
+                deletions = current_row[j] + 1
+                substitutions = previous_row[j] + (c1 != c2)
+                current_row.append(min(insertions, deletions, substitutions))
+            previous_row = current_row
+        
+        return previous_row[-1]
+    
+    def mine_confused_words(self, word: str, pos: str, all_words: Set[str]) -> List[Dict]:
+        """
+        Find words that could be confused with the target word.
+        
+        Sources:
+        1. Curated common confusion pairs (ESL-specific)
+        2. Levenshtein distance <= 2 (spelling similarity)
+        
+        Args:
+            word: Target word
+            pos: Part of speech
+            all_words: Set of all words in vocabulary (for Levenshtein matching)
+        
+        Returns:
+            List of {word, reason} dicts
+        """
+        confused = []
+        word_lower = word.lower()
+        seen_words = {word_lower}
+        
+        # 1. Check curated confusion pairs first (highest quality)
+        if word_lower in self.COMMON_CONFUSIONS:
+            for confused_word, reason in self.COMMON_CONFUSIONS[word_lower]:
+                if confused_word not in seen_words:
+                    confused.append({'word': confused_word, 'reason': reason})
+                    seen_words.add(confused_word)
+        
+        # 2. Find spelling-similar words via Levenshtein (limit to avoid explosion)
+        word_len = len(word)
+        candidates_checked = 0
+        max_candidates = 500  # Limit for performance
+        
+        for candidate in all_words:
+            if candidates_checked >= max_candidates:
+                break
+            
+            candidate_lower = candidate.lower()
+            
+            # Skip if same word or already found
+            if candidate_lower in seen_words:
+                continue
+            
+            # Only check words of similar length (optimization)
+            if abs(len(candidate) - word_len) > 2:
+                continue
+            
+            candidates_checked += 1
+            
+            # Calculate edit distance
+            distance = self._levenshtein_distance(word_lower, candidate_lower)
+            
+            # Add if distance is 1-2 (very similar but not identical)
+            if 0 < distance <= 2:
+                confused.append({'word': candidate, 'reason': 'spelling'})
+                seen_words.add(candidate_lower)
+                
+                # Limit total confused words
+                if len(confused) >= 10:
+                    break
+        
+        return confused
     
     def determine_tier(self, word_data: Dict) -> int:
         """Determine the block tier based on frequency and complexity."""
@@ -597,56 +748,208 @@ class VocabularyPipelineV2:
         return {'nodes': nodes, 'edges': edges}
     
     def build_output(self, words: List[Dict]) -> Dict[str, Any]:
-        """Build the final output structure."""
-        print("\nBuilding output structure...")
+        """
+        Build the final output structure (V3 denormalized format).
         
-        # Build words dict
-        words_dict = {}
+        V3 Changes:
+        - No separate 'words' dict - word data embedded in each sense
+        - 'other_senses' embedded for polysemy checking
+        - Flattened 'network' object instead of hop_1/hop_2/hop_3
+        - Pre-built indices for fast lookups
+        - CONFUSED_WITH relationships mined and embedded
+        """
+        print("\nBuilding output structure (V3 denormalized)...")
+        
+        # Build word data lookup for embedding
+        word_data_map = {}
         for word_data in words:
             word = word_data['word']
-            # Find senses for this word
-            sense_ids = [
-                sid for sid, sdata in self.enriched_senses.items()
-                if sdata['word'] == word
-            ]
-            
-            words_dict[word] = {
-                'name': word,
+            word_data_map[word] = {
                 'frequency_rank': word_data.get('frequency_rank'),
                 'moe_level': word_data.get('moe_level'),
-                'ngsl_rank': word_data.get('ngsl_rank'),
-                'senses': sense_ids
+                'ngsl_rank': word_data.get('ngsl_rank')
             }
         
-        # Build band index
-        band_index = {str(band): [] for band in [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9999]}
+        # Build word -> sense_ids mapping for other_senses
+        word_to_senses = {}
         for sense_id, sense_data in self.enriched_senses.items():
             word = sense_data['word']
-            if word in words_dict:
-                freq = words_dict[word].get('frequency_rank', 9999)
-                for band in [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000]:
-                    if freq <= band:
-                        band_index[str(band)].append(sense_id)
-                        break
-                else:
-                    band_index['9999'].append(sense_id)
+            if word not in word_to_senses:
+                word_to_senses[word] = []
+            word_to_senses[word].append(sense_id)
         
-        # Build graph data
-        graph_data = self.build_graph_data()
+        # Build all_words set for CONFUSED_WITH mining
+        all_words = set(word_data_map.keys())
+        
+        # Mine CONFUSED_WITH relationships for each word
+        print("  Mining CONFUSED_WITH relationships...")
+        word_confused_cache = {}
+        for word in tqdm(all_words, desc="  Mining confused"):
+            # Get primary sense to determine POS
+            senses = word_to_senses.get(word, [])
+            if senses:
+                primary_sense = self.enriched_senses.get(senses[0], {})
+                pos = primary_sense.get('pos', 'n')
+            else:
+                pos = 'n'
+            
+            confused = self.mine_confused_words(word, pos, all_words)
+            
+            # Convert word-level confused to sense-level
+            confused_senses = []
+            for conf in confused:
+                conf_word = conf['word']
+                conf_reason = conf['reason']
+                # Get first sense of confused word
+                conf_senses = word_to_senses.get(conf_word, [])
+                if conf_senses:
+                    confused_senses.append({
+                        'sense_id': conf_senses[0],
+                        'reason': conf_reason
+                    })
+            
+            word_confused_cache[word] = confused_senses
+        
+        # Denormalize senses with embedded word data and other_senses
+        denormalized_senses = {}
+        for sense_id, sense_data in self.enriched_senses.items():
+            word = sense_data['word']
+            word_info = word_data_map.get(word, {})
+            
+            # Get other senses of the same word (for polysemy checking)
+            all_senses_of_word = word_to_senses.get(word, [])
+            other_senses = [s for s in all_senses_of_word if s != sense_id]
+            
+            # Flatten hop data into network object
+            hop_1 = sense_data.get('hop_1', {})
+            hop_2 = sense_data.get('hop_2', {})
+            network_value = sense_data.get('network_value', {})
+            
+            network = {
+                'hop_1_count': hop_1.get('count', 0),
+                'hop_2_count': hop_2.get('count', 0),
+                'total_reachable': network_value.get('total_reachable', 0),
+                'total_xp': sense_data.get('value', {}).get('total_xp', 0)
+            }
+            
+            # Build denormalized sense
+            denormalized_sense = {
+                'id': sense_id,
+                'word': word,
+                'pos': sense_data.get('pos'),
+                'frequency_rank': word_info.get('frequency_rank'),
+                'moe_level': word_info.get('moe_level'),
+                'cefr': sense_data.get('cefr'),
+                'tier': sense_data.get('tier'),
+                'definition_en': sense_data.get('definition_en'),
+                'definition_zh': sense_data.get('definition_zh'),
+                'definition_zh_explanation': sense_data.get('definition_zh_explanation'),
+                'translation_source': sense_data.get('translation_source'),
+                'example_en': sense_data.get('example_en'),
+                'example_zh_translation': sense_data.get('example_zh_translation'),
+                'example_zh_explanation': sense_data.get('example_zh_explanation'),
+                'example_context': sense_data.get('example_context'),
+                'validated': sense_data.get('validated', False),
+                'connections': {
+                    'related': sense_data.get('connections', {}).get('related', []),
+                    'opposite': sense_data.get('connections', {}).get('opposite', []),
+                    'confused': word_confused_cache.get(word, []),  # CONFUSED_WITH from mining
+                    'phrases': sense_data.get('connections', {}).get('phrases', []),
+                    'morphological': sense_data.get('connections', {}).get('morphological', [])
+                },
+                'other_senses': other_senses,
+                'network': network
+            }
+            
+            denormalized_senses[sense_id] = denormalized_sense
+        
+        # Build indices
+        print("  Building indices...")
+        indices = self._build_indices(denormalized_senses)
+        
+        # Count stats
+        confused_count = sum(
+            1 for s in denormalized_senses.values() 
+            if s.get('connections', {}).get('confused')
+        )
         
         return {
-            'version': '2.0',
+            'version': '3.0',
             'exportedAt': datetime.now().isoformat(),
             'stats': {
-                'words': len(words_dict),
-                'senses': len(self.enriched_senses),
+                'senses': len(denormalized_senses),
+                'words': len(word_to_senses),
                 'validated': self.stats.validation_passed,
+                'withConfused': confused_count,
                 'errors': self.stats.errors
             },
-            'words': words_dict,
-            'senses': self.enriched_senses,
-            'bandIndex': band_index,
-            'graph_data': graph_data
+            'senses': denormalized_senses,
+            'indices': indices
+        }
+    
+    def _extract_lemma(self, sense_id: str) -> str:
+        """
+        Extract lemma from sense_id.
+        e.g., 'be.v.01' -> 'be', 'apple.n.01' -> 'apple'
+        """
+        parts = sense_id.split('.')
+        return parts[0] if parts else sense_id
+
+    def _build_indices(self, senses: Dict[str, Dict]) -> Dict[str, Dict]:
+        """
+        Build lookup indices for fast querying.
+        
+        byWord is indexed by LEMMA (extracted from sense_id), not word form.
+        This ensures lookups like 'be' find 'be.v.01' even if word field is 'were'.
+        """
+        by_word = {}  # Now indexed by lemma
+        by_word_form = {}  # Original word forms for reference
+        by_band = {str(band): [] for band in [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9999]}
+        by_pos = {'n': [], 'v': [], 'a': [], 'r': [], 's': []}
+        
+        for sense_id, sense_data in senses.items():
+            word_form = sense_data.get('word')
+            freq = sense_data.get('frequency_rank', 9999) or 9999
+            pos = sense_data.get('pos', 'n')
+            
+            # Extract lemma from sense_id
+            lemma = self._extract_lemma(sense_id)
+            
+            # byWord index (by LEMMA)
+            if lemma not in by_word:
+                by_word[lemma] = []
+            if sense_id not in by_word[lemma]:
+                by_word[lemma].append(sense_id)
+            
+            # byWordForm index (by actual word form, for reference)
+            if word_form:
+                if word_form not in by_word_form:
+                    by_word_form[word_form] = []
+                if sense_id not in by_word_form[word_form]:
+                    by_word_form[word_form].append(sense_id)
+            
+            # byBand index
+            for band in [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000]:
+                if freq <= band:
+                    by_band[str(band)].append(sense_id)
+                    break
+            else:
+                by_band['9999'].append(sense_id)
+            
+            # byPos index
+            if pos in by_pos:
+                by_pos[pos].append(sense_id)
+            elif pos:
+                # Handle other POS tags
+                if pos not in by_pos:
+                    by_pos[pos] = []
+                by_pos[pos].append(sense_id)
+        
+        return {
+            'byWord': by_word,  # Now contains lemmas
+            'byWordForm': by_word_form,  # Original word forms
+            'byBand': by_band,
+            'byPos': by_pos
         }
     
     def export(self, output_data: Dict):

@@ -23,7 +23,7 @@ from uuid import UUID
 import json
 
 try:
-    from fsrs import FSRS, Card, Rating, State
+    from fsrs import Scheduler, Card, Rating, State
     FSRS_AVAILABLE = True
 except ImportError:
     FSRS_AVAILABLE = False
@@ -66,7 +66,7 @@ class FSRSService(SpacedRepetitionAlgorithm):
         if not FSRS_AVAILABLE:
             raise RuntimeError("FSRS library not installed. Run: pip install fsrs")
         
-        self._fsrs = FSRS()
+        self._fsrs = Scheduler()
         
         # Apply custom parameters if provided
         if parameters:
@@ -167,8 +167,8 @@ class FSRSService(SpacedRepetitionAlgorithm):
             learning_progress_id=learning_progress_id,
             learning_point_id=learning_point_id,
             algorithm_type='fsrs',
-            current_interval=1,
-            scheduled_date=date.today() + timedelta(days=1),
+            current_interval=0,  # New cards are due immediately
+            scheduled_date=date.today(),  # Due today for first review
             ease_factor=2.5,  # Placeholder for compatibility
             consecutive_correct=0,
             stability=fsrs_card.stability,

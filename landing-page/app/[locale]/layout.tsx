@@ -7,8 +7,7 @@ import { routing } from '@/i18n/routing'
 import '../globals.css'
 import { AnalyticsProvider } from '@/components/features/AnalyticsProvider'
 import { AuthProvider } from '@/contexts/AuthContext'
-import { UserDataProvider } from '@/contexts/UserDataContext'
-import Navbar from '@/components/layout/Navbar'
+import { ConditionalNav } from '@/components/layout/ConditionalNav'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -58,12 +57,10 @@ export default async function LocaleLayout({
       <body className={inter.className}>
         <NextIntlClientProvider messages={messages}>
           <AuthProvider>
-            <UserDataProvider>
-              <AnalyticsProvider>
-                <Navbar currentLocale={locale} />
-                {children}
-              </AnalyticsProvider>
-            </UserDataProvider>
+            <AnalyticsProvider>
+              <ConditionalNav locale={locale} />
+              {children}
+            </AnalyticsProvider>
           </AuthProvider>
         </NextIntlClientProvider>
       </body>

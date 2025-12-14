@@ -28,12 +28,29 @@ from src.api import words as words_router
 from src.api import mine as mine_router
 from src.api import sync as sync_router
 from src.api import pipeline as pipeline_router
+from src.api import currencies as currencies_router
+from src.api import items as items_router
 
 app = FastAPI(
     title="LexiCraft API V8.1",
     description="LexiCraft Survey Engine with Progressive Survey Model (PSM) and FSRS A/B Testing",
     version="8.1"
 )
+
+# Request logging middleware (for debugging batch endpoint)
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    if "/api/v1/mcq/submit-batch" in str(request.url.path):
+        print(f"🔍 [MIDDLEWARE] {request.method} {request.url.path} - Received batch request")
+    try:
+        response = await call_next(request)
+        if "/api/v1/mcq/submit-batch" in str(request.url.path):
+            print(f"🔍 [MIDDLEWARE] {request.method} {request.url.path} - Response status: {response.status_code}")
+        return response
+    except Exception as e:
+        if "/api/v1/mcq/submit-batch" in str(request.url.path):
+            print(f"🔍 [MIDDLEWARE] ERROR in batch endpoint: {e}")
+        raise
 
 # CORS (Allow frontend access)
 # For development: allow all origins without credentials (CORS spec requirement)
@@ -46,6 +63,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request validation error handler (catches Pydantic validation errors)
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle request validation errors with CORS headers."""
+    error_detail = exc.errors()
+    print(f"VALIDATION ERROR: {error_detail}")
+    print(f"Request path: {request.url.path}")
+    print(f"Request method: {request.method}")
+    
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": error_detail},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+)
+
 # Global exception handler to ensure CORS headers on errors
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -56,6 +93,8 @@ async def global_exception_handler(request: Request, exc: Exception):
     # Log the full error for debugging
     print(f"ERROR: {error_detail}")
     print(f"TRACEBACK: {traceback_str}")
+    print(f"Request path: {request.url.path}")
+    print(f"Request method: {request.method}")
     
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -90,6 +129,8 @@ app.include_router(words_router.router)  # Mount the words endpoints
 app.include_router(mine_router.router)  # Mount the mine endpoints
 app.include_router(sync_router.router)  # Mount the sync endpoints (offline-first)
 app.include_router(pipeline_router.router)  # Mount the pipeline status/control endpoints
+app.include_router(currencies_router.router)  # Mount the currencies endpoints (three-currency economy)
+app.include_router(items_router.router)  # Mount the items/building endpoints
 
 
 @app.get("/")

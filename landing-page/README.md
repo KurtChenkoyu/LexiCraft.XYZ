@@ -16,6 +16,74 @@ Key rules:
 - Offline mode is valid, not an error
 - Empty leaderboard, "no cards due", Level 1 profile are all legitimate UI states
 
+## 🔒 Caching Strategy (IMMUTABLE)
+
+**IndexedDB is the single source of truth for all user data.**
+
+- All user data (profile, children, progress, achievements) → IndexedDB only
+- localStorage → Only for tiny UI preferences (role preference, language)
+- Load from IndexedDB first (~10ms), sync from API in background
+- Never block UI - render immediately from cache
+
+**DO NOT use localStorage for user data. This is a hard rule.**
+
+See [`docs/ARCHITECTURE_PRINCIPLES.md`](docs/ARCHITECTURE_PRINCIPLES.md) and [`docs/CACHING_RULES.md`](docs/CACHING_RULES.md) for details.
+
+## 🚀 Bootstrap Frontloading Strategy
+
+**Why we're instant:** The Bootstrap service (`services/bootstrap.ts`) pre-loads ALL page data into Zustand during the initial loading screen. After Bootstrap completes, every page renders instantly from memory.
+
+### Data Flow
+
+```
+User Login → Loading Screen → Bootstrap Service → Zustand Store → Page Renders (instant!)
+                    ↓
+            IndexedDB (offline cache)
+```
+
+### What Gets Bootstrapped (14 Steps)
+
+| Data | Store Key | Pages Using It |
+|------|-----------|----------------|
+| User Profile | `user` | All authenticated pages |
+| Children | `children`, `childrenSummaries` | Family page |
+| Learner Profile | `learnerProfile` | Profile, Mine pages |
+| Progress Stats | `progress` | Stats displays |
+| Achievements | `achievements` | Profile page |
+| Goals | `goals` | Goals page |
+| Currencies | `currencies` | Build page |
+| Rooms | `rooms` | Build page |
+| Vocabulary | IndexedDB (~30k senses) | Mine, Verification |
+| Mine Blocks | `mineBlocks` | Mine page |
+| Due Cards | `dueCards` | Verification page |
+| Leaderboard | `leaderboardData` | Leaderboards page |
+
+### Page Component Pattern
+
+```typescript
+// ✅ CORRECT: Read from Zustand (instant!)
+const myData = useAppStore(selectMyData)
+const isBootstrapped = useAppStore((state) => state.isBootstrapped)
+
+if (!isBootstrapped) return null // Layout shows loading screen
+
+return <div>{myData}</div> // Renders instantly!
+
+// ❌ WRONG: Don't fetch in useEffect
+useEffect(() => {
+  fetch('/api/data').then(setData) // NEVER DO THIS
+}, [])
+```
+
+### Adding New Data to Bootstrap
+
+1. **Add state to Zustand** (`stores/useAppStore.ts`)
+2. **Add Bootstrap step** (`services/bootstrap.ts`)
+3. **Update loading screen** (`app/[locale]/(app)/layout.tsx`)
+4. **Use Zustand selector in page** (no `useEffect` fetching!)
+
+See `.cursorrules` "Bootstrap Frontloading Strategy" section for full implementation details.
+
 ---
 
 ## Features

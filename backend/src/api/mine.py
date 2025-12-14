@@ -31,6 +31,14 @@ except ImportError:
 router = APIRouter(prefix="/api/v1/mine", tags=["Mine"])
 
 
+# --- Request Models ---
+
+class MineBatchRequest(BaseModel):
+    """Request to mine a batch of words."""
+    sense_ids: List[str]
+    tier: int = 1
+
+
 # --- Response Models ---
 
 class BlockConnection(BaseModel):
@@ -96,6 +104,11 @@ class StartForgingResponse(BaseModel):
     sense_id: str
     status: str
     message: str
+    # Delta Strategy fields (instant UI update)
+    delta_xp: int = 0           # XP gained for discovery
+    delta_sparks: int = 0       # Sparks earned
+    delta_discovered: int = 0   # +1 for new word
+    delta_hollow: int = 0       # +1 for in-progress word
 
 
 # --- Additional Response Models for Progress API ---
@@ -490,13 +503,17 @@ async def start_forging(
         existing = existing_result.fetchone()
         
         if existing:
-            # Already exists
+            # Already exists - no deltas (already counted)
             return StartForgingResponse(
                 success=True,
                 learning_progress_id=existing[0],
                 sense_id=sense_id,
                 status=existing[1] or 'pending',
-                message="Block already in learning progress"
+                message="Block already in learning progress",
+                delta_xp=0,
+                delta_sparks=0,
+                delta_discovered=0,
+                delta_hollow=0,
             )
         
         # Create new learning progress entry
@@ -518,14 +535,77 @@ async def start_forging(
             initial_difficulty=0.5
         )
         
+        # Delta Strategy: Award discovery bonus (5 XP, 1 spark for new word)
+        DISCOVERY_XP = 5
+        DISCOVERY_SPARKS = 1
+        
         return StartForgingResponse(
             success=True,
             learning_progress_id=progress.id,
             sense_id=sense_id,
             status=progress.status or 'pending',
-            message="Started forging block successfully"
+            message="Started forging block successfully",
+            delta_xp=DISCOVERY_XP,
+            delta_sparks=DISCOVERY_SPARKS,
+            delta_discovered=1,
+            delta_hollow=1,
         )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start forging: {str(e)}")
+
+
+@router.post("/batch")
+async def mine_batch(
+    request: MineBatchRequest,
+    user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db_session)
+):
+    """
+    Mine a batch of words (Phase 5b - Backend Persistence).
+    
+    Creates learning progress entries for mined words and awards points.
+    
+    Request Body:
+        - sense_ids: List of sense IDs to mine
+        - tier: Tier level (default 1)
+    
+    Returns:
+        - success: bool
+        - mined_count: int (newly added)
+        - skipped_count: int (already existed)
+        - new_wallet_balance: dict with current balance
+        - xp_gained: int
+    """
+    try:
+        # Validate input
+        if not request.sense_ids:
+            raise HTTPException(status_code=400, detail="sense_ids cannot be empty")
+        
+        if len(request.sense_ids) > 100:
+            raise HTTPException(status_code=400, detail="Cannot mine more than 100 words at once")
+        
+        # Use MineService to process
+        if NEO4J_AVAILABLE:
+            mine_service = MineService(db)
+        else:
+            # Fallback: process without Neo4j
+            from ..services.mine import MineService
+            mine_service = MineService(db, neo4j=None)
+        
+        result = mine_service.process_mining_batch(
+            user_id=user_id,
+            sense_ids=request.sense_ids,
+            tier=request.tier
+        )
+        
+        return result
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"Error in mine_batch: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to mine batch: {str(e)}")
 

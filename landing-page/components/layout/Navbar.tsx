@@ -95,19 +95,19 @@ export default function Navbar({ currentLocale }: { currentLocale: string }) {
                 {!isMobile && (
                   <>
                     <Link
-                      href="/profile"
+                      href="/learner/profile"
                       className="hidden lg:flex px-3 py-2 text-sm font-mono text-slate-400 hover:text-white transition-colors"
                     >
                       個人資料
                     </Link>
                     <Link
-                      href="/mine"
+                      href="/learner/mine"
                       className="hidden lg:flex px-3 py-2 text-sm font-mono text-slate-400 hover:text-white transition-colors"
                     >
                       礦區
                     </Link>
                     <Link
-                      href="/dashboard"
+                      href="/parent/dashboard"
                       className="px-4 py-2 text-sm font-mono font-bold text-neon-cyan border border-neon-cyan/30 rounded-lg hover:bg-neon-cyan/10 transition-all shadow-[0_0_10px_rgba(6,182,212,0.1)]"
                     >
                       控制台
@@ -158,7 +158,7 @@ export default function Navbar({ currentLocale }: { currentLocale: string }) {
             )}
 
             {/* Desktop only: Prospect Search Button */}
-            {!isMobile && user && vocabulary.isLoaded && (
+            {!isMobile && user && (
               <button
                 onClick={() => setIsSearchOpen(true)}
                 className="hidden lg:flex items-center gap-2 px-3 py-2 text-sm font-mono text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all group"

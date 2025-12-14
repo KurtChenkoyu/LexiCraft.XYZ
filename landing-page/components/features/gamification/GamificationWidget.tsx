@@ -61,7 +61,7 @@ export function GamificationWidget() {
             🎮 學習進度
           </h3>
           <Link
-            href="/profile"
+            href="/learner/profile"
             className="text-sm text-white/80 hover:text-white transition-colors"
           >
             查看更多 →
@@ -156,7 +156,7 @@ export function GamificationWidgetCompact() {
 
   return (
     <Link
-      href="/profile"
+      href="/learner/profile"
       className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-lg hover:from-indigo-500/30 hover:to-purple-500/30 transition-all border border-indigo-500/30"
     >
       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-sm font-bold text-white">

@@ -4,8 +4,15 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from '@/i18n/routing'
 import Link from 'next/link'
-import { checkOnboardingStatus } from '@/lib/onboarding'
 
+/**
+ * Login Page
+ * 
+ * After successful login, redirects to /start (Traffic Cop)
+ * which handles role-based routing and onboarding checks.
+ * 
+ * @see .cursorrules - App Architecture Bible, Section 3 "Traffic Cop Pattern"
+ */
 export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -27,18 +34,8 @@ export default function LoginPage() {
 
       if (error) throw error
 
-      // Check onboarding status and redirect accordingly
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const status = await checkOnboardingStatus(user.id)
-        if (status && !status.completed) {
-          router.push('/onboarding')
-        } else {
-          router.push('/dashboard')
-        }
-      } else {
-        router.push('/dashboard')
-      }
+      // Redirect to Traffic Cop - it handles role-based routing and onboarding
+      router.push('/start')
     } catch (error: any) {
       setError(error.message || '登入失敗，請重試')
     } finally {

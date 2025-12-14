@@ -12,12 +12,12 @@ export function ProfileQuickActions() {
 
   const handleSwitchToParent = () => {
     setRole('parent')
-    router.push('/dashboard')
+    router.push('/parent/dashboard')
   }
 
   const handleSwitchToMiner = () => {
     setRole('learner')
-    router.push('/mine')
+    router.push('/learner/mine')
   }
 
   // Determine if we're currently in miner mode (default) or parent mode
@@ -28,19 +28,19 @@ export function ProfileQuickActions() {
       {/* Quick Actions */}
       <div className="flex flex-wrap justify-center gap-4">
         <Link
-          href="/goals"
+          href="/parent/goals"
           className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl text-white font-semibold hover:shadow-lg hover:shadow-cyan-500/30 transition-all"
         >
           🎯 設定目標
         </Link>
         <Link
-          href="/leaderboards"
+          href="/learner/leaderboards"
           className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl text-white font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all"
         >
           🏆 排行榜
         </Link>
         <Link
-          href="/verification"
+          href="/learner/verification"
           className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl text-white font-semibold hover:shadow-lg hover:shadow-green-500/30 transition-all"
         >
           📖 開始學習
@@ -80,7 +80,7 @@ export function ProfileQuickActions() {
       {/* Settings & Logout */}
       <div className="flex justify-center gap-4 pt-4 border-t border-white/10">
         <Link
-          href="/settings"
+          href="/parent/settings"
           className="px-4 py-2 text-white/60 hover:text-white/80 transition-colors text-sm"
         >
           ⚙️ 設定

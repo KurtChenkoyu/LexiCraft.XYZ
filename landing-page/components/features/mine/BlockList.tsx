@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Block, BlockDetail as BlockDetailType } from '@/types/mine'
+import { AnimatePresence } from 'framer-motion'
+import { Block } from '@/types/mine'
 import { BlockCard } from './BlockCard'
-import { BlockDetailModal } from './BlockDetailModal'
-import { vocabulary } from '@/lib/vocabulary'
-import { progressApi } from '@/services/progressApi'
+import { MiningDetailPanel } from '@/components/features/mining'
 
 interface BlockListProps {
   blocks: Block[]
@@ -13,66 +12,13 @@ interface BlockListProps {
 
 export function BlockList({ blocks }: BlockListProps) {
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
-  const [blockDetail, setBlockDetail] = useState<BlockDetailType | null>(null)
-  const [isLoadingDetail, setIsLoadingDetail] = useState(false)
-  const [navigationHistory, setNavigationHistory] = useState<string[]>([])
-
-  /**
-   * Load block detail from local vocabulary store
-   */
-  const loadBlockDetail = useCallback((senseId: string) => {
-    // Get block detail from LOCAL vocabulary store (INSTANT)
-    const localDetail = vocabulary.getBlockDetail(senseId)
-    
-    if (localDetail) {
-      // Set detail immediately from local data
-      setBlockDetail(localDetail)
-      setIsLoadingDetail(false)
-      
-      // Optionally fetch user progress in background
-      progressApi.getBlockProgress(senseId).then(progress => {
-        if (progress) {
-          setBlockDetail(prev => prev ? {
-            ...prev,
-            user_progress: {
-              status: progress.status,
-              tier: progress.tier,
-              started_at: progress.started_at,
-              mastery_level: progress.mastery_level,
-    }
-          } : prev)
-        }
-      }).catch(() => {
-        // Ignore progress fetch errors - we still have the vocabulary data
-      })
-    } else {
-      console.warn('Vocabulary not loaded, block detail unavailable:', senseId)
-    }
-  }, [])
 
   const handleBlockClick = useCallback((senseId: string) => {
     setSelectedBlockId(senseId)
-    setNavigationHistory([])  // Clear history when opening new block
-    loadBlockDetail(senseId)
-  }, [loadBlockDetail])
-
-  /**
-   * Navigate to another sense (from connections or other senses)
-   * This allows in-modal navigation without closing
-   */
-  const handleNavigateToSense = useCallback((senseId: string) => {
-    // Save current to history for back navigation
-    if (selectedBlockId) {
-      setNavigationHistory(prev => [...prev, selectedBlockId])
-    }
-    setSelectedBlockId(senseId)
-    loadBlockDetail(senseId)
-  }, [selectedBlockId, loadBlockDetail])
+  }, [])
 
   const handleCloseDetail = useCallback(() => {
     setSelectedBlockId(null)
-    setBlockDetail(null)
-    setNavigationHistory([])
   }, [])
 
   if (blocks.length === 0) {
@@ -95,14 +41,19 @@ export function BlockList({ blocks }: BlockListProps) {
         ))}
       </div>
 
-      {selectedBlockId && (
-        <BlockDetailModal
-          blockDetail={blockDetail}
-          isLoading={isLoadingDetail}
-          onClose={handleCloseDetail}
-          onNavigateToSense={handleNavigateToSense}
-        />
-      )}
+      <AnimatePresence mode="wait">
+        {selectedBlockId && (
+          <MiningDetailPanel
+            key={selectedBlockId}
+            senseId={selectedBlockId}
+            isSelected={false}
+            onClose={handleCloseDetail}
+            onToggleSelect={() => {}}
+            onDrillDown={() => {}}
+            onNavigateToSense={(newSenseId) => setSelectedBlockId(newSenseId)}
+          />
+        )}
+      </AnimatePresence>
     </>
   )
 }

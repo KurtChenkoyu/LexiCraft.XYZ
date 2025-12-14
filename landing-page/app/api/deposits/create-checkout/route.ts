@@ -23,9 +23,11 @@ export async function POST(request: NextRequest) {
     const { amount, learnerId, userId } = await request.json()  // Changed from childId
     
     // Validate input
-    if (!amount || amount < 500 || amount > 10000) {
+    // Minimum NT$50 (Stripe minimum ~$0.50 USD ≈ NT$15, but we set NT$50 for safety)
+    // Maximum NT$10,000 for fraud protection
+    if (!amount || amount < 50 || amount > 10000) {
       return NextResponse.json(
-        { error: 'Amount must be between NT$500 and NT$10,000' },
+        { error: 'Amount must be between NT$50 and NT$10,000' },
         { status: 400 }
       )
     }
@@ -44,6 +46,15 @@ export async function POST(request: NextRequest) {
     const localeMatch = referer.match(/\/([a-z]{2}(?:-[A-Z]{2})?)\//i)
     const locale = localeMatch ? localeMatch[1] : 'zh-TW'
     
+    // Determine product name based on amount
+    const isEmojiPack = amount === 99
+    const productName = isEmojiPack 
+      ? 'LexiCraft 表情學英文 - 6個月暢玩' 
+      : 'LexiCraft 學習點數儲值'
+    const productDescription = isEmojiPack
+      ? '200個表情符號單字・6個月無限練習'
+      : 'Deposit for vocabulary learning rewards'
+    
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -52,8 +63,8 @@ export async function POST(request: NextRequest) {
           price_data: {
             currency: 'twd',
             product_data: {
-              name: 'lexicraft.xyz Block Trust Package',
-              description: 'Deposit for vocabulary learning rewards',
+              name: productName,
+              description: productDescription,
             },
             unit_amount: amount * 100, // Convert NT$ to cents
           },
@@ -61,8 +72,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: 'payment',
-      success_url: `${origin}/${locale}/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/${locale}/dashboard?canceled=true`,
+      success_url: `${origin}/${locale}/parent/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/${locale}/emoji-fun?canceled=true`,
       metadata: {
         learner_id: learnerId,  // Changed from child_id
         user_id: userId,

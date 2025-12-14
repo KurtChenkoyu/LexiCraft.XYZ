@@ -62,7 +62,7 @@ class AchievementService:
             achievement_id = achievement[0]
             code = achievement[1]
             requirement_type = achievement[8]
-            requirement_value = achievement[9]
+            requirement_value = int(achievement[9])  # Convert to int (comes from DB as string sometimes)
             
             # Check if already unlocked
             existing = self.db.execute(
@@ -84,6 +84,10 @@ class AchievementService:
             if current_value >= requirement_value:
                 # Unlock achievement
                 self._unlock_achievement(user_id, achievement_id, achievement)
+                
+                # Get crystal reward (column 12 if exists, else use points_bonus from column 11)
+                crystal_reward = achievement[12] if len(achievement) > 12 and achievement[12] else (achievement[11] if len(achievement) > 11 else 0)
+                
                 newly_unlocked.append({
                     'achievement_id': str(achievement_id),
                     'code': code,
@@ -94,8 +98,9 @@ class AchievementService:
                     'icon': achievement[6],
                     'category': achievement[7],
                     'tier': achievement[8],
-                    'xp_reward': achievement[10],
-                    'points_bonus': achievement[11]
+                    'xp_reward': achievement[10] if len(achievement) > 10 else 0,
+                    'crystal_reward': crystal_reward,
+                    'points_bonus': achievement[11] if len(achievement) > 11 else 0  # Keep for backwards compatibility
                 })
         
         return newly_unlocked
@@ -113,12 +118,36 @@ class AchievementService:
             return activity_stats.get('activity_streak_days', 0)
         elif requirement_type == 'vocabulary_size':
             return vocab_stats.get('vocabulary_size', 0)
+        elif requirement_type == 'blocks_learned':
+            # Count all learning_progress entries (blocks started)
+            result = self.db.execute(
+                text("SELECT COUNT(*) FROM learning_progress WHERE user_id = :user_id"),
+                {'user_id': user_id}
+            )
+            return result.scalar() or 0
+        elif requirement_type == 'blocks_mastered':
+            # Count mastered blocks from verification_schedule
+            return mastery_counts.get('mastered', 0)
         elif requirement_type == 'words_this_week':
             return activity_stats.get('words_learned_this_week', 0)
         elif requirement_type == 'words_this_month':
             return activity_stats.get('words_learned_this_month', 0)
         elif requirement_type == 'mastered_count':
             return mastery_counts.get('mastered', 0)
+        elif requirement_type == 'survey_complete':
+            # Check if user has completed survey
+            result = self.db.execute(
+                text("""
+                    SELECT COUNT(*) FROM survey_responses 
+                    WHERE user_id = :user_id
+                """),
+                {'user_id': user_id}
+            )
+            return 1 if (result.scalar() or 0) > 0 else 0
+        elif requirement_type == 'challenges_completed':
+            # For now, return 0 - Challenge Mode not yet implemented
+            # This will be tracked when Challenge Mode is added
+            return 0
         elif requirement_type == 'total_reviews':
             result = self.db.execute(
                 text("SELECT COUNT(*) FROM fsrs_review_history WHERE user_id = :user_id"),
@@ -159,23 +188,42 @@ class AchievementService:
             }
         )
         
-        # Award XP if reward exists
-        if achievement[10] and achievement[10] > 0:
+        # Award XP if reward exists (column index 10)
+        xp_reward = achievement[10] if len(achievement) > 10 else 0
+        if xp_reward and xp_reward > 0:
             from .levels import LevelService
             level_service = LevelService(self.db)
-            level_service.add_xp(user_id, achievement[10], 'achievement', achievement_id)
+            level_service.add_xp(user_id, xp_reward, 'achievement', achievement_id)
         
-        # Award points bonus if exists
-        if achievement[11] and achievement[11] > 0:
-            self.db.execute(
-                text("""
-                    UPDATE points_accounts
-                    SET available_points = available_points + :bonus,
-                        total_earned = total_earned + :bonus
-                    WHERE user_id = :user_id
-                """),
-                {'user_id': user_id, 'bonus': achievement[11]}
-            )
+        # Award crystals if crystal_reward exists (column index 12 after adding crystal_reward)
+        # Try to get crystal_reward, fall back to points_bonus for backwards compatibility
+        crystal_reward = 0
+        if len(achievement) > 12 and achievement[12]:
+            crystal_reward = achievement[12]
+        elif len(achievement) > 11 and achievement[11]:
+            # Backwards compatibility: use points_bonus as crystal reward
+            crystal_reward = achievement[11]
+        
+        if crystal_reward > 0:
+            try:
+                self.db.execute(
+                    text("""
+                        SELECT add_crystals(
+                            :user_id, :amount, 'achievement', :achievement_id,
+                            :desc_en, :desc_zh
+                        )
+                    """),
+                    {
+                        'user_id': user_id,
+                        'amount': crystal_reward,
+                        'achievement_id': achievement_id,
+                        'desc_en': f'Achievement reward: {achievement[2]}',
+                        'desc_zh': f'成就獎勵: {achievement[3] or achievement[2]}'
+                    }
+                )
+            except Exception:
+                # Crystal tables might not exist yet, silently ignore
+                pass
         
         self.db.commit()
     

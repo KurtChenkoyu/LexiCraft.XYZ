@@ -11,11 +11,13 @@ interface AchievementsSectionProps {
 // Helper function for category labels
 function getCategoryLabel(category: string): string {
   const labels: Record<string, string> = {
+    onboarding: '新手入門',
     streak: '連勝',
     vocabulary: '詞彙',
     mastery: '精通',
     social: '社交',
     special: '特殊',
+    hidden: '隱藏',
   }
   return labels[category] || category
 }

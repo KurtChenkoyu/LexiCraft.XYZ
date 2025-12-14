@@ -124,30 +124,33 @@ class ExamplePair(BaseModel):
     )
 
 class MultiLayerExamples(BaseModel):
-    """Stage 2: Multi-layer example enrichment for a sense."""
+    """Stage 2: Multi-layer example enrichment for a sense (Enhanced for MCQ efficacy)."""
     sense_id: str
     
-    # Layer 1: Contextual Support (2-3 examples)
+    # Layer 1: Contextual Support (tiered by usage: 15-20 primary, 10 common, 5-8 rare)
     examples_contextual: List[ExamplePair] = Field(
         min_items=2,
-        max_items=3,
-        description="Multiple examples that clearly illustrate this sense"
+        max_items=25,  # Allow up to 25 examples (primary senses get 15-20)
+        description="Multiple examples that clearly illustrate this sense (one MEANING MCQ per example)"
     )
     
-    # Layer 2: Opposites (from OPPOSITE_TO relationships)
+    # Layer 2: Opposites (2-3 per relationship from OPPOSITE_TO)
     examples_opposite: List[ExamplePair] = Field(
         default_factory=list,
-        description="Examples using antonyms to contrast meaning"
+        max_items=15,  # Allow 2-3 examples × up to 5 relationships
+        description="Examples using antonyms to contrast meaning (2-3 per relationship)"
     )
     
-    # Layer 3: Similar (from RELATED_TO relationships)
+    # Layer 3: Similar (2-3 per relationship from RELATED_TO)
     examples_similar: List[ExamplePair] = Field(
         default_factory=list,
-        description="Examples using synonyms to show subtle differences"
+        max_items=15,  # Allow 2-3 examples × up to 5 relationships
+        description="Examples using synonyms to show subtle differences (2-3 per relationship)"
     )
     
-    # Layer 4: Confused (from CONFUSED_WITH relationships)
+    # Layer 4: Confused (2-3 per relationship from CONFUSED_WITH)
     examples_confused: List[ExamplePair] = Field(
         default_factory=list,
-        description="Examples showing commonly confused words in context"
+        max_items=15,  # Allow 2-3 examples × up to 5 relationships
+        description="Examples showing commonly confused words in context (2-3 per relationship)"
     )

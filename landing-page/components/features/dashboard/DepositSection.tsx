@@ -77,7 +77,7 @@ function NoChildrenState() {
       <p className="text-gray-600 mb-2">{t('noChildren.message')}</p>
       <p className="text-sm text-gray-500 mb-6">{t('noChildren.hint')}</p>
       <Link
-        href="/settings"
+        href="/parent/children"
         className="inline-block px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white rounded-lg font-semibold transition-colors"
       >
         前往設定新增孩子

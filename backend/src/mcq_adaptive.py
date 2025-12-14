@@ -24,6 +24,7 @@ Usage:
 """
 
 import json
+import random
 from typing import Optional, List, Dict, Any, Tuple
 from uuid import UUID
 from dataclasses import dataclass
@@ -298,6 +299,23 @@ class MCQAdaptiveService:
             selection_reason=reason
         )
     
+    @staticmethod
+    def _normalize_sense_id(sense_id: str) -> str:
+        """
+        Normalize sense_id by stripping index suffix.
+        
+        Examples:
+            - 'call.v.01_99' -> 'call.v.01'
+            - 'be.v.01_0' -> 'be.v.01'
+            - 'drop.n.02' -> 'drop.n.02' (unchanged)
+        """
+        import re
+        # Match pattern: word.pos.num_index where index is digits
+        match = re.match(r'^(.+\.\w+\.\d+)_\d+$', sense_id)
+        if match:
+            return match.group(1)
+        return sense_id
+    
     def get_mcqs_for_session(
         self,
         user_id: UUID,
@@ -317,12 +335,15 @@ class MCQAdaptiveService:
         Returns:
             List of MCQSelection instances
         """
+        # Normalize sense_id (strip index suffix like _99)
+        normalized_sense_id = self._normalize_sense_id(sense_id)
+        
         # Default types: one of each
         if mcq_types is None:
             mcq_types = ['meaning', 'usage', 'discrimination']
         
-        ability_estimate = self.estimate_ability(user_id, sense_id)
-        recent_mcq_ids = self._get_recent_mcq_ids(user_id, sense_id, limit=10)
+        ability_estimate = self.estimate_ability(user_id, normalized_sense_id)
+        recent_mcq_ids = self._get_recent_mcq_ids(user_id, normalized_sense_id, limit=10)
         
         selections = []
         used_ids = list(recent_mcq_ids)
@@ -330,7 +351,7 @@ class MCQAdaptiveService:
         for mcq_type in mcq_types[:count]:
             mcq = mcq_stats.select_adaptive_mcq(
                 self.db,
-                sense_id=sense_id,
+                sense_id=normalized_sense_id,
                 user_ability=ability_estimate.ability,
                 exclude_mcq_ids=used_ids,
                 mcq_type=mcq_type
@@ -373,7 +394,9 @@ class MCQAdaptiveService:
         selected_index: int,
         response_time_ms: Optional[int] = None,
         verification_schedule_id: Optional[int] = None,
-        context: str = 'verification'
+        context: str = 'verification',
+        selected_pool_index: Optional[int] = None,
+        served_option_pool_indices: Optional[List[int]] = None,
     ) -> AnswerResult:
         """
         Process a user's answer to an MCQ.
@@ -385,7 +408,9 @@ class MCQAdaptiveService:
         Args:
             user_id: User who answered
             mcq_id: MCQ answered
-            selected_index: Index of selected option (0-based)
+            selected_index: Index of selected option as shown to user (0-based)
+            selected_pool_index: Optional pool index of selected option (original mcq.options)
+            served_option_pool_indices: Optional list of pool indices in the order shown to user
             response_time_ms: Time taken to answer
             verification_schedule_id: Optional link to spaced rep
             context: Context of attempt ('verification', 'practice', 'survey')
@@ -398,12 +423,32 @@ class MCQAdaptiveService:
         if not mcq:
             raise ValueError(f"MCQ {mcq_id} not found")
         
+        options = mcq.options  # JSONB field
+        
+        # Determine correct option pool index
+        correct_pool_index = next(
+            (i for i, opt in enumerate(options) if opt.get("is_correct")),
+            mcq.correct_index if mcq.correct_index is not None else 0
+        )
+        
+        # Resolve selected pool index using provided mapping to avoid order mismatches
+        effective_selected_pool_index: Optional[int] = None
+        if selected_pool_index is not None:
+            effective_selected_pool_index = selected_pool_index
+        elif served_option_pool_indices and selected_index < len(served_option_pool_indices):
+            effective_selected_pool_index = served_option_pool_indices[selected_index]
+        elif selected_index < len(options):
+            # Backward compatibility: assume served order matched stored order
+            effective_selected_pool_index = selected_index
+        
+        if effective_selected_pool_index is None:
+            raise ValueError("Invalid selected option index")
+        
         # Check correctness
-        is_correct = (selected_index == mcq.correct_index)
+        is_correct = (effective_selected_pool_index == correct_pool_index)
         
         # Get selected option details
-        options = mcq.options  # JSONB field
-        selected_option = options[selected_index] if selected_index < len(options) else {}
+        selected_option = options[effective_selected_pool_index] if effective_selected_pool_index < len(options) else {}
         selected_source = selected_option.get('source', 'unknown')
         
         # Estimate ability before
@@ -417,7 +462,7 @@ class MCQAdaptiveService:
             sense_id=mcq.sense_id,
             is_correct=is_correct,
             response_time_ms=response_time_ms,
-            selected_option_index=selected_index,
+            selected_option_index=effective_selected_pool_index,
             selected_option_source=selected_source,
             user_ability_estimate=ability_before,
             verification_schedule_id=verification_schedule_id,
@@ -440,7 +485,7 @@ class MCQAdaptiveService:
             else:
                 feedback = "Well done!"
         else:
-            correct_option = options[mcq.correct_index]
+            correct_option = options[correct_pool_index] if correct_pool_index < len(options) else {}
             feedback = f"The correct answer was: {correct_option.get('text', 'N/A')}"
         
         return AnswerResult(
@@ -573,6 +618,139 @@ class MCQAdaptiveService:
 def create_adaptive_service(db_session: Session, neo4j_conn=None) -> MCQAdaptiveService:
     """Factory function to create MCQAdaptiveService."""
     return MCQAdaptiveService(db_session, neo4j_conn)
+
+
+def select_options_from_pool(
+    options: List[Dict],
+    distractor_count: int = 3,
+    user_ability: float = 0.5,
+    shuffle: bool = True
+) -> Tuple[List[Dict], int]:
+    """
+    Select distractors from the 8-distractor pool based on format and user ability.
+    
+    This enables serving 4-option or 6-option MCQs from the same stored pool,
+    with adaptive difficulty based on user ability:
+    - High ability (>0.7): Pick harder distractors (lower tier = more confusing)
+    - Low ability (<0.3): Pick easier distractors (higher tier = less confusing)
+    - Medium ability: Mix of tiers for balanced challenge
+    
+    Args:
+        options: Full pool from MCQ (1 correct + up to 8 distractors = 9 total)
+        distractor_count: Number of distractors to include (3 for 4-option, 5 for 6-option)
+        user_ability: User's ability estimate (0.0-1.0)
+        shuffle: Whether to shuffle the final options
+    
+    Returns:
+        Tuple of (selected_options list, correct_index after selection)
+    
+    Example:
+        # For 4-option MCQ
+        options, correct_idx = select_options_from_pool(mcq.options, distractor_count=3)
+        
+        # For 6-option MCQ
+        options, correct_idx = select_options_from_pool(mcq.options, distractor_count=5)
+        
+        # Adaptive for high-ability user (harder distractors)
+        options, correct_idx = select_options_from_pool(mcq.options, 3, user_ability=0.85)
+    """
+    # Separate correct answer from distractors
+    correct_options = [o for o in options if o.get("is_correct")]
+    distractors = [o for o in options if not o.get("is_correct")]
+    
+    if not correct_options:
+        raise ValueError("No correct option found in pool")
+    
+    correct = correct_options[0]
+    
+    # Sort distractors by tier (lower tier = harder/better distractor)
+    distractors.sort(key=lambda d: (d.get("tier", 5), random.random()))
+    
+    # Select distractors based on user ability
+    if len(distractors) <= distractor_count:
+        # Not enough distractors - use all available
+        selected = distractors
+    elif user_ability > 0.7:
+        # High ability: Pick hardest distractors (tier 1-2 preferred)
+        selected = distractors[:distractor_count]
+    elif user_ability < 0.3:
+        # Low ability: Pick easier distractors (tier 4-5 preferred)
+        # But still include at least one "real" distractor (tier 1-2)
+        hard_distractors = [d for d in distractors if d.get("tier", 5) <= 2]
+        easy_distractors = [d for d in distractors if d.get("tier", 5) > 2]
+        
+        if hard_distractors and easy_distractors:
+            # Mix: 1 hard + rest easy
+            selected = hard_distractors[:1] + easy_distractors[:distractor_count-1]
+        else:
+            # Fallback: just take available
+            selected = distractors[:distractor_count]
+    else:
+        # Medium ability: Balanced mix from available tiers
+        # Take from each tier category if available
+        tier_groups = {
+            "hard": [d for d in distractors if d.get("tier", 5) <= 2],
+            "medium": [d for d in distractors if d.get("tier", 5) == 3],
+            "easy": [d for d in distractors if d.get("tier", 5) >= 4]
+        }
+        
+        selected = []
+        # Round-robin from groups until we have enough
+        for _ in range(distractor_count):
+            for group in ["hard", "medium", "easy"]:
+                if tier_groups[group] and len(selected) < distractor_count:
+                    selected.append(tier_groups[group].pop(0))
+                    break
+        
+        # If still short, fill from remaining
+        if len(selected) < distractor_count:
+            remaining = distractors[:]
+            for s in selected:
+                if s in remaining:
+                    remaining.remove(s)
+            selected.extend(remaining[:distractor_count - len(selected)])
+    
+    # Build final options list
+    result = [correct] + selected[:distractor_count]
+    
+    # Shuffle if requested
+    if shuffle:
+        random.shuffle(result)
+    
+    # Find correct index
+    correct_index = next(i for i, opt in enumerate(result) if opt.get("is_correct"))
+    
+    return result, correct_index
+
+
+def get_tier_distribution(options: List[Dict]) -> Dict[str, int]:
+    """
+    Get the distribution of distractor tiers in an MCQ's option pool.
+    
+    Useful for debugging and quality analysis.
+    
+    Args:
+        options: List of MCQ options
+    
+    Returns:
+        Dict mapping tier numbers/sources to counts
+    
+    Example:
+        >>> get_tier_distribution(mcq.options)
+        {'correct': 1, 'tier_1': 2, 'tier_2': 2, 'tier_3': 1, 'tier_5': 3}
+    """
+    distribution = {"correct": 0}
+    
+    for opt in options:
+        if opt.get("is_correct"):
+            distribution["correct"] += 1
+        else:
+            tier = opt.get("tier", 5)
+            source = opt.get("source", "unknown")
+            key = f"tier_{tier}_{source}"
+            distribution[key] = distribution.get(key, 0) + 1
+    
+    return distribution
 
 
 # ============================================

@@ -1,4 +1,4 @@
-# MVP Validation Strategy: Get to Market Fast
+# MVP Validation Strategy: Enhanced with Industry Best Practices
 
 ## Executive Summary
 
@@ -7,6 +7,8 @@
 **Timeline**: 4-6 weeks to MVP launch
 **Budget**: Minimal (use existing tools, no-code where possible)
 **Target**: 50-100 beta families → investor conversations
+
+**Key Enhancement**: This version incorporates industry best practices and adds **Connection-Building Scope** strategy for intelligent word selection.
 
 ---
 
@@ -18,6 +20,7 @@
 2. **Do kids actually learn when there's money involved?** (Effectiveness)
 3. **Does financial incentive work?** (Engagement driver)
 4. **Is the verification system trusted?** (Platform integrity)
+5. **Does relationship-based learning improve retention?** (Learning effectiveness)
 
 ### The One-Liner
 
@@ -47,59 +50,195 @@ Parent decides how to reward (allowance, toys, savings, etc.)
 
 ---
 
-### What to BUILD (Essential)
+## 🧠 Connection-Building Scope: The Missing Piece ⭐ NEW
 
-| Feature | Why Essential | Complexity |
-|---------|---------------|------------|
-| Parent onboarding | Deposit flow | Low |
-| Child learning interface | Core product | Medium |
-| 6-option MCQ verification | Validates learning | Medium |
-| Points tracking | Shows progress | Low |
-| **Direct cash withdrawal** | Parent flexibility | Low |
+### The Problem
 
-### What to SKIP (For Now)
+**Current Plan**: Select next 20 words from frequency rank 1-1000 (simple sequential)
 
-| Feature | Why Skip | Add Later |
-|---------|----------|-----------|
-| Full Learning Point Cloud | Complex, validate simple first | Phase 2 |
-| Neo4j integration | Use PostgreSQL + JSONB for MVP | Phase 2 |
-| **Game currency integration** | **Direct withdrawal simpler** | **Phase 2** |
-| Spaced repetition (14 days) | Test with 7-day first | Phase 2 |
-| All 7 earning tiers | Start with Tier 1-2 only | Phase 2 |
-| Partial unlock/deficit | Complex, test simple first | Phase 2 |
+**Industry Standard**: 
+- Duolingo: Adaptive paths based on prerequisites
+- Memrise: Relationship-based learning (learn related words together)
+- Anki: Prerequisite chains (learn "direct" before "indirect")
 
-### MVP Feature Set
+**What We're Missing**: Intelligent word selection that builds semantic networks
 
+### The Solution: Connection-Building Scope Algorithm + Explorer Mode
+
+**Core Principle**: Select words that **connect** to words already learned, building semantic networks rather than random lists.
+
+**Learning Modes**:
+1. **Guided Mode**: Follow curriculum, algorithm suggests words
+2. **Explorer Mode**: Build your own city, smart suggestions + full freedom
+
+#### Algorithm Overview
+
+```python
+def select_daily_words(user_id, daily_limit=20, mode='guided'):
+    """
+    Select daily words using connection-building scope strategy.
+    
+    Strategy:
+    1. Get child's learned words (verified or learning)
+    2. Find words connected to learned words via relationships
+    3. Prioritize by connection strength and prerequisites
+    4. Mix: 60% connection-based, 40% adaptive level-based
+    
+    Modes:
+    - 'guided': Algorithm selects words (curriculum-focused)
+    - 'explorer': Algorithm suggests words (learner chooses)
+    """
+    learned_words = get_learned_words(user_id)
+    vocab_level = get_user_vocab_level(user_id)  # From LexiSurvey
+    user_mode = get_user_learning_mode(user_id)
+    
+    if user_mode == 'explorer':
+        # Explorer Mode: Provide suggestions, learner chooses
+        return get_explorer_suggestions(user_id, learned_words, daily_limit)
+    else:
+        # Guided Mode: Algorithm selects
+        # Strategy 1: Connection-Based Selection (60%)
+        connection_words = select_connection_words(
+            learned_words, 
+            limit=int(daily_limit * 0.6)
+        )
+        
+        # Strategy 2: Adaptive Level-Based Selection (40%)
+        level_words = select_adaptive_words(
+            vocab_level,
+            learned_words,
+            limit=int(daily_limit * 0.4)
+        )
+        
+        return merge_and_prioritize(connection_words, level_words, daily_limit)
 ```
-MVP (3-4 Weeks)
-├── Parent Flow
-│   ├── Sign up (email + password)
-│   ├── Add child account
-│   └── Deposit (Stripe, NT$500-1,000)
-│
-├── Child Flow
-│   ├── Daily word list (10-20 words)
-│   ├── Learn with flashcards
-│   ├── 6-option MCQ quiz
-│   └── View earned points (converted to NT$)
-│
-├── Verification
-│   ├── Day 1: Learn + immediate test
-│   ├── Day 3: Retention test
-│   ├── Day 7: Final test → Points unlock
-│   └── Simple pass/fail (no partial credit)
-│
-└── Withdrawal
-    ├── Points → NT$ conversion
-    ├── Parent requests withdrawal
-    └── Bank transfer (Stripe Connect or local payment)
+
+#### Connection-Based Selection (60% of daily words)
+
+**Priority Order**:
+
+1. **Prerequisites Met** (Highest Priority)
+   - Words whose prerequisites are already learned
+   - Example: If "direct" is learned → prioritize "indirect"
+   - Query: `MATCH (prereq:LearningPoint)-[:PREREQUISITE_OF]->(target:LearningPoint) WHERE prereq.id IN $learned_ids RETURN target`
+
+2. **Direct Relationships** (High Priority)
+   - Words directly related to learned words
+   - Types: `RELATED_TO`, `COLLOCATES_WITH`, `OPPOSITE_OF`
+   - Example: If "make" is learned → prioritize "decision" (collocation)
+   - Query: `MATCH (learned:LearningPoint)-[:RELATED_TO|COLLOCATES_WITH]-(target:LearningPoint) WHERE learned.id IN $learned_ids RETURN target`
+
+3. **Phrase Components** (Medium Priority)
+   - Words that complete phrases already started
+   - Example: If "beat" and "around" learned → prioritize "bush" (for "beat around the bush")
+   - Query: `MATCH (phrase:Phrase)-[:PART_OF]-(word:Word) WHERE phrase.component_words IN $learned_ids RETURN word`
+
+4. **Morphological Patterns** (Medium Priority)
+   - Words sharing morphological patterns
+   - Example: If "direct" learned → prioritize "indirect", "redirect" (same prefix)
+   - Query: `MATCH (learned:LearningPoint)-[:MORPHOLOGICAL]-(target:LearningPoint) WHERE learned.id IN $learned_ids RETURN target`
+
+5. **2-Degree Connections** (Lower Priority)
+   - Words connected through one intermediate word
+   - Example: If "direct" learned → "indirect" → "indirectly"
+   - Query: `MATCH (learned:LearningPoint)-[:RELATED_TO]-(intermediate:LearningPoint)-[:RELATED_TO]-(target:LearningPoint) WHERE learned.id IN $learned_ids RETURN target`
+
+6. **Bridge Words** (Discovery Priority) ⭐ NEW
+   - Words that connect multiple learned words
+   - Example: "function" connects "algorithm" + "physics"
+   - Higher score = more connections
+   - Query: Find words connected to 2+ learned words
+
+#### Scoring Function
+
+```python
+def score_word_connection(word, learned_words, relationships):
+    """
+    Score word based on connection strength to learned words.
+    
+    Scoring:
+    - Prerequisite met: +100 points
+    - Direct relationship: +50 points
+    - Phrase component: +40 points
+    - Morphological: +30 points
+    - 2-degree connection: +20 points
+    - Frequency bonus: +10 points (if high frequency)
+    - Difficulty penalty: -10 points (if too hard)
+    """
+    score = 0
+    
+    # Check prerequisites
+    if all_prerequisites_met(word, learned_words):
+        score += 100
+    
+    # Check direct relationships
+    direct_rels = count_direct_relationships(word, learned_words, relationships)
+    score += direct_rels * 50
+    
+    # Check phrase components
+    if is_phrase_component(word, learned_words):
+        score += 40
+    
+    # Check morphological patterns
+    if shares_morphological_pattern(word, learned_words):
+        score += 30
+    
+    # Check 2-degree connections
+    two_degree = count_2degree_connections(word, learned_words)
+    score += two_degree * 20
+    
+    # Frequency bonus (higher frequency = easier)
+    if word.frequency_rank < 1000:
+        score += 10
+    
+    # Difficulty penalty (too hard = lower score)
+    if word.difficulty > user_level + 1:
+        score -= 10
+    
+    return score
 ```
+
+#### Example: Connection-Building Flow
+
+**Day 1**: Child learns "direct" (rank 500)
+- **Day 2 Selection**:
+  - ✅ "indirect" (prerequisite met, RELATED_TO) - Priority 1
+  - ✅ "redirect" (morphological pattern) - Priority 2
+  - ✅ "direction" (morphological pattern) - Priority 2
+  - ✅ "straight" (OPPOSITE_OF) - Priority 3
+
+**Day 3**: Child learns "indirect" + "make"
+- **Day 4 Selection**:
+  - ✅ "decision" (COLLOCATES_WITH "make") - Priority 1
+  - ✅ "indirectly" (morphological from "indirect") - Priority 2
+  - ✅ "make a decision" (phrase completion) - Priority 1
+
+**Result**: Child builds semantic network, not random word list
+
+#### Benefits of Connection-Building Scope
+
+1. **Better Retention**: Related words reinforce each other
+2. **Faster Learning**: Prerequisites make new words easier
+3. **Relationship Discovery Bonuses**: More opportunities for bonuses
+4. **Natural Progression**: Learning follows semantic structure
+5. **Motivation**: See connections = "aha!" moments
+
+#### Implementation Notes
+
+**For MVP (PostgreSQL)**:
+- Store relationships in `learning_points.metadata` JSONB
+- Query: `SELECT * FROM learning_points WHERE metadata->'prerequisites' @> '[learned_word_id]'`
+- Simple but effective for MVP
+
+**For Phase 2 (Neo4j)**:
+- Use full graph queries for multi-hop relationships
+- More powerful but requires Neo4j setup
 
 ---
 
-## 📚 Learning Point System
+## 📚 Enhanced Learning Point System
 
-### Word List Strategy: Combined Standard
+### Word List Strategy: Combined Standard + Connection-Based
 
 **Phase 1 (MVP): 3,000-4,000 words**
 
@@ -109,13 +248,11 @@ MVP (3-4 Weeks)
 | **Taiwan MOE Curriculum** | 30% | Elementary + Junior High |
 | **Corpus Frequency** | 30% | Google 10K, COCA top 3000 |
 
-**Phase 2 (Expansion): 8,000-10,000 words**
-
-| Source | Weight | Coverage |
-|--------|--------|----------|
-| **CEFR C1-C2** | 35% | Advanced proficiency |
-| **Taiwan Senior High/College** | 25% | Advanced curriculum |
-| **Corpus Frequency** | 40% | COCA top 8000 |
+**Connection Data**:
+- Prerequisite relationships (CEFR levels)
+- Collocation pairs (from corpus)
+- Morphological patterns (prefix/suffix)
+- Semantic relationships (WordNet)
 
 ### Learning Points Estimate
 
@@ -145,9 +282,14 @@ MVP (3-4 Weeks)
 4. **English Vocabulary Profile (EVP)**: https://www.englishprofile.org/wordlists
 5. **COCA Frequency**: https://www.wordfrequency.info/
 
+**Relationship Data**:
+6. **WordNet**: Semantic relationships (synonyms, antonyms, hypernyms)
+7. **Collocation Data**: Common word pairs from corpus
+8. **Morphological Patterns**: Prefix/suffix lists
+
 ### Learning Point Cloud Implementation
 
-**For MVP: PostgreSQL + JSONB** (not Neo4j)
+**For MVP: PostgreSQL + JSONB** (with relationship metadata)
 
 ```sql
 CREATE TABLE learning_points (
@@ -158,11 +300,321 @@ CREATE TABLE learning_points (
     definition TEXT,
     example TEXT,
     frequency_rank INTEGER,
-    metadata JSONB DEFAULT '{}'
+    difficulty INTEGER,  -- CEFR level (1-6 for A1-C2)
+    metadata JSONB DEFAULT '{}'  -- Relationships, prerequisites, etc.
 );
+
+-- Add indexes for relationship queries
+CREATE INDEX idx_learning_points_metadata ON learning_points USING GIN (metadata);
+CREATE INDEX idx_learning_points_frequency ON learning_points(frequency_rank);
+CREATE INDEX idx_learning_points_difficulty ON learning_points(difficulty);
+
+-- Example metadata structure:
+-- {
+--   "prerequisites": ["word_id_1", "word_id_2"],
+--   "related_words": ["word_id_3", "word_id_4"],
+--   "collocations": ["word_id_5"],
+--   "morphological_patterns": ["prefix_in", "suffix_ly"]
+-- }
 ```
 
-**Time to build:** 1-2 hours (vs. days for Neo4j)
+**Time to build:** 2-3 hours (includes relationship data)
+
+---
+
+## 🎯 Enhanced Child Learning Interface
+
+### 1. Child Dashboard (/child/dashboard)
+
+**Purpose**: Child's main view of their learning progress
+
+**Must Display**:
+- Words learned today (count)
+- Total words learned (all time)
+- Points earned (available + locked)
+- Points converted to NT$ (e.g., "NT$ 150 已解鎖")
+- Daily word limit status (e.g., "今天已學 5/20 個單字")
+- Upcoming verification tests (e.g., "明天有 3 個測驗")
+- Learning streak (consecutive days)
+- **Connection Map** (NEW): Visual network of learned words ⭐
+
+**UI Requirements**:
+- Child-friendly design (colors, large buttons, emojis)
+- Mobile-responsive (kids use phones/tablets)
+- Simple navigation
+- Points prominently displayed
+- **Connection visualization** (simple node graph) ⭐
+
+**Data Needed**:
+- `learning_progress` table (words learned)
+- `points_accounts` table (points balance)
+- `verification_schedule` table (upcoming tests)
+- Relationship data for connection map
+
+### 2. Daily Word List (/child/learn) - ENHANCED
+
+**Purpose**: Show child their words to learn today (with connection context)
+
+**Learning Modes** ⭐ NEW:
+
+**A. Guided Mode** (Follow Curriculum):
+- Algorithm selects 20 words/day
+- Based on curriculum (Taiwan MOE, CEFR, etc.)
+- Learner can still search/override
+- Focus on curriculum-aligned words
+
+**B. Explorer Mode** (Build Your Own City) ⭐ NEW:
+- Algorithm suggests words (learner chooses)
+- Smart suggestions based on:
+  - Connection to learned words
+  - Prerequisites met
+  - Level appropriateness
+  - Interest matches
+  - Bridge words (connect multiple areas)
+- Learner can search any word
+- Full freedom to build custom path
+
+**Must Display**:
+- List of 10-20 words for today (Guided) OR suggestions (Explorer)
+- Word status: "未開始" / "學習中" / "已完成"
+- Progress indicator (e.g., "5/20 完成")
+- **Connection indicator**: "🔗 與 'direct' 相關" ⭐
+- **Prerequisite status**: "✓ 已學會前置單字" ⭐
+- **Suggestion reason** (Explorer Mode): "Ready to learn! (prerequisites met)" ⭐
+- **Mode toggle**: Switch between Guided/Explorer ⭐
+- "開始學習" button for each word
+
+**Word Selection Logic** (ENHANCED):
+
+**Connection-Building Scope Algorithm**:
+1. **60% Connection-Based**:
+   - Prerequisites met (highest priority)
+   - Direct relationships (RELATED_TO, COLLOCATES_WITH)
+   - Phrase components
+   - Morphological patterns
+   - 2-degree connections
+   - Bridge words (connect multiple learned words) ⭐ NEW
+
+2. **40% Adaptive Level-Based**:
+   - Words at child's vocabulary level (from LexiSurvey)
+   - Words slightly above level (challenge)
+   - Review words (struggling areas)
+
+3. **Constraints**:
+   - Don't show words already learned
+   - Don't show words already scheduled for verification
+   - Daily limit: 20 words/day maximum
+   - Respect prerequisite order
+
+**Data Needed**:
+- Word list with relationship metadata
+- `learning_progress` table (to filter out learned words)
+- User's vocabulary level (from LexiSurvey)
+- Relationship discovery history
+
+### 3. Flashcard Component (/child/learn/[wordId]) - ENHANCED
+
+**Purpose**: Child reviews/verifies a word they've encountered (with connection context). This is a review/confirmation step before verification, not a learning step. Users typically encounter words elsewhere first (school, books, media), and this component helps them confirm they've seen the word before starting verification.
+
+**Flow**:
+1. Show word (e.g., "indirect")
+2. **Show connection context** (NEW): "🔗 與 'direct' 相關" ⭐
+3. Child clicks "Show Definition" → Shows definition
+4. Child clicks "Show Example" → Shows example sentence
+5. **Show related words** (NEW): "相關單字: redirect, direction" ⭐
+6. Child clicks "I Know This" → Confirms they've seen it, starts verification quiz
+7. Child clicks "I Need Practice" → Shows again later
+
+**UI Requirements**:
+- Large, readable text
+- Simple flip animation (optional)
+- Clear buttons
+- Progress indicator (e.g., "單字 3/20")
+- **Connection badge** (NEW): Visual indicator of relationships ⭐
+
+**Data Needed**:
+- Word definition, example, pronunciation
+- Relationship data (for connection context)
+- Update `learning_progress` when user confirms they've seen the word and starts verification
+- Check for relationship discoveries (bonus points)
+
+### 4. MCQ Quiz Interface (/child/quiz/[wordId]) - ENHANCED
+
+**Purpose**: Verify child knows the word (Day 1 immediate test)
+
+**Question Format**:
+- 6-option multiple choice
+- Question: "What does 'bank' mean in this sentence: 'I went to the bank'?"
+- Options:
+  - Correct answer (financial institution)
+  - Close answer (money place - 80% correct)
+  - Partial answer (place to save - 60% correct)
+  - Related answer (building - 40% correct)
+  - Distractor (river edge - 20% correct)
+  - "I don't know" (0% correct)
+
+**Scoring**:
+- Need 2/3 correct on Day 1 to proceed
+- If pass: Schedule Day 3 test
+- If fail: Can retry after 24 hours
+
+**Immediate Feedback** (NEW): ⭐
+- Show why answer is correct/incorrect
+- Provide example sentences
+- Show related words
+- Explain connections
+
+**UI Requirements**:
+- Large, touch-friendly buttons
+- Clear feedback (correct/incorrect)
+- Progress indicator
+- "Submit Answer" button
+- **Explanation panel** (NEW): Shows why answer is correct ⭐
+
+**Data Needed**:
+- Generate MCQ questions (need algorithm)
+- Store answers in `verification_schedule` table
+- Update `learning_progress` status
+- Relationship data (for better distractors)
+
+### 5. Verification Test Interface (/child/verify/[wordId])
+
+**Purpose**: Day 3, 7, 14 retention tests
+
+**Flow**:
+- Show same MCQ format as Day 1 quiz
+- Must pass (1/1 correct) to unlock points
+- If pass Day 7: Unlock 70% of points
+- If pass Day 14: Unlock remaining 30% of points
+
+**UI Requirements**:
+- Same as MCQ quiz interface
+- Show which test day (e.g., "第 3 天測驗")
+- Show points that will unlock if passed
+- **Connection reminder** (NEW): "還記得 'direct' 嗎？" ⭐
+
+### 6. Word List Database - ENHANCED
+
+**Current State**: Need to create word list with relationship data
+
+**MVP Approach** (Enhanced):
+
+**Schema**:
+```sql
+CREATE TABLE learning_points (
+    id SERIAL PRIMARY KEY,
+    word TEXT NOT NULL,
+    type TEXT DEFAULT 'word',
+    tier INTEGER NOT NULL,
+    definition TEXT,
+    example TEXT,
+    frequency_rank INTEGER,
+    difficulty INTEGER,  -- CEFR level
+    metadata JSONB DEFAULT '{}'  -- Relationships
+);
+
+-- Metadata structure:
+{
+  "prerequisites": ["word_id_1", "word_id_2"],
+  "related_words": ["word_id_3"],
+  "collocations": ["word_id_4"],
+  "morphological_patterns": ["prefix_in"],
+  "opposites": ["word_id_5"]
+}
+```
+
+**Populate with**:
+- 3,000-4,000 words (Tier 1-2 only)
+- Relationship data (prerequisites, collocations, morphological)
+- Each word needs: word, definition, example, tier, frequency_rank, difficulty, metadata
+
+**Word Sources**:
+- Google 10K: https://github.com/first20hours/google-10000-english
+- Oxford 3000 CEFR: Search GitHub "Oxford 3000 CSV"
+- English Vocabulary Profile: https://www.englishprofile.org/wordlists
+- WordNet: For semantic relationships
+
+**MVP Scope**: Tier 1-2 only (~5,000 learning points)
+
+---
+
+## 🎮 Enhanced Features (Industry Best Practices)
+
+### 1. Adaptive Learning ⭐ NEW
+
+**What**: Adjust word selection based on child's performance
+
+**Implementation**:
+- Use LexiSurvey results to determine vocabulary level
+- Select words at appropriate difficulty level
+- Adjust based on quiz performance
+- Track ease factor per word (like Anki)
+
+**Benefits**:
+- Prevents frustration (too hard)
+- Prevents boredom (too easy)
+- Optimizes learning speed
+
+### 2. Immediate Feedback ⭐ NEW
+
+**What**: Show explanations after quiz answers
+
+**Implementation**:
+- After each answer: Show why correct/incorrect
+- Provide example sentences
+- Show related words
+- Explain connections
+
+**Benefits**:
+- Reinforces learning
+- Reduces confusion
+- Builds understanding
+
+### 3. Basic Gamification ⭐ NEW
+
+**What**: Non-financial rewards to complement money
+
+**Implementation**:
+- Learning streaks (consecutive days)
+- Achievement badges ("100 Words Master", "Week Warrior")
+- Progress visualization (tree, map, or level system)
+- Daily challenges
+
+**Benefits**:
+- Balances intrinsic/extrinsic motivation
+- Increases engagement
+- Provides sense of progress
+
+### 4. Enhanced Parent Dashboard ⭐ NEW
+
+**What**: Detailed insights and analytics
+
+**Implementation**:
+- Learning analytics (time spent, words learned, retention rate)
+- Progress visualization (charts showing growth)
+- Areas of strength/weakness
+- Recommendations for supporting learning
+- Connection map visualization
+
+**Benefits**:
+- Parent engagement
+- Transparency
+- Trust building
+
+### 5. Question Quality Improvements ⭐ NEW
+
+**What**: Better distractor generation
+
+**Implementation**:
+- Use common mistakes (from error patterns)
+- Use semantically similar words (from relationships)
+- Avoid obviously wrong distractors
+- Question variation (different contexts)
+
+**Benefits**:
+- More accurate assessment
+- Prevents memorization
+- Tests understanding
 
 ---
 
@@ -170,7 +622,7 @@ CREATE TABLE learning_points (
 
 ### How Hard to Game the System?
 
-**With daily limit of 20 words/day:**
+**With daily limit of 20 words/day + connection-building scope:**
 
 | Scenario | Time Required | Daily Commitment |
 |----------|---------------|------------------|
@@ -178,7 +630,12 @@ CREATE TABLE learning_points (
 | 3,000 words | 150+ days | ~1 hour/day |
 | 4,000 words | 200+ days | ~1 hour/day |
 
-**Cost-Benefit for Gaming:**
+**Connection-building scope makes gaming harder**:
+- Can't skip prerequisites
+- Must learn in order
+- Relationships must be genuine
+
+**Cost-Benefit for Gaming**:
 - Time: 100+ days × 1 hour = 100+ hours
 - Reward: ~NT$2,000 (if gaming 2,000 words)
 - ROI: NT$20/hour (~$0.60/hour)
@@ -190,6 +647,8 @@ CREATE TABLE learning_points (
 2. **Time limits**: 2 hours/day max
 3. **Behavioral flags**: Fast answers + perfect scores = review
 4. **Human review**: Flag top 5% performers
+5. **Prerequisite enforcement**: Can't skip prerequisites ⭐ NEW
+6. **Connection validation**: Must show understanding of relationships ⭐ NEW
 
 ---
 
@@ -204,6 +663,7 @@ CREATE TABLE learning_points (
 | Daily active users | 60%+ | Engagement |
 | Retention (30 days) | 50%+ | Stickiness |
 | NPS score | 40+ | Word of mouth potential |
+| **Connection discovery rate** | **30%+** | **Relationship learning effectiveness** ⭐ NEW |
 
 ### Secondary Metrics
 
@@ -213,109 +673,43 @@ CREATE TABLE learning_points (
 | Avg session time | 10+ min | Engagement depth |
 | Parent satisfaction | 8/10+ | Renewal potential |
 | Referral rate | 15%+ | Growth potential |
+| **Relationship bonus rate** | **20%+** | **Connection-building success** ⭐ NEW |
+| **Prerequisite completion rate** | **80%+** | **Learning path effectiveness** ⭐ NEW |
 
 ---
 
-## 💰 Investor Pitch Deck Outline
-
-### Slide Structure (10 slides)
-
-1. **Title**: lexicraft.xyz - Kids earn money by learning
-2. **Problem**: Kids spend 3+ hours on games, parents struggle to motivate learning
-3. **Solution**: Financial incentive = motivated learners
-4. **Demo**: 30-second product walkthrough
-5. **Market**: $227B EdTech + $47B tutoring market
-6. **Business Model**: 8-10% platform fee + premium tiers
-7. **Traction**: Beta metrics (after 4-6 weeks)
-8. **Team**: Founders + domain expertise
-9. **Ask**: Seed round ($500K-$1M) for 18-month runway
-10. **Vision**: Every kid earns while learning
-
-### Key Data Points for Investors
-
-- **TAM**: $227B global EdTech
-- **SAM**: $47B tutoring/private education
-- **SOM**: $1B+ (1% of tutoring market)
-- **Unit Economics**: $75 CAC, $500+ LTV (projected)
-- **Competition**: No direct competitor with verified learning + financial rewards
-
----
-
-## 🎨 Landing Page (Week 1)
-
-### Above the Fold
-
-```
-┌─────────────────────────────────────────────┐
-│  💰 Your Kids Learn. They Earn. You Win.    │
-│                                             │
-│  Kids earn real money by mastering          │
-│  vocabulary. You invest upfront, they       │
-│  earn it back.                              │
-│                                             │
-│  Use their earnings for allowance, toys,   │
-│  savings, or anything they want!            │
-│                                             │
-│  [Join the Waitlist - Get 50% off Beta]     │
-└─────────────────────────────────────────────┘
-```
-
-### Sections
-
-1. **How It Works** (3 steps with icons)
-2. **For Parents** (benefits)
-3. **For Kids** (earn money for anything they want)
-4. **Pricing** (Beta special: NT$500-1,000 deposit)
-5. **FAQ**
-6. **Waitlist signup** (email + # of kids)
-
-### Legal Requirements (Waitlist Only)
-
-**✅ No company registration needed for waitlist collection**
-
-**Minimum requirements**:
-- Basic privacy policy (what data collected, how used, opt-out)
-- Email service compliance (ConvertKit/Mailchimp handle this)
-- No payments = no payment processor needed
-
-**Can use**:
-- Existing cram school entity name (recommended)
-- Personal name (if testing first)
-- No new registration required
-
-**When company needed**: Only when accepting payments (Week 2+)
-
-See `docs/13-legal-analysis-taiwan.md` for full legal requirements.
-
----
-
-## 📅 4-Week Go-to-Market Timeline
+## 📅 Enhanced 4-Week Go-to-Market Timeline
 
 ### Week 1: Foundation
 - [ ] Landing page live
 - [ ] Waitlist collection started
-- [ ] Database schema ready
-- [ ] Word list compiled (3,000 words)
+- [ ] Database schema ready (with relationship metadata)
+- [ ] Word list compiled (3,000 words + relationships)
 - [ ] Draft investor one-pager
+- [ ] **Connection-building algorithm designed** ⭐ NEW
 
 ### Week 2: Build Core
 - [ ] Parent signup + deposit flow
 - [ ] Child account linking
-- [ ] Learning point data populated
-- [ ] Flashcard learning UI
+- [ ] Learning point data populated (with relationships)
+- [ ] Flashcard learning UI (with connection context)
+- [ ] **Connection-building word selection** ⭐ NEW
 - [ ] Continue landing page marketing
 
 ### Week 3: Build Verification
-- [ ] 6-option MCQ generator
+- [ ] 6-option MCQ generator (with relationship-based distractors)
 - [ ] Day 1, 3, 7 test scheduling
 - [ ] Points calculation
-- [ ] Parent dashboard (basic)
+- [ ] Parent dashboard (enhanced with analytics)
+- [ ] **Immediate feedback system** ⭐ NEW
+- [ ] **Relationship discovery bonus system** ⭐ NEW
 - [ ] Start outreach to parent communities
 
 ### Week 4: Build Withdrawal & Launch
 - [ ] Withdrawal request flow
 - [ ] Parent notification system
-- [ ] Child progress view
+- [ ] Child progress view (with connection map)
+- [ ] **Basic gamification** (streaks, badges) ⭐ NEW
 - [ ] MVP feature complete
 - [ ] Invite 20-50 beta families
 
@@ -329,16 +723,16 @@ See `docs/13-legal-analysis-taiwan.md` for full legal requirements.
 |-----------|------|-----|
 | Frontend | Next.js + Tailwind | Fast, modern |
 | Backend | Supabase or Firebase | Auth + DB + fast |
-| Learning Point Cloud | Neo4j Aura Free | Relationships, multi-hop queries |
+| Learning Point Cloud | PostgreSQL + JSONB (MVP) | Relationships in metadata |
 | User Data | PostgreSQL (Supabase) | Transactional data |
 | Payments | Stripe | Industry standard |
 | Email | Resend or SendGrid | Transactional |
 | Hosting | Vercel | Free, fast |
 | Analytics | PostHog or Mixpanel | User tracking |
 
-**Note**: See `docs/development/NEO4J_VS_POSTGRESQL_ANALYSIS.md` for why Neo4j for Learning Point Cloud.
+**Note**: For MVP, use PostgreSQL + JSONB for relationships. Neo4j can be added in Phase 2 if needed.
 
-**Deployment**: Cloud-based (SaaS) - Internet required. See `docs/development/DEPLOYMENT_ARCHITECTURE.md` for details.
+**Deployment**: Cloud-based (SaaS) - Internet required.
 
 ---
 
@@ -352,6 +746,7 @@ See `docs/13-legal-analysis-taiwan.md` for full legal requirements.
 - [ ] $5K+ MRR
 - [ ] 10+ testimonials/case studies
 - [ ] 40+ NPS score
+- [ ] **30%+ connection discovery rate** ⭐ NEW
 
 ### Nice-to-Have
 
@@ -359,6 +754,7 @@ See `docs/13-legal-analysis-taiwan.md` for full legal requirements.
 - [ ] Viral coefficient > 0.3
 - [ ] Media coverage (1-2 articles)
 - [ ] Partnership interest (schools, tutoring centers)
+- [ ] **80%+ prerequisite completion rate** ⭐ NEW
 
 ---
 
@@ -373,6 +769,8 @@ After validating core concept with 100+ families:
 3. **Partial unlock system** (deficit mechanics)
 4. **All 7 tiers** (idioms, morphology, register)
 5. **Expand to 8,000-10,000 words**
+6. **Advanced connection visualization** (interactive graph)
+7. **AI-powered learning path recommendations**
 
 ### Game Integration (Future Phase 2 - NOT MVP)
 
@@ -385,7 +783,6 @@ After validating core concept with 100+ families:
 - Validates core thesis first (financial incentive works)
 - Reduces legal complexity for MVP
 - Can pursue platform partnerships with traction data
-- See `docs/08-robux-integration-analysis.md` and `docs/09-multi-game-integration-analysis.md` for future planning
 
 ---
 
@@ -393,9 +790,11 @@ After validating core concept with 100+ families:
 
 | Risk | Mitigation |
 |------|------------|
-| Kids game the system | Daily limits (20 words), behavioral flags |
+| Kids game the system | Daily limits (20 words), behavioral flags, prerequisite enforcement |
 | Parents don't pay | Test pricing early, offer money-back |
-| Low completion | Gamify more, shorter cycles |
+| Low completion | Gamify more, shorter cycles, connection-building motivation |
+| **Connection algorithm too complex** | **Start simple (PostgreSQL), iterate based on data** ⭐ NEW |
+| **Relationship data quality** | **Validate with 50-word pilot, manual review** ⭐ NEW |
 | **Legal compliance (Taiwan)** | **Parent as account owner, direct withdrawal** |
 
 ---
@@ -446,17 +845,27 @@ After validating core concept with 100+ families:
 
 **The fastest path to validation:**
 
-1. **Build simple MVP** (3-4 weeks) - learning + MCQ + direct cash withdrawal
+1. **Build enhanced MVP** (3-4 weeks) - learning + MCQ + connection-building + direct cash withdrawal
 2. **Get 50-100 beta families** (Week 4-5)
-3. **Track key metrics** (completion, retention, NPS)
+3. **Track key metrics** (completion, retention, NPS, connection discovery)
 4. **Create investor materials** (deck, demo, metrics)
 5. **Start investor conversations** (Week 5+)
 
 **Key Decisions:**
 - ✅ **Direct cash withdrawal** (no game currency integration for MVP)
 - ✅ **3,000-4,000 words** (CEFR + Taiwan + Corpus combined)
-- ✅ **PostgreSQL + JSONB** (not Neo4j for MVP)
+- ✅ **PostgreSQL + JSONB** (with relationship metadata for MVP)
 - ✅ **Tier 1-2 only** (~5,000 learning points for MVP)
+- ✅ **Connection-building scope** (60% connection-based, 40% adaptive) ⭐ NEW
 - ✅ **Game integration = Phase 2** (NOT MVP - after core validation)
 
-**Focus on the core thesis**: Financial incentive → Learning motivation. That's what we're validating.
+**Key Enhancements:**
+- ✅ **Connection-building scope algorithm** (the missing piece!)
+- ✅ **Adaptive learning** (based on vocabulary level)
+- ✅ **Immediate feedback** (explanations after answers)
+- ✅ **Basic gamification** (streaks, badges)
+- ✅ **Enhanced parent dashboard** (analytics, insights)
+- ✅ **Question quality improvements** (relationship-based distractors)
+
+**Focus on the core thesis**: Financial incentive → Learning motivation. Connection-building scope makes learning more effective and engaging.
+

@@ -10,7 +10,7 @@ export function VerificationCard() {
         根據間隔重複系統進行單字複習
       </p>
       <Link
-        href="/verification"
+        href="/learner/verification"
         className="block w-full text-center px-4 py-3 bg-white text-cyan-600 rounded-lg font-semibold hover:bg-cyan-50 transition-colors"
       >
         開始複習 →

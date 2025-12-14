@@ -37,6 +37,7 @@ export interface Achievement {
   requirement_type?: string
   requirement_value?: number
   xp_reward?: number
+  crystal_reward?: number
   points_bonus?: number
   unlocked: boolean
   unlocked_at: string | null
@@ -329,7 +330,9 @@ export const leaderboardsApi = {
         `/api/v1/leaderboards/global?period=${period}&limit=${limit}&metric=${metric}`
       )
     } catch (error) {
-      console.warn('Leaderboard API unavailable:', error)
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Leaderboard API unavailable:', error)
+      }
       return [] // Return empty - UI will show "暫無排行資料"
     }
   },
@@ -347,7 +350,9 @@ export const leaderboardsApi = {
         `/api/v1/leaderboards/friends?period=${period}&metric=${metric}`
       )
     } catch (error) {
-      console.warn('Friends leaderboard API unavailable:', error)
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Friends leaderboard API unavailable:', error)
+      }
       return []
     }
   },
@@ -365,7 +370,9 @@ export const leaderboardsApi = {
         `/api/v1/leaderboards/rank?period=${period}&metric=${metric}`
       )
     } catch (error) {
-      console.warn('User rank API unavailable:', error)
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('User rank API unavailable:', error)
+      }
       return null
     }
   },

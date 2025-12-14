@@ -171,8 +171,11 @@ export function BottomSheet({
           </div>
         )}
 
-        {/* Content */}
-        <div className="overflow-y-auto" style={{ maxHeight: `calc(${maxHeight}vh - 60px)` }}>
+        {/* Content - extra bottom padding for bottom nav */}
+        <div 
+          className="overflow-y-auto pb-20" 
+          style={{ maxHeight: `calc(${maxHeight}vh - 60px)` }}
+        >
           {children}
         </div>
       </div>

@@ -1,0 +1,67 @@
+================================================================================
+GOLDEN DATASET V1 - MCQ Generation Success Report
+================================================================================
+Generated: December 10, 2024, 18:27
+Duration: 2.4 minutes (146.6 seconds)
+Rate: 70.5 senses/second
+
+================================================================================
+THE BUG THAT WAS FIXED
+================================================================================
+Issue: File mode 'w' (write/truncate) instead of 'a' (append)
+Location: backend/scripts/generate_all_mcqs.py, line 180
+Impact: Only last batch per worker was preserved (~15k instead of ~161k)
+Fix: Changed open(filename, 'w') to open(filename, 'a')
+Result: 10.2x more MCQs recovered (161,597 vs 15,773)
+
+================================================================================
+FINAL DATASET STATISTICS
+================================================================================
+Total MCQs: 161,597
+Total Senses Processed: 10,337
+Average MCQs per Sense: 15.6
+
+MCQ Type Distribution:
+  MEANING:        137,406 (85.0%)
+  USAGE:           18,402 (11.4%)
+  DISCRIMINATION:   5,789 (3.6%)
+
+File Sizes:
+  Worker 0: 97 MB  (33,762 MCQs)
+  Worker 1: 98 MB  (34,418 MCQs)
+  Worker 2: 94 MB  (32,747 MCQs)
+  Worker 3: 88 MB  (30,717 MCQs)
+  Worker 4: 85 MB  (29,953 MCQs)
+  Combined: 462 MB (161,597 MCQs)
+
+Quality Verification:
+  Sample Size: 100 MCQs
+  Error Rate: 0.0%
+  Polysemy Traps: 0
+  Invalid JSON: 0
+  Status: ✅ PASSED
+
+================================================================================
+NEXT STEPS
+================================================================================
+1. Import to PostgreSQL using batch import (Stage 5)
+2. Verify database counts match CSV counts
+3. Mark dataset as production-ready
+
+================================================================================
+FILES
+================================================================================
+Worker Files:
+  - mcqs_worker_0.csv (33,762 MCQs)
+  - mcqs_worker_1.csv (34,418 MCQs)
+  - mcqs_worker_2.csv (32,747 MCQs)
+  - mcqs_worker_3.csv (30,717 MCQs)
+  - mcqs_worker_4.csv (29,953 MCQs)
+
+Combined File:
+  - all_mcqs_golden.csv (161,597 MCQs) ⭐ USE THIS FOR IMPORT
+
+Backup:
+  - MCQ_GENERATION_EXPLAINED_backup.md (documentation backup)
+
+================================================================================

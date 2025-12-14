@@ -27,7 +27,8 @@ from src.agent_stage2 import (
     get_multilayer_examples,
     update_graph_stage2,
     load_checkpoint,
-    save_checkpoint
+    save_checkpoint,
+    load_vocabulary_metadata
 )
 
 # Load environment variables
@@ -52,7 +53,8 @@ def process_sense(
     mock: bool,
     checkpoint_file: str,
     processed_senses: set,
-    stats: Dict
+    stats: Dict,
+    vocab_metadata: Dict = None
 ) -> Tuple[bool, str]:
     """
     Process a single sense. Thread-safe.
@@ -75,11 +77,21 @@ def process_sense(
     is_moe_word = record.get("is_moe_word", False)
     phrases = record.get("phrases") or []
     
+    # Supplement with vocabulary.json metadata (Neo4j often missing frequency_rank)
+    is_only_sense = False
+    if vocab_metadata and sense_id in vocab_metadata:
+        vocab_meta = vocab_metadata[sense_id]
+        if frequency_rank is None:
+            frequency_rank = vocab_meta.get("frequency_rank")
+        if usage_ratio is None:
+            usage_ratio = vocab_meta.get("usage_ratio")
+        is_only_sense = vocab_meta.get("is_only_sense", False)
+    
     try:
         # Fetch relationships (with definitions) - now uses sense-specific relationships
         relationships = fetch_relationships(conn, word, sense_id=sense_id)
         
-        # Generate multi-layer examples with enhanced context
+        # Generate multi-layer examples with enhanced context + tiered counts
         examples = get_multilayer_examples(
             sense_id,
             word,
@@ -95,6 +107,7 @@ def process_sense(
             cefr=cefr,
             is_moe_word=is_moe_word,
             phrases=phrases,
+            is_only_sense=is_only_sense,
             mock=mock
         )
         
@@ -127,7 +140,8 @@ def run_stage2_agent_parallel(
     mock: bool = False,
     checkpoint_file: str = "level2_checkpoint.json",
     resume: bool = True,
-    workers: int = 5
+    workers: int = 5,
+    force: bool = False
 ):
     """
     Run Content Level 2 generation agent with parallel processing.
@@ -140,9 +154,17 @@ def run_stage2_agent_parallel(
         checkpoint_file: Path to checkpoint file
         resume: Whether to resume from checkpoint
         workers: Number of parallel workers (default: 5)
+        force: Force re-enrichment of already enriched senses (for prompt upgrades)
     """
     print("🎯 Starting Content Level 2 Multi-Layer Example Generation Agent (Parallel)...")
     print(f"   Workers: {workers}")
+    if force:
+        print("   ⚠️ FORCE MODE: Will re-enrich already enriched senses")
+    
+    # Load vocabulary metadata for tiered example counts
+    vocab_metadata = load_vocabulary_metadata()
+    if vocab_metadata:
+        print(f"📚 Loaded vocabulary metadata for {len(vocab_metadata)} senses")
     
     # Load checkpoint if resuming
     checkpoint = load_checkpoint(checkpoint_file) if resume else {"processed_senses": [], "total_processed": 0}
@@ -155,12 +177,15 @@ def run_stage2_agent_parallel(
         print(f"   Total processed so far: {total_processed}")
     
     # Fetch all tasks
+    # Force mode: Include already enriched senses (for prompt upgrades)
+    stage2_filter = "" if force else "AND (s.stage2_enriched IS NULL OR s.stage2_enriched = false)"
+    
     with conn.get_session() as session:
         if target_word:
-            result = session.run("""
-                MATCH (w:Word {name: $word})-[:HAS_SENSE]->(s:Sense)
+            result = session.run(f"""
+                MATCH (w:Word {{name: $word}})-[:HAS_SENSE]->(s:Sense)
                 WHERE s.enriched = true 
-                  AND (s.stage2_enriched IS NULL OR s.stage2_enriched = false)
+                  {stage2_filter}
                 OPTIONAL MATCH (s)<-[:MAPS_TO_SENSE]-(p:Phrase)
                 WITH w, s, collect(DISTINCT p.text) as phrases
                 RETURN w.name as word, 
@@ -178,10 +203,10 @@ def run_stage2_agent_parallel(
                        phrases
             """, word=target_word)
         else:
-            query = """
+            query = f"""
                 MATCH (w:Word)-[:HAS_SENSE]->(s:Sense)
                 WHERE s.enriched = true 
-                  AND (s.stage2_enriched IS NULL OR s.stage2_enriched = false)
+                  {stage2_filter}
                 OPTIONAL MATCH (s)<-[:MAPS_TO_SENSE]-(p:Phrase)
                 WITH w, s, collect(DISTINCT p.text) as phrases
                 RETURN w.name as word, 
@@ -235,9 +260,9 @@ def run_stage2_agent_parallel(
     last_checkpoint_time = time.time()
     
     with ThreadPoolExecutor(max_workers=workers) as executor:
-        # Submit all tasks
+        # Submit all tasks (pass vocab_metadata for tiered enrichment)
         future_to_sense = {
-            executor.submit(process_sense, record, conn, mock, checkpoint_file, processed_senses, stats): record["sense_id"]
+            executor.submit(process_sense, record, conn, mock, checkpoint_file, processed_senses, stats, vocab_metadata): record["sense_id"]
             for record in tasks
         }
         
@@ -291,6 +316,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", type=str, default="level2_checkpoint.json", help="Checkpoint file path")
     parser.add_argument("--no-resume", action="store_true", help="Don't resume from checkpoint")
     parser.add_argument("--workers", type=int, default=5, help="Number of parallel workers (default: 5)")
+    parser.add_argument("--force", action="store_true", help="Force re-enrichment of already enriched senses")
     args = parser.parse_args()
     
     conn = Neo4jConnection()
@@ -303,7 +329,8 @@ if __name__ == "__main__":
                 mock=args.mock,
                 checkpoint_file=args.checkpoint,
                 resume=not args.no_resume,
-                workers=args.workers
+                workers=args.workers,
+                force=args.force
             )
     finally:
         conn.close()

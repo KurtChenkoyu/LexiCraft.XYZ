@@ -36,7 +36,7 @@ export function ChildrenOverview({
           {t('childrenOverview.title')}
         </h2>
         <Link
-          href="/settings"
+          href="/parent/children"
           className="px-4 py-2 text-cyan-600 hover:bg-cyan-50 rounded-lg font-medium transition-colors flex items-center gap-2"
         >
           {t('childrenOverview.manageAll')}
@@ -58,7 +58,7 @@ export function ChildrenOverview({
         
         {/* Add Child Card */}
         <Link
-          href="/settings"
+          href="/parent/children"
           className="p-4 rounded-lg border-2 border-dashed border-gray-300 hover:border-cyan-400 bg-gray-50 hover:bg-cyan-50 transition-all flex flex-col items-center justify-center min-h-[120px]"
         >
           <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mb-2">

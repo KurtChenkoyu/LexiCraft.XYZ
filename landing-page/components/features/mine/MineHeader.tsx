@@ -1,5 +1,6 @@
 'use client'
 
+import React, { memo } from 'react'
 import { UserStats } from '@/types/mine'
 
 interface MineHeaderProps {
@@ -10,7 +11,8 @@ interface MineHeaderProps {
   onRefreshSuggestions?: () => void
 }
 
-export function MineHeader({
+// Memoized MineHeader to prevent unnecessary re-renders
+export const MineHeader = memo(function MineHeader({
   mode,
   userStats,
   gapsCount,
@@ -89,5 +91,8 @@ export function MineHeader({
       </div>
     </div>
   )
-}
+})
+
+// Display name for debugging
+MineHeader.displayName = 'MineHeader'
 

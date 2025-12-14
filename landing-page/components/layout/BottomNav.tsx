@@ -3,13 +3,20 @@
 import { usePathname } from 'next/navigation'
 import { Link } from '@/i18n/routing'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useAppStore, selectUnreadNotificationsCount } from '@/stores/useAppStore'
+import { useRolePreference } from '@/hooks/useRolePreference'
 
-// Tab configuration
+/**
+ * Tab configuration for Learner Bottom Navigation
+ * 
+ * URLs use /learner/* prefix per Architecture Bible
+ * @see .cursorrules - App Architecture Bible, Section 2
+ */
 const tabs = [
   {
     id: 'mine',
     label: '礦區',
-    href: '/mine',
+    href: '/learner/mine',
     icon: (active: boolean) => (
       <svg
         className={`w-6 h-6 ${active ? 'text-cyan-400' : 'text-slate-400'}`}
@@ -27,9 +34,29 @@ const tabs = [
     ),
   },
   {
+    id: 'build',
+    label: '建造',
+    href: '/learner/build',
+    icon: (active: boolean) => (
+      <svg
+        className={`w-6 h-6 ${active ? 'text-cyan-400' : 'text-slate-400'}`}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={active ? 2.5 : 2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819"
+        />
+      </svg>
+    ),
+  },
+  {
     id: 'quiz',
     label: '驗證',
-    href: '/verification',
+    href: '/learner/verification',
     icon: (active: boolean) => (
       <svg
         className={`w-6 h-6 ${active ? 'text-cyan-400' : 'text-slate-400'}`}
@@ -49,7 +76,7 @@ const tabs = [
   {
     id: 'ranks',
     label: '排行',
-    href: '/leaderboards',
+    href: '/learner/leaderboards',
     icon: (active: boolean) => (
       <svg
         className={`w-6 h-6 ${active ? 'text-cyan-400' : 'text-slate-400'}`}
@@ -67,9 +94,31 @@ const tabs = [
     ),
   },
   {
+    id: 'family',
+    label: '家庭',
+    href: '/learner/family',
+    icon: (active: boolean) => (
+      <svg
+        className={`w-6 h-6 ${active ? 'text-cyan-400' : 'text-slate-400'}`}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={active ? 2.5 : 2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"
+        />
+      </svg>
+    ),
+    // Only show for parent-learners
+    showWhen: (isParent: boolean) => isParent,
+  },
+  {
     id: 'profile',
     label: '我的',
-    href: '/profile',
+    href: '/learner/profile',
     icon: (active: boolean) => (
       <svg
         className={`w-6 h-6 ${active ? 'text-cyan-400' : 'text-slate-400'}`}
@@ -91,16 +140,30 @@ const tabs = [
 export function BottomNav() {
   const pathname = usePathname()
   const isMobile = useIsMobile()
+  const { isParent } = useRolePreference()
+  
+  // Get badge counts from Zustand (instant, no fetch)
+  // FIXED: Use stable selector function defined outside component to avoid function recreation
+  // Select count directly (primitive) instead of array to avoid infinite loop
+  const unreadCount = useAppStore(selectUnreadNotificationsCount)
 
   // Don't render on desktop
   if (!isMobile) return null
+
+  // Filter tabs based on role (show Family only for parent-learners)
+  const visibleTabs = tabs.filter(tab => {
+    if (tab.showWhen) {
+      return tab.showWhen(isParent)
+    }
+    return true
+  })
 
   // Determine active tab from pathname
   const getActiveTab = () => {
     // Remove locale prefix for matching (e.g., /zh-TW/mine -> /mine)
     const pathWithoutLocale = '/' + pathname.split('/').slice(2).join('/')
     
-    for (const tab of tabs) {
+    for (const tab of visibleTabs) {
       if (pathWithoutLocale.startsWith(tab.href)) {
         return tab.id
       }
@@ -113,23 +176,31 @@ export function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 pb-safe">
       <div className="flex items-center justify-around h-14">
-        {tabs.map((tab) => {
+        {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.id
           return (
             <Link
               key={tab.id}
               href={tab.href}
-              className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all ${
-                isActive
+              prefetch={true}
+              className={`flex flex-col items-center justify-center flex-1 h-full py-1 
+                transition-all duration-75
+                ${isActive
                   ? 'text-cyan-400'
-                  : 'text-slate-400 active:text-slate-300'
-              }`}
+                  : 'text-slate-400 active:text-cyan-300 active:scale-95'
+                }`}
             >
-              <div className="relative">
+              <div className={`relative transition-transform duration-75 ${!isActive ? 'active:scale-110' : ''}`}>
                 {tab.icon(isActive)}
                 {/* Active indicator glow */}
                 {isActive && (
                   <div className="absolute inset-0 bg-cyan-400/20 blur-md rounded-full" />
+                )}
+                {/* Badge for verification (if due cards exist) */}
+                {tab.id === 'quiz' && unreadCount > 0 && (
+                  <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </div>
                 )}
               </div>
               <span

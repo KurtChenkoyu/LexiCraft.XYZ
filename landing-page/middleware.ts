@@ -47,6 +47,12 @@ export async function middleware(request: NextRequest) {
 
   // Handle locale routing (existing i18n logic)
   const pathname = request.nextUrl.pathname
+  
+  // Skip locale redirect for static assets (workers, vocabulary, audio) and API routes
+  if (pathname.startsWith('/workers/') || pathname.startsWith('/api/') || pathname.startsWith('/audio/') || pathname.endsWith('.json')) {
+    return response
+  }
+  
   const pathnameHasLocale = routing.locales.some(
     (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   )
@@ -56,6 +62,38 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(
       new URL(`/${locale}${pathname.startsWith('/') ? '' : '/'}${pathname}`, request.url)
     )
+  }
+
+  // === URL MIGRATION REDIRECTS ===
+  // Redirect old URLs to new role-based structure
+  // @see .cursorrules - App Architecture Bible
+  const redirectMap: Record<string, string> = {
+    // Parent routes
+    '/dashboard': '/parent/dashboard',
+    '/coach-dashboard': '/parent/dashboard/analytics',
+    '/children': '/parent/children',
+    '/goals': '/parent/goals',
+    '/achievements': '/parent/achievements',
+    '/settings': '/parent/settings',
+    '/deposits': '/parent/dashboard/finance',
+    // Learner routes
+    '/mine': '/learner/mine',
+    '/build': '/learner/build',
+    '/verification': '/learner/verification',
+    '/leaderboards': '/learner/leaderboards',
+    '/profile': '/learner/profile',
+  }
+
+  // Check if pathname matches any redirect (with locale prefix)
+  for (const locale of routing.locales) {
+    for (const [oldPath, newPath] of Object.entries(redirectMap)) {
+      if (pathname === `/${locale}${oldPath}`) {
+        return NextResponse.redirect(
+          new URL(`/${locale}${newPath}`, request.url),
+          { status: 301 } // Permanent redirect
+        )
+      }
+    }
   }
 
   return response

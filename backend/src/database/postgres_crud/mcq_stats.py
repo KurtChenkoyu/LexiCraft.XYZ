@@ -31,7 +31,8 @@ def create_mcq(
     correct_index: int,
     context: Optional[str] = None,
     explanation: Optional[str] = None,
-    metadata: Optional[Dict] = None
+    metadata: Optional[Dict] = None,
+    commit: bool = True
 ) -> MCQPool:
     """
     Create a new MCQ in the pool.
@@ -47,6 +48,7 @@ def create_mcq(
         context: Example sentence providing context
         explanation: Explanation shown after answering
         metadata: Additional metadata
+        commit: Whether to commit immediately (default: True for backward compatibility)
     
     Returns:
         Created MCQPool instance
@@ -63,14 +65,23 @@ def create_mcq(
         mcq_metadata=metadata or {}
     )
     session.add(mcq)
-    session.commit()
-    session.refresh(mcq)
+    if commit:
+        session.commit()
+        session.refresh(mcq)
     return mcq
 
 
 def get_mcq_by_id(session: Session, mcq_id: UUID) -> Optional[MCQPool]:
     """Get MCQ by ID."""
     return session.query(MCQPool).filter(MCQPool.id == mcq_id).first()
+
+
+def get_mcqs_by_ids(session: Session, mcq_ids: List[UUID]) -> Dict[UUID, MCQPool]:
+    """Get multiple MCQs by IDs in a single query."""
+    if not mcq_ids:
+        return {}
+    mcqs = session.query(MCQPool).filter(MCQPool.id.in_(mcq_ids)).all()
+    return {mcq.id: mcq for mcq in mcqs}
 
 
 def get_mcqs_for_sense(
@@ -554,6 +565,60 @@ def estimate_user_ability_from_history(
     return max(0.0, min(1.0, final_ability))  # Clamp to [0, 1]
 
 
+def _generate_and_store_mcqs(session: Session, sense_id: str) -> List[MCQPool]:
+    """Generate MCQs for a sense and store them in the pool."""
+    try:
+        from src.services.vocabulary_store import VocabularyStore
+        from src.mcq_assembler import MCQAssembler
+        import uuid as uuid_mod
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        vocab = VocabularyStore()
+        assembler = MCQAssembler(vocab)
+        
+        # Generate MCQs
+        mcqs = assembler.assemble_mcqs_for_sense(sense_id)
+        
+        if not mcqs:
+            logger.warning(f"No MCQs generated for sense {sense_id}")
+            return []
+        
+        stored = []
+        for mcq in mcqs:
+            # Find correct index
+            correct_idx = next(
+                (i for i, opt in enumerate(mcq.options) if opt.get('is_correct', False)),
+                0
+            )
+            
+            pool_entry = MCQPool(
+                id=uuid_mod.uuid4(),
+                sense_id=sense_id,
+                word=mcq.word,
+                mcq_type=mcq.mcq_type,
+                question=mcq.question,
+                context=mcq.context,
+                options=mcq.options,
+                correct_index=correct_idx,
+                explanation=mcq.explanation,
+                is_active=True
+            )
+            session.add(pool_entry)
+            stored.append(pool_entry)
+        
+        session.commit()
+        logger.info(f"Generated and stored {len(stored)} MCQs for sense {sense_id}")
+        return stored
+        
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to generate MCQs for {sense_id}: {e}")
+        session.rollback()
+        return []
+
+
 def select_adaptive_mcq(
     session: Session,
     sense_id: str,
@@ -565,6 +630,7 @@ def select_adaptive_mcq(
     Select an MCQ adaptively based on user ability.
     
     Selects MCQ with difficulty matching user ability for optimal learning.
+    If no MCQs exist for the sense, generates them on-demand.
     
     Args:
         session: Database session
@@ -609,8 +675,21 @@ def select_adaptive_mcq(
     if result:
         return result
     
-    # Fallback: any MCQ for this sense
-    return query.order_by(desc(MCQPool.quality_score), func.random()).first()
+    # Fallback: any MCQ for this sense (without type/exclude filters)
+    any_mcq = session.query(MCQPool).filter(
+        MCQPool.sense_id == sense_id,
+        MCQPool.is_active == True
+    ).order_by(desc(MCQPool.quality_score), func.random()).first()
+    
+    if any_mcq:
+        return any_mcq
+    
+    # No MCQs exist for this sense - log warning
+    # MCQs should be pre-generated, not created on-demand
+    import logging
+    logging.getLogger(__name__).warning(f"No MCQs in pool for sense_id={sense_id}. Run MCQ generation.")
+    
+    return None
 
 
 def get_mcq_pool_for_verification(

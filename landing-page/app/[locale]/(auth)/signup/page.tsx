@@ -44,9 +44,10 @@ export default function SignupPage() {
         return
       }
 
-      // If session exists, redirect to onboarding (will check status there)
+      // If session exists, redirect to Traffic Cop for role-based routing
+      // Traffic Cop will check onboarding status and redirect accordingly
       if (data.session) {
-        router.push('/onboarding')
+        router.push('/start')
       }
     } catch (error: any) {
       setError(error.message || '註冊失敗，請重試')

@@ -1,7 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { checkOnboardingStatus } from '@/lib/onboarding'
 
+/**
+ * OAuth Callback Route
+ * 
+ * Handles OAuth provider callbacks (Google, etc.)
+ * After successful auth, redirects to /start (Traffic Cop)
+ * which handles role-based routing and onboarding checks.
+ * 
+ * @see .cursorrules - App Architecture Bible, Section 3 "Traffic Cop Pattern"
+ */
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
@@ -26,19 +34,11 @@ export async function GET(request: Request) {
       console.error('No session created after code exchange')
       return NextResponse.redirect(new URL(`/${locale}/login?error=no_session`, requestUrl.origin))
     }
-
-    // Check if user needs onboarding
-    const userId = data.session.user.id
-    const onboardingStatus = await checkOnboardingStatus(userId)
-    
-    // If onboarding not completed, redirect to onboarding
-    if (onboardingStatus && !onboardingStatus.completed) {
-      return NextResponse.redirect(new URL(`/${locale}/onboarding`, requestUrl.origin))
-    }
   }
 
-  // Use custom redirect if provided, otherwise go to dashboard
-  const redirectUrl = nextParam || `/${locale}/dashboard`
+  // Use custom redirect if provided, otherwise go to Traffic Cop
+  // Traffic Cop handles role-based routing and onboarding checks
+  const redirectUrl = nextParam || `/${locale}/start`
   
   return NextResponse.redirect(new URL(redirectUrl, requestUrl.origin))
 }

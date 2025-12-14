@@ -1,0 +1,14 @@
+{
+  "batch_num": 100,
+  "timestamp": "2025-12-13T18:02:32.309017",
+  "stats": {
+    "total_senses": 1992,
+    "processed": 1992,
+    "failed": 0,
+    "api_calls": 100,
+    "tokens_used": 627902,
+    "skipped_no_sense": 0,
+    "skipped_no_definition": 0
+  },
+  "failed_batches": []
+}

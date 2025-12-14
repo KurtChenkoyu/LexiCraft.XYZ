@@ -26,15 +26,23 @@ A second enrichment stage that generates multiple example sentences organized in
 
 ## Architecture Overview
 
-### Layer 1: Contextual Support (Solidification)
-**Purpose:** Provide 2-3 clear example sentences that illustrate the target sense in different contexts.
+### Layer 1: Contextual Support (Tiered by Usage)
+**Purpose:** Provide contextual examples tiered by sense usage frequency.
+
+**Tiered Approach:**
+- **PRIMARY senses (>50% usage):** 15-20 examples - learners encounter constantly
+- **COMMON senses (20-50% usage):** 8-12 examples - regular exposure
+- **RARE senses (<20% usage):** 5-8 examples - occasional use
 
 **Source:** Generated directly by Gemini (no graph relationships needed)
 
-**Example for "bank" (financial institution):**
-- "I need to deposit money at the bank."
-- "The bank approved my loan application."
-- "She works as a teller at the local bank."
+**Rationale:** Primary senses need MORE examples to:
+- Prevent pattern memorization during spaced repetition
+- Provide unique MCQs across multiple review cycles
+- Support adaptive difficulty with variety
+
+**Example for "bank" (financial institution) - PRIMARY sense:**
+15-20 examples covering: formal/casual, written/spoken, school/work/daily life contexts
 
 ### Layer 2: Opposite Examples (Contrast)
 **Purpose:** Show antonyms in context to highlight what the word is NOT.
@@ -102,32 +110,32 @@ class EnrichedSense(BaseModel):
     mapped_phrases: List[str]
 
 class MultiLayerExamples(BaseModel):
-    """Stage 2: Multi-layer example enrichment."""
+    """Stage 2: Multi-layer example enrichment (Tiered by usage frequency)."""
     sense_id: str
     
-    # Layer 1: Contextual Support (2-3 examples)
+    # Layer 1: Contextual Support (tiered: 15-20 primary, 8-12 common, 5-8 rare)
     examples_contextual: List[ExamplePair] = Field(
-        min_items=2,
-        max_items=3,
-        description="Multiple examples that clearly illustrate this sense"
+        min_items=5,
+        max_items=25,  # Allow up to 25 for primary senses
+        description="Tiered examples: PRIMARY (15-20), COMMON (8-12), RARE (5-8)"
     )
     
-    # Layer 2: Opposites (from OPPOSITE_TO relationships)
+    # Layer 2: Opposites (2-3 per relationship from OPPOSITE_TO)
     examples_opposite: List[ExamplePair] = Field(
         default_factory=list,
-        description="Examples using antonyms to contrast meaning"
+        description="Examples using antonyms to contrast meaning (2-3 per relationship)"
     )
     
-    # Layer 3: Similar (from RELATED_TO relationships)
+    # Layer 3: Similar (2-3 per relationship from RELATED_TO)
     examples_similar: List[ExamplePair] = Field(
         default_factory=list,
-        description="Examples using synonyms to show subtle differences"
+        description="Examples using synonyms to show subtle differences (2-3 per relationship)"
     )
     
-    # Layer 4: Confused (from CONFUSED_WITH relationships)
+    # Layer 4: Confused (2-3 per relationship from CONFUSED_WITH)
     examples_confused: List[ExamplePair] = Field(
         default_factory=list,
-        description="Examples showing commonly confused words in context"
+        description="Examples showing commonly confused words in context (2-3 per relationship)"
     )
 ```
 
@@ -181,32 +189,37 @@ class MultiLayerExamples(BaseModel):
    - Generate examples using Gemini with relationship context
    - Store results in Neo4j
 
-**Gemini Prompt Structure:**
+**Gemini Prompt Structure (Tiered by Usage Frequency):**
 ```
 You are an expert EFL curriculum developer for Taiwan.
 
 Target Sense: {sense_id}
 Definition: {definition_en} / {definition_zh}
+Usage Ratio: {usage_ratio} ({tier} priority)
 
 Generate examples in 4 layers:
 
-1. CONTEXTUAL (2-3 examples):
-   - Provide 2-3 natural examples that clearly illustrate this sense
-   - Show different contexts/registers if appropriate
+1. CONTEXTUAL (TIERED - REQUIRED for MCQ variety):
+   - PRIMARY senses (>50% usage): Provide 15-20 natural examples
+   - COMMON senses (20-50%): Provide 8-12 natural examples
+   - RARE senses (<20%): Provide 5-8 natural examples
+   - Show DIVERSE contexts: formal, casual, school, work, daily life
+   - Each example should be DISTINCT (different sentence structure)
+   - More examples = more MEANING MCQs for verification
 
-2. OPPOSITE (if antonyms exist):
+2. OPPOSITE (2-3 examples per antonym if antonyms exist):
    - Related words: {opposite_words}
-   - Generate examples showing contrast with antonyms
-   - Highlight what this sense is NOT
+   - Generate 2-3 examples per antonym showing contrast
+   - Each example should show a different aspect of the contrast
 
-3. SIMILAR (if synonyms exist):
+3. SIMILAR (2-3 examples per synonym if synonyms exist):
    - Related words: {similar_words}
-   - Generate examples showing subtle differences with synonyms
-   - Help learners understand nuance
+   - Generate 2-3 examples per synonym showing subtle differences
+   - Help learners understand nuance through multiple contexts
 
-4. CONFUSED (if confused words exist):
+4. CONFUSED (2-3 examples per confused word if confused words exist):
    - Confused words: {confused_words} (reasons: {reasons})
-   - Generate examples that clarify the distinction
+   - Generate 2-3 examples per confused word that clarify the distinction
    - Address common errors for Taiwan EFL learners
 
 Return JSON matching MultiLayerExamples schema.

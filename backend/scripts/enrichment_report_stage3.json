@@ -1,0 +1,41 @@
+{
+  "timestamp": "2025-12-12T02:15:32.415408",
+  "senses_processed": 10470,
+  "layers": {
+    "wordnet": {
+      "total_processed": 20932,
+      "derivations_added": 15358,
+      "morphological_added": 13678,
+      "similar_added": 5503,
+      "attributes_added": 523,
+      "also_sees_added": 1193,
+      "entailments_added": 117,
+      "causes_added": 59,
+      "broken_refs_fixed": 4314
+    },
+    "free_dict": {
+      "total_requests": 10178,
+      "cache_hits": 292,
+      "api_errors": 0,
+      "synonyms_added": 716,
+      "antonyms_added": 191
+    },
+    "collocations": {
+      "total_words": 10470,
+      "ngsl_hits": 0,
+      "wordnet_hits": 0,
+      "datamuse_hits": 8213,
+      "phrases_from_ngsl": 0,
+      "phrases_from_wordnet": 0,
+      "phrases_from_datamuse": 35701,
+      "ngsl_coverage": "0.0%",
+      "wordnet_coverage": "0.0%",
+      "datamuse_coverage": "78.4%"
+    },
+    "merger": {
+      "total_merged": 10470,
+      "connections_added": 37951,
+      "collocations_added": 35701
+    }
+  }
+}

@@ -22,6 +22,7 @@ export interface Block {
   status: 'raw' | 'hollow' | 'solid'
   rank?: number
   source?: string
+  emoji?: string  // For emoji pack vocabulary
 }
 
 export interface OtherSense {

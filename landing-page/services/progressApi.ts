@@ -37,7 +37,7 @@ export interface UserProgressResponse {
 }
 
 /**
- * Start forging response
+ * Start forging response (with Delta Strategy fields)
  */
 export interface StartForgingResponse {
   success: boolean
@@ -45,6 +45,11 @@ export interface StartForgingResponse {
   sense_id: string
   status: string
   message: string
+  // Delta Strategy fields (instant UI update)
+  delta_xp?: number
+  delta_sparks?: number
+  delta_discovered?: number
+  delta_hollow?: number
 }
 
 /**

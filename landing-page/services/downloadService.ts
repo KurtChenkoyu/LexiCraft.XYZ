@@ -1,4 +1,17 @@
 /**
+ * CACHING STRATEGY (IMMUTABLE - DO NOT CHANGE):
+ * 
+ * This file follows the "Last War" caching approach:
+ * - IndexedDB is the ONLY cache for user data
+ * - localStorage is FORBIDDEN for user data
+ * - Load from IndexedDB first, sync from API in background
+ * 
+ * See: docs/ARCHITECTURE_PRINCIPLES.md
+ * 
+ * DO NOT add localStorage usage for user data here.
+ */
+
+/**
  * Download Service - Background data synchronization
  * 
  * Pre-downloads all user data on login for instant page loads.
@@ -29,18 +42,23 @@ const CACHE_KEYS = {
   GOALS: 'goals',
   NOTIFICATIONS: 'notifications',
   CHILDREN: 'children',
+  CHILDREN_SUMMARIES: 'children_summaries',
   BALANCE: 'balance',
   PROGRESS: 'learning_progress',
   LEADERBOARD: 'leaderboard',
   DUE_CARDS: 'due_cards',
+  CURRENCIES: 'currencies',
+  ROOMS: 'rooms',
   LAST_SYNC: 'last_full_sync',
 }
 
-// Cache TTLs (in ms)
+// Cache TTLs (in ms) - Using very long TTLs for offline-first approach
+// Data persists until explicitly invalidated (mutations, manual refresh, logout)
+// These long TTLs ensure data remains available even when backend is down
 const CACHE_TTL = {
-  SHORT: 5 * 60 * 1000,       // 5 minutes - frequently changing data
-  MEDIUM: 30 * 60 * 1000,     // 30 minutes - moderately stable
-  LONG: 24 * 60 * 60 * 1000,  // 24 hours - rarely changing
+  SHORT: 7 * 24 * 60 * 60 * 1000,   // 7 days - frequently changing data
+  MEDIUM: 30 * 24 * 60 * 60 * 1000, // 30 days - moderately stable (children, profile)
+  LONG: 365 * 24 * 60 * 60 * 1000,  // 1 year - rarely changing (effectively permanent)
 }
 
 // Types
@@ -67,6 +85,19 @@ interface Child {
   name: string | null
   age: number | null
   email: string
+}
+
+interface ChildSummary {
+  id: string
+  name: string | null
+  age: number | null
+  email: string
+  level: number
+  total_xp: number
+  current_streak: number
+  vocabulary_size: number
+  words_learned_today: number
+  last_active_date: string | null
 }
 
 interface Balance {
@@ -241,7 +272,7 @@ class DownloadService {
 
     this.isDownloading = false
     this.lastSyncTime = Date.now()
-    await localStore.set(CACHE_KEYS.LAST_SYNC, Date.now())
+    await localStore.setCache(CACHE_KEYS.LAST_SYNC, Date.now())
 
     console.log(`✅ Background download complete. ${errors.length} errors.`)
     
@@ -293,24 +324,87 @@ class DownloadService {
   }
 
   /**
-   * Get user profile from cache
+   * Get user profile from cache, with API fallback
+   * 
+   * "Last War" pattern: Try cache first, fall back to API if empty.
+   * This ensures Bootstrap always gets data even on first login.
    */
   async getProfile(): Promise<UserProfile | undefined> {
-    return this.getCached<UserProfile>(CACHE_KEYS.PROFILE)
+    // Try cache first
+    const cached = await this.getCached<UserProfile>(CACHE_KEYS.PROFILE)
+    if (cached) {
+      return cached
+    }
+    
+    // Cache miss - fetch from API and cache it
+    console.log('📡 Profile not in cache, fetching from API...')
+    try {
+      const profile = await authenticatedGet<UserProfile>('/api/users/me')
+      if (profile) {
+        await localStore.setCache(CACHE_KEYS.PROFILE, profile, CACHE_TTL.MEDIUM)
+        console.log('✅ Profile fetched and cached')
+      }
+      return profile
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Failed to fetch profile:', error)
+      }
+      return undefined
+    }
   }
 
   /**
-   * Get children from cache
+   * Get children from cache, with API fallback
    */
   async getChildren(): Promise<Child[] | undefined> {
-    return this.getCached<Child[]>(CACHE_KEYS.CHILDREN)
+    // Try cache first
+    const cached = await this.getCached<Child[]>(CACHE_KEYS.CHILDREN)
+    if (cached) {
+      return cached
+    }
+    
+    // Cache miss - fetch from API and cache it
+    console.log('📡 Children not in cache, fetching from API...')
+    try {
+      const children = await authenticatedGet<Child[]>('/api/users/children')
+      if (children) {
+        await localStore.setCache(CACHE_KEYS.CHILDREN, children, CACHE_TTL.MEDIUM)
+        console.log(`✅ Children fetched and cached (${children.length} children)`)
+      }
+      return children
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Failed to fetch children:', error)
+      }
+      return []
+    }
   }
 
   /**
-   * Get learner profile from cache
+   * Get learner profile from cache, with API fallback
    */
   async getLearnerProfile(): Promise<LearnerProfile | undefined> {
-    return this.getCached<LearnerProfile>(CACHE_KEYS.LEARNER_PROFILE)
+    // Try cache first
+    const cached = await this.getCached<LearnerProfile>(CACHE_KEYS.LEARNER_PROFILE)
+    if (cached) {
+      return cached
+    }
+    
+    // Cache miss - fetch from API and cache it
+    console.log('📡 Learner profile not in cache, fetching from API...')
+    try {
+      const profile = await learnerProfileApi.getProfile()
+      if (profile) {
+        await localStore.setCache(CACHE_KEYS.LEARNER_PROFILE, profile, CACHE_TTL.SHORT)
+        console.log('✅ Learner profile fetched and cached')
+      }
+      return profile
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Failed to fetch learner profile:', error)
+      }
+      return undefined
+    }
   }
 
   /**
@@ -353,6 +447,86 @@ class DownloadService {
    */
   async getDueCards(): Promise<DueCard[] | undefined> {
     return this.getCached<DueCard[]>(CACHE_KEYS.DUE_CARDS)
+  }
+
+  /**
+   * Get currencies from cache, with API fallback
+   */
+  async getCurrencies(): Promise<any | undefined> {
+    const cached = await this.getCached<any>(CACHE_KEYS.CURRENCIES)
+    if (cached) {
+      console.log('⚡ Loaded currencies from cache')
+      return cached
+    }
+    
+    // Fetch from API
+    try {
+      const currencies = await authenticatedGet<any>('/api/v1/currencies')
+      if (currencies) {
+        await localStore.setCache(CACHE_KEYS.CURRENCIES, currencies, CACHE_TTL.SHORT)
+        console.log('✅ Currencies fetched and cached')
+      }
+      return currencies
+    } catch (error) {
+      console.warn('⚠️ Failed to fetch currencies:', error)
+      return undefined
+    }
+  }
+
+  /**
+   * Get rooms from cache, with API fallback
+   */
+  async getRooms(): Promise<any[] | undefined> {
+    const cached = await this.getCached<any[]>(CACHE_KEYS.ROOMS)
+    if (cached && cached.length > 0) {
+      console.log(`⚡ Loaded ${cached.length} rooms from cache`)
+      return cached
+    }
+    
+    // Fetch from API
+    try {
+      const rooms = await authenticatedGet<any[]>('/api/v1/items/rooms')
+      if (rooms) {
+        await localStore.setCache(CACHE_KEYS.ROOMS, rooms, CACHE_TTL.MEDIUM)
+        console.log(`✅ Rooms fetched and cached (${rooms.length} rooms)`)
+      }
+      return rooms
+    } catch (error) {
+      console.warn('⚠️ Failed to fetch rooms:', error)
+      return undefined
+    }
+  }
+
+  /**
+   * Get children summaries from cache, with API fallback
+   * 
+   * NOTE: Always fetches from API if cache is empty, since empty array
+   * could mean "API failed before" not "no children exist"
+   */
+  async getChildrenSummaries(): Promise<ChildSummary[] | undefined> {
+    // Try cache first
+    const cached = await this.getCached<ChildSummary[]>(CACHE_KEYS.CHILDREN_SUMMARIES)
+    if (cached && cached.length > 0) {
+      // Only trust cache if it has data
+      console.log(`⚡ Loaded ${cached.length} children summaries from cache`)
+      return cached
+    }
+    
+    // Cache miss or empty - always fetch from API to get fresh data
+    console.log('📡 Children summaries not in cache (or empty), fetching from API...')
+    try {
+      const summaries = await authenticatedGet<ChildSummary[]>('/api/users/me/children/summary')
+      if (summaries) {
+        await localStore.setCache(CACHE_KEYS.CHILDREN_SUMMARIES, summaries, CACHE_TTL.SHORT)
+        console.log(`✅ Children summaries fetched and cached (${summaries.length} children)`)
+      }
+      return summaries
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Failed to fetch children summaries:', error)
+      }
+      return []
+    }
   }
 
   /**

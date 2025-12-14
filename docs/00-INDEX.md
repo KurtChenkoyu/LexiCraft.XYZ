@@ -1,7 +1,7 @@
 # Documentation Index
 ## LexiCraft Documentation
 
-**Last Updated:** December 2024
+**Last Updated:** December 8, 2025
 
 ---
 
@@ -27,93 +27,117 @@
 
 ### Product & UX Vision
 
-1. **[The Mine: Block Integration](./02-learning-point-integration.md)**
+0. **[MVP Roadmap](./36-mvp-roadmap.md)** 🆕 **START HERE**
+   - 2-week sprint plan
+   - Core hypothesis to test
+   - Task breakdown by day
+   - Success/failure criteria
+   - Post-MVP roadmap
+
+1. **[Taiwan Bilingual Nation Proposal](./37-taiwan-bilingual-nation-proposal.md)** 🆕 **GOVERNMENT PROPOSAL**
+   - Cost analysis for 30% population (7.05M people)
+   - 14.1 billion TWD investment breakdown
+   - Phased rollout strategies (3-5 years)
+   - Implementation considerations
+   - Risk analysis and success metrics
+
+2. **[Minecraft Game Design](./35-minecraft-game-design.md)** **CORE**
+   - **Mine → Smelt → Build** core loop
+   - Inventory system (words as materials)
+   - Blueprint system (structures to build)
+   - Decay/Creeper mechanic (stakes for forgetting)
+   - XP as spendable currency
+   - Enchanting, Crafting, Villagers, Nether
+   - Implementation phases & database schema
+
+3. **[The Mine: Block Integration](./02-learning-point-integration.md)**
    - Knowledge graph architecture (The Mine)
    - Block tiers and base XP values
    - Dynamic value system (connections increase value)
    - Discovery bonuses
-   - Gamification layers
 
-2. **[UX Vision: Game Design](./30-ux-vision-game-design.md)**
-   - Game-first design philosophy
+4. **[UX Vision: Game Design](./30-ux-vision-game-design.md)**
+   - Original game-first design philosophy (foundation)
    - Block Mine Map visualization
    - Mining and forging mechanics
    - Parent/child experiences
-   - Implementation phases
-   - Data model status
 
-3. **[Economic Model Hypotheses](./31-economic-model-hypotheses.md)** 🆕
+5. **[Economic Model Hypotheses](./31-economic-model-hypotheses.md)**
    - Dual economy design (XP vs money)
    - Internal economy (always active)
    - External economy (requires funding)
    - Testable hypotheses
-   - Package design options
+
+### Architecture Decision Records
+
+- **[ADR-001: One-Shot Payload](./decisions/ADR-001-one-shot-payload.md)** - Instant gamification feedback
+- **[ADR-002: Minecraft Game Model](./decisions/ADR-002-minecraft-game-model.md)** 🆕 - Core game design paradigm
 
 ### Design & Architecture
 
-3. **[Signup Flow Design](./18-signup-flow-design.md)**
+6. **[Signup Flow Design](./18-signup-flow-design.md)**
    - User onboarding flow
    - Progressive disclosure
    - Industry best practices
 
-4. **[Relationship Ecosystem Design](./19-relationship-ecosystem-design.md)**
+7. **[Relationship Ecosystem Design](./19-relationship-ecosystem-design.md)**
    - All relationship types
    - Roles & permissions
    - Age & legal considerations
    - Use cases
 
-5. **[Session Summary](./20-session-summary.md)**
+8. **[Session Summary](./20-session-summary.md)**
    - Key decisions made
    - Current state
    - Architecture decisions
 
 ### Implementation
 
-4. **[Implementation Status](./21-implementation-status.md)**
+9. **[Implementation Status](./21-implementation-status.md)**
    - What's completed
    - What's pending
    - Next steps
 
-5. **[API Updates Summary](./22-api-updates-summary.md)**
-   - All API endpoint changes
-   - Breaking changes
-   - Migration guide for frontend
+10. **[API Updates Summary](./22-api-updates-summary.md)**
+    - All API endpoint changes
+    - Breaking changes
+    - Migration guide for frontend
 
-6. **[Frontend Updates Summary](./23-frontend-updates-summary.md)**
-   - Component changes
-   - API integration
-   - User flow updates
+11. **[Frontend Updates Summary](./23-frontend-updates-summary.md)**
+    - Component changes
+    - API integration
+    - User flow updates
 
-7. **[Complete Implementation Summary](./26-complete-implementation-summary.md)**
-   - Full overview
-   - Statistics
-   - Success criteria
+12. **[Complete Implementation Summary](./26-complete-implementation-summary.md)**
+    - Full overview
+    - Statistics
+    - Success criteria
 
 ### Execution & Deployment
 
-8. **[Migration Execution Guide](./24-migration-execution-guide.md)**
-   - Step-by-step migration
-   - Verification queries
-   - Troubleshooting
+13. **[Migration Execution Guide](./24-migration-execution-guide.md)**
+    - Step-by-step migration
+    - Verification queries
+    - Troubleshooting
 
-9. **[Testing Guide](./25-testing-guide.md)**
-   - Complete test suites
-   - Test cases
-   - Edge cases
+14. **[Testing Guide](./25-testing-guide.md)**
+    - Complete test suites
+    - Test cases
+    - Edge cases
 
-10. **[Deployment Checklist](./28-deployment-checklist.md)**
+15. **[Deployment Checklist](./28-deployment-checklist.md)**
     - Pre-deployment checklist
     - Post-deployment verification
     - Common issues
 
-11. **[Quick Start Guide](./29-quick-start-guide.md)**
+16. **[Quick Start Guide](./29-quick-start-guide.md)**
     - Local development setup
     - Environment variables
     - Common issues
 
 ### Reference
 
-12. **[Adding User Attributes](./27-adding-user-attributes.md)**
+17. **[Adding User Attributes](./27-adding-user-attributes.md)**
     - How to add columns later
     - Best practices
     - Examples
@@ -139,7 +163,10 @@
 **...understand the design**
 → See [Relationship Ecosystem Design](./19-relationship-ecosystem-design.md)
 
-**...understand the UX vision**
+**...understand the game design (Minecraft model)**
+→ See [Minecraft Game Design](./35-minecraft-game-design.md)
+
+**...understand the original UX vision**
 → See [UX Vision: Game Design](./30-ux-vision-game-design.md)
 
 **...understand terminology**
@@ -186,18 +213,27 @@
 ## 📊 Implementation Status
 
 ### ✅ Completed
-- Database schema & migrations
+- Database schema & migrations (including gamification tables)
 - Backend models & CRUD
-- API endpoints
-- Frontend components
+- API endpoints (MCQ, words, gamification)
+- Frontend components (MCQ, achievements, gamification feedback)
 - Onboarding flow
-- Documentation
+- Gamification v1 (XP, levels, achievements, streaks, crystals)
+- One-shot payload (instant feedback)
+- FSRS/SM-2+ spaced repetition
+- Test account seeding
+
+### 🎮 Minecraft Model (Design Complete, Implementation Pending)
+- [ ] Inventory system (materials by tier)
+- [ ] Blueprint system (structures to build)
+- [ ] Decay visualization
+- [ ] XP shop
+- [ ] Asset strategy: Emoji → Kenny → Custom
 
 ### ⏳ Pending
-- Run migrations in Supabase
 - End-to-end testing
-- Auth middleware (JWT extraction)
-- Production deployment
+- Word Explorer interface
+- Survey → Verification flow connection
 
 ---
 
@@ -210,20 +246,14 @@ docs/
 ├── 01-project-overview.md
 ├── 02-learning-point-integration.md    ← The Mine & block tiers
 ├── ...
-├── 18-signup-flow-design.md
-├── 19-relationship-ecosystem-design.md
-├── 20-session-summary.md
-├── 21-implementation-status.md
-├── 22-api-updates-summary.md
-├── 23-frontend-updates-summary.md
-├── 24-migration-execution-guide.md
-├── 25-testing-guide.md
-├── 26-complete-implementation-summary.md
-├── 27-adding-user-attributes.md
-├── 28-deployment-checklist.md
-├── 29-quick-start-guide.md
-├── 30-ux-vision-game-design.md        ← UX/Game design vision
-└── 31-economic-model-hypotheses.md    ← Dual economy design
+├── 30-ux-vision-game-design.md        ← Original UX vision
+├── 31-economic-model-hypotheses.md    ← Dual economy design
+├── 35-minecraft-game-design.md        ← 🆕 CORE GAME DESIGN
+├── 36-mvp-roadmap.md                  ← 🆕 MVP SPRINT PLAN
+├── 37-taiwan-bilingual-nation-proposal.md ← 🆕 GOVERNMENT PROPOSAL
+└── decisions/
+    ├── ADR-001-one-shot-payload.md
+    └── ADR-002-minecraft-game-model.md  ← 🆕
 ```
 
 ---

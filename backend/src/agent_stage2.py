@@ -2,10 +2,10 @@
 Pipeline Step 4: Content Generation Level 2 - Multi-Layer Example Generation Agent
 
 Generates 4 layers of example sentences for enriched senses:
-1. Contextual Support (2-3 examples)
-2. Opposite Examples (from OPPOSITE_TO relationships)
-3. Similar Examples (from RELATED_TO relationships)
-4. Confused Examples (from CONFUSED_WITH relationships)
+1. Contextual Support (5-8 examples) - Enhanced for MCQ efficacy
+2. Opposite Examples (2-3 per relationship from OPPOSITE_TO relationships)
+3. Similar Examples (2-3 per relationship from RELATED_TO relationships)
+4. Confused Examples (2-3 per relationship from CONFUSED_WITH relationships)
 
 Usage:
     python3 -m src.agent_stage2 --word bank  # Enrich specific word
@@ -38,51 +38,64 @@ else:
     print("⚠️ WARNING: GOOGLE_API_KEY not found. Agent will fail if run without --mock.")
 
 
-def get_mock_multilayer_examples(sense_id: str, word: str) -> MultiLayerExamples:
-    """Returns hardcoded data for testing without API key."""
+def get_mock_multilayer_examples(sense_id: str, word: str, usage_ratio: float = 0.3) -> MultiLayerExamples:
+    """Returns hardcoded data for testing without API key. Tiered by usage frequency."""
     print(f"⚠️ Using MOCK data for sense '{sense_id}'...")
     
-    return MultiLayerExamples(
-        sense_id=sense_id,
-        examples_contextual=[
+    # Determine example count based on usage tier
+    min_ex, max_ex, tier = get_tiered_example_count(usage_ratio)
+    num_examples = (min_ex + max_ex) // 2  # Use middle of range
+    
+    # Generate tiered contextual examples for MCQ efficacy
+    contextual_examples = [
             ExamplePair(
-                example_en=f"This is a mock contextual example 1 for {word}.",
-                example_zh_translation=f"這是 {word} 的測試例句 1 (字面翻譯)。",
-                example_zh_explanation=f"這是 {word} 的測試例句 1 (說明)。"
-            ),
+            example_en=f"This is a mock contextual example {i} for {word}.",
+            example_zh_translation=f"這是 {word} 的測試例句 {i} (字面翻譯)。",
+            example_zh_explanation=f"這是 {word} 的測試例句 {i} (說明)。"
+        )
+        for i in range(1, num_examples + 1)
+    ]
+    
+    # Generate 2-3 examples per relationship type
+    opposite_examples = [
             ExamplePair(
-                example_en=f"This is a mock contextual example 2 for {word}.",
-                example_zh_translation=f"這是 {word} 的測試例句 2 (字面翻譯)。",
-                example_zh_explanation=f"這是 {word} 的測試例句 2 (說明)。"
-            )
-        ],
-        examples_opposite=[
-            ExamplePair(
-                example_en=f"This shows the opposite of {word}.",
-                example_zh_translation=f"這顯示了 {word} 的反義 (字面翻譯)。",
-                example_zh_explanation=f"這顯示了 {word} 的反義 (說明)。",
+            example_en=f"This shows the opposite of {word} - example {i}.",
+            example_zh_translation=f"這顯示了 {word} 的反義 {i} (字面翻譯)。",
+            example_zh_explanation=f"這顯示了 {word} 的反義 {i} (說明)。",
                 relationship_word="opposite_word",
                 relationship_type="opposite"
             )
-        ],
-        examples_similar=[
+        for i in range(1, 3)  # 2 opposite examples
+    ]
+    
+    similar_examples = [
             ExamplePair(
-                example_en=f"This shows a similar word to {word}.",
-                example_zh_translation=f"這顯示了與 {word} 相似的詞 (字面翻譯)。",
-                example_zh_explanation=f"這顯示了與 {word} 相似的詞 (說明)。",
+            example_en=f"This shows a similar word to {word} - example {i}.",
+            example_zh_translation=f"這顯示了與 {word} 相似的詞 {i} (字面翻譯)。",
+            example_zh_explanation=f"這顯示了與 {word} 相似的詞 {i} (說明)。",
                 relationship_word="similar_word",
                 relationship_type="similar"
             )
-        ],
-        examples_confused=[
+        for i in range(1, 3)  # 2 similar examples
+    ]
+    
+    confused_examples = [
             ExamplePair(
-                example_en=f"This clarifies confusion with {word}.",
-                example_zh_translation=f"這澄清了與 {word} 的混淆 (字面翻譯)。",
-                example_zh_explanation=f"這澄清了與 {word} 的混淆 (說明)。",
+            example_en=f"This clarifies confusion with {word} - example {i}.",
+            example_zh_translation=f"這澄清了與 {word} 的混淆 {i} (字面翻譯)。",
+            example_zh_explanation=f"這澄清了與 {word} 的混淆 {i} (說明)。",
                 relationship_word="confused_word",
                 relationship_type="confused"
             )
-        ]
+        for i in range(1, 3)  # 2 confused examples
+    ]
+    
+    return MultiLayerExamples(
+        sense_id=sense_id,
+        examples_contextual=contextual_examples,
+        examples_opposite=opposite_examples,
+        examples_similar=similar_examples,
+        examples_confused=confused_examples
     )
 
 
@@ -282,6 +295,76 @@ def detect_cefr_level(
     return "B1/B2"  # Default
 
 
+def get_tiered_example_count(
+    usage_ratio: Optional[float] = None,
+    frequency_rank: Optional[int] = None,
+    sense_id: Optional[str] = None,
+    is_only_sense: bool = False
+) -> tuple:
+    """
+    Determine contextual example count based on sense importance.
+    
+    Uses multiple heuristics since usage_ratio is often unavailable:
+    1. usage_ratio (if available) - most accurate
+    2. is_only_sense - single-sense words are primary by default
+    3. sense_id ending (e.g., .01 vs .05) - lower = more common in WordNet
+    4. frequency_rank - common words need more examples
+    
+    Primary senses: 15-20 examples - learners encounter constantly
+    Common senses: 8-12 examples - regular exposure  
+    Rare senses: 5-8 examples - occasional use
+    
+    Returns:
+        (min_examples, max_examples, tier_name)
+    """
+    # Method 1: Use usage_ratio if available
+    if usage_ratio is not None:
+        if usage_ratio > 0.5:
+            return (15, 20, "primary")
+        elif usage_ratio > 0.2:
+            return (8, 12, "common")
+        else:
+            return (5, 8, "rare")
+    
+    # Method 2: Single-sense words are primary
+    if is_only_sense:
+        # For common words (top 2000), give more examples
+        if frequency_rank is not None and frequency_rank < 2000:
+            return (15, 20, "primary")
+        else:
+            return (8, 12, "common")
+    
+    # Method 3: Use sense number from sense_id (e.g., "bank.n.01" -> 1)
+    if sense_id:
+        try:
+            # Extract sense number from ID like "bank.n.01"
+            sense_num = int(sense_id.split('.')[-1])
+            if sense_num == 1:
+                # First sense is typically most common
+                if frequency_rank is not None and frequency_rank < 1000:
+                    return (15, 20, "primary")
+                elif frequency_rank is not None and frequency_rank < 3000:
+                    return (8, 12, "common")
+            elif sense_num <= 3:
+                return (8, 12, "common")
+            else:
+                return (5, 8, "rare")
+        except (ValueError, IndexError):
+            pass
+    
+    # Method 4: Default based on frequency rank only
+    if frequency_rank is not None:
+        if frequency_rank < 500:
+            return (12, 15, "high_freq")
+        elif frequency_rank < 2000:
+            return (8, 12, "common")
+        else:
+            return (5, 8, "rare")
+    
+    # Default fallback
+    return (5, 8, "unknown")
+
+
 def get_multilayer_examples(
     sense_id: str,
     word: str,
@@ -298,14 +381,16 @@ def get_multilayer_examples(
     cefr: Optional[str] = None,
     is_moe_word: bool = False,
     phrases: List[str] = None,
+    is_only_sense: bool = False,
     mock: bool = False
 ) -> Optional[MultiLayerExamples]:
     """
     Calls Gemini to generate multi-layer examples for a sense.
     Uses enhanced prompt builder with full data structure utilization.
+    Tiered example counts based on sense importance (usage_ratio, frequency_rank, sense position).
     """
     if mock:
-        return get_mock_multilayer_examples(sense_id, word)
+        return get_mock_multilayer_examples(sense_id, word, usage_ratio or 0.3)
     
     if not API_KEY:
         raise ValueError("GOOGLE_API_KEY is missing.")
@@ -314,6 +399,14 @@ def get_multilayer_examples(
     
     # Detect CEFR level
     target_level = detect_cefr_level(cefr, moe_level, frequency_rank)
+    
+    # Determine tiered example count based on multiple heuristics
+    min_examples, max_examples, usage_tier = get_tiered_example_count(
+        usage_ratio=usage_ratio,
+        frequency_rank=frequency_rank,
+        sense_id=sense_id,
+        is_only_sense=is_only_sense
+    )
     
     # Determine which layers need API calls (hybrid approach)
     has_opposites = bool(relationships["opposites"])
@@ -489,15 +582,23 @@ CHINESE REQUIREMENTS (TWO VERSIONS NEEDED):
     
     prompt_sections.append(base_instructions)
     
-    # Layer 1: Always included (REQUIRED)
-    layer1_section = """
-1. CONTEXTUAL SUPPORT (REQUIRED - 2-3 examples):
-   - Provide 2-3 natural, modern example sentences that clearly illustrate this sense
+    # Layer 1: Always included (REQUIRED) - Tiered by usage frequency for MCQ efficacy
+    # Primary senses (>50% usage): 15-20 examples
+    # Common senses (20-50% usage): 8-12 examples  
+    # Rare senses (<20% usage): 5-8 examples
+    usage_display = f"{usage_ratio:.1%}" if usage_ratio else "unknown"
+    importance_note = "MORE" if usage_tier == "primary" else ("good" if usage_tier == "common" else "adequate")
+    layer1_section = f"""
+1. CONTEXTUAL SUPPORT (REQUIRED - {min_examples}-{max_examples} examples):
+   - Provide {min_examples}-{max_examples} natural, modern example sentences that clearly illustrate this sense
+   - This is a {usage_tier.upper()} sense (usage: {usage_display}), so we need {importance_note} examples for MCQ variety
    - Use SIMPLE English: short sentences, common words, clear structure
-   - Show different contexts/registers if appropriate (formal, casual, written, spoken)
+   - Show DIVERSE contexts/registers: formal, casual, written, spoken, school, work, daily life
    - Each example should solidify understanding of this specific sense
-   - Examples must be immediately understandable to {target_level} learners
-   - Avoid complex grammar or vocabulary beyond {target_level} level
+   - Examples must be immediately understandable to {{target_level}} learners
+   - Avoid complex grammar or vocabulary beyond {{target_level}} level
+   - Each example should be DISTINCT - avoid similar sentence structures or contexts
+   - More examples = better MCQ variety for verification testing
 """
     
     if phrases:
@@ -511,17 +612,19 @@ CHINESE REQUIREMENTS (TWO VERSIONS NEEDED):
 2. OPPOSITE EXAMPLES:
 {opposites_str}
    
-   - For each antonym listed above, generate 1-2 examples that:
+   - For each antonym listed above, generate 2-3 examples that:
      * Use SIMPLE English: short, clear sentences with common words
      * Use the antonym word in a natural sentence
      * Show clear contrast with the target sense
      * Highlight what aspect of the target sense is being contrasted
      * Make the distinction clear to help learners understand the difference
      * Keep language simple enough for {target_level} learners to understand immediately
+     * Each example should show a DIFFERENT context or aspect of the contrast
    
    - Example structure:
      Target sense: "I deposited money at the bank." (simple, clear)
-     Contrast: "He withdrew money from the bank." (shows opposite action: depositing vs withdrawing)
+     Contrast 1: "He withdrew money from the bank." (shows opposite action: depositing vs withdrawing)
+     Contrast 2: "She withdrew all her savings yesterday." (another context)
 """
         prompt_sections.append(layer2_section)
     
@@ -531,17 +634,19 @@ CHINESE REQUIREMENTS (TWO VERSIONS NEEDED):
 3. SIMILAR EXAMPLES:
 {similar_str}
    
-   - For each synonym listed above, generate 1-2 examples that:
+   - For each synonym listed above, generate 2-3 examples that:
      * Use SIMPLE English: short, clear sentences with common words
      * Use the synonym word in a natural sentence
      * Show subtle differences from the target sense
      * Help learners understand when to use this word vs. the synonym
      * Highlight the nuance between similar meanings
      * Keep language simple enough for {target_level} learners to understand immediately
+     * Each example should demonstrate a DIFFERENT nuance or context
    
    - Example structure:
      Target sense: "I opened an account at the bank." (simple, clear)
-     Similar: "I opened an account at the financial institution." (shows synonym, but "bank" is more common/casual)
+     Similar 1: "I opened an account at the financial institution." (shows synonym, but "bank" is more common/casual)
+     Similar 2: "The financial institution offers many services." (another context)
 """
         prompt_sections.append(layer3_section)
     
@@ -551,17 +656,19 @@ CHINESE REQUIREMENTS (TWO VERSIONS NEEDED):
 4. CONFUSED EXAMPLES:
 {confused_str}
    
-   - For each confused word listed above, generate 1-2 examples that:
+   - For each confused word listed above, generate 2-3 examples that:
      * Use SIMPLE English: short, clear sentences with common words
      * Use the confused word in a natural sentence
      * Clearly show the distinction from the target sense
      * Address the specific confusion reason (Sound/Spelling/L1/Usage)
      * Help Taiwan EFL learners avoid common errors
      * Keep language simple enough for {target_level} learners to understand immediately
+     * Each example should clarify a DIFFERENT aspect of the confusion
    
    - Example structure:
      Target sense: "I need to deposit money at the bank." (simple, clear)
-     Confused: "The river bank was flooded." (clarifies: financial bank vs river bank)
+     Confused 1: "The river bank was flooded." (clarifies: financial bank vs river bank)
+     Confused 2: "We sat on the bank of the river." (another context showing different meaning)
 """
         prompt_sections.append(layer4_section)
     
@@ -658,16 +765,19 @@ Return a strict JSON object matching this schema:
     ],
 """
     
-    common_requirements += """
+    common_requirements += f"""
 }}
 
 IMPORTANT: 
-- Generate 2-3 contextual examples (Layer 1) - REQUIRED
-- Generate examples for Layers 2-4 ONLY if relationship words are provided (not "None")
+- Generate {min_examples}-{max_examples} contextual examples (Layer 1) - REQUIRED for MCQ efficacy
+- This sense is {usage_tier.upper()} priority (usage: {usage_display}) - {'generate MORE examples!' if usage_tier == 'primary' else 'generate adequate examples'}
+- Generate 2-3 examples per relationship word for Layers 2-4 ONLY if relationship words are provided (not "None")
 - If a layer has no relationships, return empty array []
 - All relationship words must appear in their respective examples
 - Use SIMPLE English: short sentences, common words, clear structure
-- All examples must be immediately understandable to {target_level} learners
+- All examples must be immediately understandable to {{target_level}} learners
+- Each example should be DISTINCT - different contexts, different sentence structures
+- More examples = better variety for multiple-choice verification testing
 - For each English example, provide TWO Chinese versions:
   1. Literal translation (word-for-word, shows English structure)
   2. Explanation that identifies what the sentence REALLY means, especially nuances that might be easily missed when going from English to Chinese
@@ -814,13 +924,16 @@ def update_graph_stage2(conn: Neo4jConnection, examples: MultiLayerExamples):
         ]
         
         # Store as JSON strings (Neo4j doesn't support arrays of maps)
+        # Version 3 = Tiered prompt with 15-20/8-12/5-8 contextual examples (December 2025)
         query = """
         MATCH (s:Sense {id: $sense_id})
         SET s.examples_contextual = $contextual,
             s.examples_opposite = $opposite,
             s.examples_similar = $similar,
             s.examples_confused = $confused,
-            s.stage2_enriched = true
+            s.stage2_enriched = true,
+            s.stage2_version = 3,
+            s.stage2_enriched_at = datetime()
         """
         
         session.run(
@@ -858,13 +971,55 @@ def save_checkpoint(checkpoint_file: str, processed_senses: List[str], total_pro
         json.dump(checkpoint_data, f, indent=2)
 
 
+def load_vocabulary_metadata() -> Dict[str, Dict]:
+    """
+    Load vocabulary.json to get frequency_rank and other metadata not in Neo4j.
+    Returns dict of sense_id -> {frequency_rank, usage_ratio, is_only_sense, ...}
+    """
+    vocab_path = Path(__file__).parent.parent / "data" / "vocabulary.json"
+    if not vocab_path.exists():
+        print(f"⚠️ vocabulary.json not found at {vocab_path}, tier detection will use fallbacks")
+        return {}
+    
+    try:
+        with open(vocab_path, 'r', encoding='utf-8') as f:
+            vocab_data = json.load(f)
+        
+        # V3 format has senses nested under "senses" key
+        senses_data = vocab_data.get("senses", {})
+        if not senses_data:
+            print(f"⚠️ No senses found in vocabulary.json")
+            return {}
+        
+        # Count senses per word to identify single-sense words
+        from collections import Counter
+        word_sense_counts = Counter(s.get("word") for s in senses_data.values())
+        
+        # Extract just the metadata we need
+        metadata = {}
+        for sense_id, sense in senses_data.items():
+            word = sense.get("word", "")
+            metadata[sense_id] = {
+                "frequency_rank": sense.get("frequency_rank"),
+                "usage_ratio": sense.get("usage_ratio"),
+                "is_only_sense": word_sense_counts.get(word, 0) == 1,
+            }
+        return metadata
+    except Exception as e:
+        print(f"⚠️ Error loading vocabulary.json: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}
+
+
 def run_stage2_agent(
     conn: Neo4jConnection,
     target_word: str = None,
     limit: Optional[int] = None,
     mock: bool = False,
     checkpoint_file: str = "level2_checkpoint.json",
-    resume: bool = True
+    resume: bool = True,
+    force: bool = False
 ):
     """
     Run Content Level 2 generation agent with checkpoint/resume support.
@@ -876,8 +1031,16 @@ def run_stage2_agent(
         mock: Use mock data instead of API
         checkpoint_file: Path to checkpoint file
         resume: Whether to resume from checkpoint
+        force: Force re-enrichment of already enriched senses (for prompt upgrades)
     """
     print("🎯 Starting Content Level 2 Multi-Layer Example Generation Agent...")
+    if force:
+        print("   ⚠️ FORCE MODE: Will re-enrich already enriched senses")
+    
+    # Load vocabulary metadata for tiered example counts
+    vocab_metadata = load_vocabulary_metadata()
+    if vocab_metadata:
+        print(f"📚 Loaded vocabulary metadata for {len(vocab_metadata)} senses")
     
     # Load checkpoint if resuming
     checkpoint = load_checkpoint(checkpoint_file) if resume else {"processed_senses": [], "total_processed": 0}
@@ -890,13 +1053,16 @@ def run_stage2_agent(
         print(f"   Total processed so far: {total_processed}")
     
     with conn.get_session() as session:
-        # 1. Fetch Candidates (Senses with Level 1 but not Level 2)
+        # 1. Fetch Candidates (Senses with Level 1 but not Level 2, or all if force=True)
         # Enhanced: Fetch all available properties
+        # Force mode: Include already enriched senses (for prompt upgrades)
+        stage2_filter = "" if force else "AND (s.stage2_enriched IS NULL OR s.stage2_enriched = false)"
+        
         if target_word:
-            result = session.run("""
-                MATCH (w:Word {name: $word})-[:HAS_SENSE]->(s:Sense)
+            result = session.run(f"""
+                MATCH (w:Word {{name: $word}})-[:HAS_SENSE]->(s:Sense)
                 WHERE s.enriched = true 
-                  AND (s.stage2_enriched IS NULL OR s.stage2_enriched = false)
+                  {stage2_filter}
                 OPTIONAL MATCH (s)<-[:MAPS_TO_SENSE]-(p:Phrase)
                 WITH w, s, collect(DISTINCT p.text) as phrases
                 RETURN w.name as word, 
@@ -915,10 +1081,10 @@ def run_stage2_agent(
             """, word=target_word)
         else:
             # Build query with optional limit
-            query = """
+            query = f"""
                 MATCH (w:Word)-[:HAS_SENSE]->(s:Sense)
                 WHERE s.enriched = true 
-                  AND (s.stage2_enriched IS NULL OR s.stage2_enriched = false)
+                  {stage2_filter}
                 OPTIONAL MATCH (s)<-[:MAPS_TO_SENSE]-(p:Phrase)
                 WITH w, s, collect(DISTINCT p.text) as phrases
                 RETURN w.name as word, 
@@ -982,9 +1148,34 @@ def run_stage2_agent(
             is_moe_word = record.get("is_moe_word", False)
             phrases = record.get("phrases") or []
             
+            # Supplement with vocabulary.json metadata (Neo4j often missing frequency_rank)
+            is_only_sense = False
+            if sense_id in vocab_metadata:
+                vocab_meta = vocab_metadata[sense_id]
+                if frequency_rank is None:
+                    frequency_rank = vocab_meta.get("frequency_rank")
+                if usage_ratio is None:
+                    usage_ratio = vocab_meta.get("usage_ratio")
+                is_only_sense = vocab_meta.get("is_only_sense", False)
+            
             # Progress indicator
             progress_pct = (idx / total_tasks * 100) if total_tasks > 0 else 0
             print(f"\n[{idx}/{total_tasks} ({progress_pct:.1f}%)] Enriching sense '{sense_id}' (word: '{word}')...")
+            
+            # Show tier info
+            min_ex, max_ex, tier = get_tiered_example_count(
+                usage_ratio=usage_ratio,
+                frequency_rank=frequency_rank,
+                sense_id=sense_id,
+                is_only_sense=is_only_sense
+            )
+            tier_info = f"  📊 Tier: {tier.upper()} ({min_ex}-{max_ex} examples)"
+            if frequency_rank:
+                tier_info += f", rank={frequency_rank}"
+            if is_only_sense:
+                tier_info += ", single-sense word"
+            print(tier_info)
+            
             if cefr:
                 print(f"  CEFR Level: {cefr}")
             if is_moe_word:
@@ -997,7 +1188,7 @@ def run_stage2_agent(
                       f"{len(relationships['similar'])} similar, "
                       f"{len(relationships['confused'])} confused words")
                 
-                # Generate multi-layer examples with enhanced context
+                # Generate multi-layer examples with enhanced context + tiered counts
                 examples = get_multilayer_examples(
                     sense_id,
                     word,
@@ -1013,6 +1204,7 @@ def run_stage2_agent(
                     cefr=cefr,
                     is_moe_word=is_moe_word,
                     phrases=phrases,
+                    is_only_sense=is_only_sense,
                     mock=mock
                 )
                 
@@ -1069,6 +1261,7 @@ if __name__ == "__main__":
     parser.add_argument("--mock", action="store_true", help="Use mock data (no API key)")
     parser.add_argument("--checkpoint", type=str, default="level2_checkpoint.json", help="Checkpoint file path")
     parser.add_argument("--no-resume", action="store_true", help="Don't resume from checkpoint")
+    parser.add_argument("--force", action="store_true", help="Force re-enrichment of already enriched senses (for upgraded prompts)")
     args = parser.parse_args()
     
     conn = Neo4jConnection()
@@ -1080,7 +1273,8 @@ if __name__ == "__main__":
                 limit=args.limit, 
                 mock=args.mock,
                 checkpoint_file=args.checkpoint,
-                resume=not args.no_resume
+                resume=not args.no_resume,
+                force=args.force
             )
     finally:
         conn.close()

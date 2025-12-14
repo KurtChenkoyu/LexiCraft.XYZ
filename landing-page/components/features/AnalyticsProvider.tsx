@@ -9,7 +9,11 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY
     const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://app.posthog.com'
 
-    if (posthogKey && typeof window !== 'undefined') {
+    // Skip analytics if host is localhost (dev mode without PostHog running)
+    const isLocalPostHog = posthogHost.includes('localhost') || posthogHost.includes('127.0.0.1')
+    const isDev = process.env.NODE_ENV === 'development'
+    
+    if (posthogKey && typeof window !== 'undefined' && !(isDev && isLocalPostHog)) {
       // Dynamically load PostHog
       import('posthog-js').then((posthog) => {
         posthog.default.init(posthogKey, {

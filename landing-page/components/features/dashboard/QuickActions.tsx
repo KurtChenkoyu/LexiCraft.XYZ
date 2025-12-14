@@ -17,31 +17,31 @@ export function QuickActions() {
           {t('quickActions.startSurvey')}
         </Link>
         <Link
-          href="/profile"
+          href="/learner/profile"
           className="block w-full px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:from-indigo-600 hover:to-purple-600 transition-colors text-center font-semibold"
         >
           🎮 個人資料與成就
         </Link>
         <Link
-          href="/goals"
+          href="/parent/goals"
           className="block w-full px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-colors text-center font-semibold"
         >
           🎯 學習目標
         </Link>
         <Link
-          href="/leaderboards"
+          href="/learner/leaderboards"
           className="block w-full px-4 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-colors text-center font-semibold"
         >
           🏆 排行榜
         </Link>
         <Link
-          href="/coach-dashboard"
+          href="/parent/dashboard/analytics"
           className="block w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-center font-semibold"
         >
           📊 學習分析（家長）
         </Link>
         <Link
-          href="/settings"
+          href="/parent/settings"
           className="block w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-center font-semibold flex items-center justify-center gap-2"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

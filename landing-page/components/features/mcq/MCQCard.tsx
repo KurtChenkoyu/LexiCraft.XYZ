@@ -1,100 +1,215 @@
 'use client'
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
+import { MCQData, MCQResult, GamificationResult, AchievementUnlockedInfo } from '@/services/mcqApi'
+// Gamification overlays removed - rewards shown on completion screen only
 
-interface MCQOption {
-  text: string
-  source: string
-}
-
-interface MCQData {
-  mcq_id: string
-  sense_id: string
-  word: string
-  mcq_type: string
-  question: string
-  context: string | null
-  options: MCQOption[]
-  user_ability: number
-  mcq_difficulty: number | null
-  selection_reason: string
-}
-
-interface MCQResult {
-  is_correct: boolean
-  correct_index: number
-  explanation: string
-  feedback: string
-  ability_before: number
-  ability_after: number
-  mcq_difficulty: number | null
-}
+// Re-export types for components that import from this file
+export type { MCQData, MCQResult }
 
 interface MCQCardProps {
   mcq: MCQData
-  onSubmit: (mcqId: string, selectedIndex: number, responseTimeMs: number) => Promise<MCQResult>
+  onSubmit: (
+    mcqId: string,
+    selectedIndex: number,
+    responseTimeMs: number,
+    selectedPoolIndex: number | null,
+    servedOptionPoolIndices?: number[]
+  ) => Promise<MCQResult>
   onNext?: () => void
   showDifficulty?: boolean
+  autoAdvanceDelay?: number // ms to wait before auto-advancing (0 = manual)
 }
 
 const MCQCard: React.FC<MCQCardProps> = ({ 
   mcq, 
   onSubmit, 
   onNext,
-  showDifficulty = false 
+  showDifficulty = false,
+  autoAdvanceDelay = 1500 // Auto-advance after 1.5 seconds
 }) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  const [selectedPoolIndex, setSelectedPoolIndex] = useState<number | null>(null)
   const [result, setResult] = useState<MCQResult | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [startTime] = useState<number>(Date.now())
+  const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const resultRef = useRef<HTMLDivElement>(null)
+  
+  // Gamification UI state
+  // Gamification state removed - rewards shown on completion screen only
 
   // Reset state when MCQ changes
   useEffect(() => {
     setSelectedIndex(null)
+    setSelectedPoolIndex(null)
     setResult(null)
     setIsSubmitting(false)
+    // State reset removed - no gamification overlays to reset
+    
+    // Clear auto-advance timer
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current)
+      autoAdvanceTimerRef.current = null
+    }
   }, [mcq.mcq_id])
 
-  const handleOptionSelect = useCallback((index: number) => {
-    if (result) return // Already submitted
-    setSelectedIndex(index)
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoAdvanceTimerRef.current) {
+        clearTimeout(autoAdvanceTimerRef.current)
+      }
+    }
+  }, [])
+
+  // Scroll to result when it appears
+  useEffect(() => {
+    if (result && resultRef.current) {
+      resultRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
   }, [result])
 
-  const handleSubmit = useCallback(async () => {
-    if (selectedIndex === null || isSubmitting || result) return
+  // Select option (no auto-submit - need confirm button)
+  const handleOptionClick = useCallback((index: number, poolIndex?: number | null) => {
+    if (result || isSubmitting) return
+    setSelectedIndex(index)
+    setSelectedPoolIndex(poolIndex ?? null)
+  }, [result, isSubmitting])
+
+  // Confirm and submit answer
+  // INSTANT FEEDBACK: If we have cached correct_index, show result immediately
+  const handleConfirm = useCallback(async () => {
+    if (selectedIndex === null || result || isSubmitting) return
+    
+    console.log('🔥 CONFIRM BUTTON CLICKED - selectedIndex:', selectedIndex)
+    console.log('🔥 MCQ has correct_index?', mcq.correct_index !== undefined, 'value:', mcq.correct_index)
     
     setIsSubmitting(true)
+    const responseTimeMs = Date.now() - startTime
+    
+    // Build served option pool indices, filtering out NaN values
+    const rawIndices = mcq.options.map((o, idx) => {
+      if (o.pool_index !== undefined && o.pool_index !== null) {
+        const parsed = parseInt(String(o.pool_index), 10)
+        return isNaN(parsed) ? idx : parsed
+      }
+      return idx
+    })
+    
+    // Only send if we have valid indices (not all fallback)
+    const hasValidPoolIndices = mcq.options.some(o => 
+      o.pool_index !== undefined && 
+      o.pool_index !== null && 
+      !isNaN(parseInt(String(o.pool_index), 10))
+    )
+    
+    const servedOptionPoolIndices = hasValidPoolIndices ? rawIndices : undefined
+    
+    // INSTANT: If we have cached correct_index, show feedback immediately
+    const hasCachedAnswer = mcq.correct_index !== undefined && mcq.correct_index !== null
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🎯 Instant feedback check:', {
+        has_correct_index: hasCachedAnswer,
+        correct_index: mcq.correct_index,
+        selected_index: selectedIndex,
+        mcq_id: mcq.mcq_id
+      })
+    }
+    
+    if (hasCachedAnswer && mcq.correct_index !== undefined) {
+      const isCorrect = selectedIndex === mcq.correct_index
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('⚡ INSTANT FEEDBACK:', isCorrect ? '✅ Correct!' : '❌ Wrong')
+      }
+      
+      // Show instant result - answer correctness only, rewards pending
+      setResult({
+        is_correct: isCorrect,
+        correct_index: mcq.correct_index,
+        feedback: isCorrect ? '答對了！' : '答錯了',
+        explanation: '', // Will be updated when API responds
+        ability_before: 0.5,
+        ability_after: isCorrect ? 0.55 : 0.45,
+        mcq_difficulty: null,  // Will be updated when API responds
+        gamification: undefined,  // Will show "calculating..." until API responds
+      })
+      setIsSubmitting(false)  // Allow UI to update immediately (show answer feedback)
+    } else {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('⏳ No cached answer - waiting for API response')
+      }
+    }
+    
+    // BACKGROUND: Submit to server for gamification (fire-and-forget for cached)
     try {
-      const responseTimeMs = Date.now() - startTime
-      const submitResult = await onSubmit(mcq.mcq_id, selectedIndex, responseTimeMs)
-      setResult(submitResult)
+      const submitResult = await onSubmit(
+        mcq.mcq_id,
+        selectedIndex,
+        responseTimeMs,
+        selectedPoolIndex,
+        servedOptionPoolIndices
+      )
+      
+      // Update with server result (or set if not cached)
+      if (!hasCachedAnswer) {
+        setResult(submitResult)
+        setIsSubmitting(false)
+      } else if (submitResult.gamification) {
+        // Update gamification data from server
+        setResult(prev => prev ? { ...prev, gamification: submitResult.gamification } : submitResult)
+      }
+      
+      // Don't show gamification feedback during questions
+      // Save it all for the completion screen (the "feel good moment")
+      
+      // No auto-advance - user clicks "Next" when ready
     } catch (error) {
       console.error('Failed to submit MCQ answer:', error)
-    } finally {
-      setIsSubmitting(false)
+      // If we already showed instant result, just log the error
+      // If not, we need to show error state
+      if (!hasCachedAnswer) {
+        setIsSubmitting(false)
+      }
     }
-  }, [selectedIndex, isSubmitting, result, startTime, mcq.mcq_id, onSubmit])
+  }, [selectedIndex, result, isSubmitting, startTime, mcq.mcq_id, mcq.correct_index, onSubmit, autoAdvanceDelay, onNext])
+
+  // Cancel auto-advance and go to next immediately
+  const handleNextClick = useCallback(() => {
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current)
+      autoAdvanceTimerRef.current = null
+    }
+    onNext?.()
+  }, [onNext])
 
   const getOptionStyle = (index: number) => {
-    const baseStyle = 'w-full p-4 text-left border rounded-lg transition-all duration-200 '
+    const baseStyle = 'w-full p-4 text-left border rounded-xl transition-all duration-150 active:scale-[0.98] '
     
     if (result) {
       // After submission - show correct/incorrect
       if (index === result.correct_index) {
-        return baseStyle + 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
+        return baseStyle + 'border-emerald-500 bg-emerald-500/20 text-emerald-300 shadow-lg shadow-emerald-500/20'
       }
       if (index === selectedIndex && !result.is_correct) {
-        return baseStyle + 'border-red-500 bg-red-500/20 text-red-300'
+        return baseStyle + 'border-red-500 bg-red-500/20 text-red-300 shadow-lg shadow-red-500/20'
       }
-      return baseStyle + 'border-gray-700 bg-gray-900/50 text-gray-500 opacity-60'
+      return baseStyle + 'border-gray-700/50 bg-gray-900/30 text-gray-500 opacity-50'
     }
     
-    // Before submission
+    // While submitting - show selection with loading state
+    if (isSubmitting && index === selectedIndex) {
+      return baseStyle + 'border-cyan-400 bg-cyan-500/30 text-cyan-300 ring-2 ring-cyan-400/50 animate-pulse'
+    }
+    
+    // Before submission - interactive state
     if (index === selectedIndex) {
       return baseStyle + 'border-cyan-400 bg-cyan-500/20 text-cyan-300 ring-2 ring-cyan-400/50'
     }
     
-    return baseStyle + 'border-gray-700 bg-gray-900/80 text-gray-300 hover:border-cyan-600 hover:bg-gray-800'
+    return baseStyle + 'border-gray-700 bg-gray-900/80 text-gray-300 hover:border-cyan-600 hover:bg-gray-800/80 cursor-pointer'
   }
 
   const getTypeLabel = (type: string) => {
@@ -115,9 +230,23 @@ const MCQCard: React.FC<MCQCardProps> = ({
     }
   }
 
+  const gamification = result?.gamification
+
+  // Defensive check - accept 4-6 options (minimum 4 for valid MCQ)
+  if (mcq.options.length < 4 || mcq.options.length > 6) {
+    console.warn(`MCQ ${mcq.mcq_id} has ${mcq.options.length} options (expected 4-6)`)
+    // Still render, but log warning for debugging
+  }
+
+  if (mcq.correct_index !== undefined && 
+      (mcq.correct_index < 0 || mcq.correct_index >= mcq.options.length)) {
+    console.error(`MCQ ${mcq.mcq_id} has invalid correct_index: ${mcq.correct_index}`)
+    // Disable instant feedback if correct_index is invalid
+  }
+
   return (
     <div className="w-full max-w-2xl mx-auto bg-gray-900/90 backdrop-blur border border-gray-700 rounded-2xl p-6 shadow-2xl">
-      {/* Header */}
+      {/* Header with XP Badge */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <span className="text-2xl font-bold text-cyan-400">{mcq.word}</span>
@@ -125,9 +254,11 @@ const MCQCard: React.FC<MCQCardProps> = ({
             {getTypeLabel(mcq.mcq_type)}
           </span>
         </div>
-        {showDifficulty && mcq.mcq_difficulty !== null && (
-          <div className="text-xs text-gray-500">
-            難度: {(mcq.mcq_difficulty * 100).toFixed(0)}%
+        {/* Floating XP indicator */}
+        {!result && (
+          <div className="px-3 py-1 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-full text-sm font-medium text-yellow-400 flex items-center gap-1">
+            <span>⚡</span>
+            <span>+10 XP</span>
           </div>
         )}
       </div>
@@ -145,95 +276,96 @@ const MCQCard: React.FC<MCQCardProps> = ({
         <h3 className="text-lg text-gray-100 font-medium">{mcq.question}</h3>
       </div>
 
-      {/* Options */}
-      <div className="space-y-3 mb-6">
+      {/* Options - Tap to select, then confirm */}
+      <div className="space-y-2 mb-4">
         {mcq.options.map((option, index) => (
           <button
-            key={index}
-            onClick={() => handleOptionSelect(index)}
+            key={option.pool_index ?? index}
+            onClick={() => handleOptionClick(index, option.pool_index)}
             disabled={!!result || isSubmitting}
             className={getOptionStyle(index)}
           >
             <div className="flex items-start gap-3">
-              <span className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-gray-800 text-sm font-mono">
+              <span className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-sm font-mono transition-colors ${
+                result?.correct_index === index 
+                  ? 'bg-emerald-500 text-white' 
+                  : selectedIndex === index && result && !result.is_correct
+                    ? 'bg-red-500 text-white'
+                    : selectedIndex === index
+                      ? 'bg-cyan-500 text-white'
+                      : 'bg-gray-800 text-gray-400'
+              }`}>
                 {String.fromCharCode(65 + index)}
               </span>
               <span className="flex-1">{option.text}</span>
+              {/* Checkmark for correct, X for wrong */}
+              {result && index === result.correct_index && (
+                <span className="text-emerald-400 text-xl">✓</span>
+              )}
+              {result && index === selectedIndex && !result.is_correct && (
+                <span className="text-red-400 text-xl">✗</span>
+              )}
             </div>
           </button>
         ))}
       </div>
 
-      {/* Submit Button */}
+      {/* Confirm Button - Shows when option selected but not submitted */}
       {!result && (
         <button
-          onClick={handleSubmit}
+          onClick={handleConfirm}
           disabled={selectedIndex === null || isSubmitting}
-          className={`w-full py-3 rounded-lg font-medium transition-all duration-200 ${
-            selectedIndex === null || isSubmitting
+          className={`w-full py-3 rounded-xl font-bold text-lg transition-all duration-150 mb-4 ${
+            selectedIndex === null
               ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-              : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/25'
+              : isSubmitting
+                ? 'bg-cyan-700 text-cyan-300 animate-pulse'
+                : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-500/30 active:scale-[0.98]'
           }`}
         >
-          {isSubmitting ? (
-            <span className="animate-pulse">確認中...</span>
-          ) : (
-            '確認答案'
-          )}
+          {isSubmitting ? '確認中...' : '確認答案'}
         </button>
       )}
 
-      {/* Result Feedback */}
+      {/* Result Feedback - Scrolls into view */}
       {result && (
-        <div className="space-y-4">
-          {/* Correct/Incorrect Badge */}
-          <div className={`p-4 rounded-lg border ${
+        <div ref={resultRef} className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          {/* Result Banner */}
+          <div className={`p-3 rounded-lg border flex items-center gap-3 ${
             result.is_correct 
               ? 'bg-emerald-500/10 border-emerald-500/50' 
               : 'bg-red-500/10 border-red-500/50'
           }`}>
-            <div className="flex items-center gap-2 mb-2">
-              {result.is_correct ? (
-                <span className="text-2xl">✅</span>
-              ) : (
-                <span className="text-2xl">❌</span>
-              )}
-              <span className={`text-lg font-bold ${
-                result.is_correct ? 'text-emerald-400' : 'text-red-400'
-              }`}>
+            <span className="text-2xl">{result.is_correct ? '✅' : '❌'}</span>
+            <div className="flex-1">
+              <span className={`font-bold ${result.is_correct ? 'text-emerald-400' : 'text-red-400'}`}>
                 {result.feedback}
               </span>
+              {result.explanation && (
+                <p className="text-sm text-gray-400 mt-1">{result.explanation}</p>
+              )}
             </div>
-            
-            {/* Explanation */}
-            {result.explanation && (
-              <div className="text-sm text-gray-300 mt-2">
-                {result.explanation}
-              </div>
-            )}
           </div>
 
-          {/* Ability Change */}
-          <div className="flex items-center justify-between text-sm text-gray-400">
-            <span>能力變化:</span>
-            <span className={
-              result.ability_after > result.ability_before 
-                ? 'text-emerald-400' 
-                : result.ability_after < result.ability_before 
-                  ? 'text-red-400' 
-                  : 'text-gray-400'
-            }>
-              {(result.ability_before * 100).toFixed(0)}% → {(result.ability_after * 100).toFixed(0)}%
-              {result.ability_after > result.ability_before && ' ↑'}
-              {result.ability_after < result.ability_before && ' ↓'}
-            </span>
-          </div>
+          {/* Streak Banner */}
+          {gamification?.streak_extended && (
+            <div className="bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/30 rounded-lg px-3 py-2 flex items-center gap-2 text-sm">
+              <span className="text-xl">🔥</span>
+              <span className="text-orange-400 font-medium">連勝 +1! 目前 {gamification.streak_days} 天</span>
+            </div>
+          )}
 
-          {/* Next Button */}
+          {/* NO rewards shown during questions - save for completion screen */}
+
+          {/* NO progress bar during questions */}
+
+          {/* NO ability change during questions */}
+
+          {/* Next Button - Always enabled, don't wait for API */}
           {onNext && (
             <button
-              onClick={onNext}
-              className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium transition-all duration-200 shadow-lg shadow-cyan-500/25"
+              onClick={handleNextClick}
+              className="w-full py-3 rounded-xl font-bold text-lg transition-all duration-150 shadow-lg bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-500/25 active:scale-[0.98]"
             >
               下一題 →
             </button>
@@ -245,4 +377,3 @@ const MCQCard: React.FC<MCQCardProps> = ({
 }
 
 export default MCQCard
-

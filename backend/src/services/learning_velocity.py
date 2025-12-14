@@ -4,13 +4,22 @@ Learning Velocity Service
 Tracks learning speed, activity patterns, and streaks.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta, date
 from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from ..database.postgres_crud import progress as progress_crud
+
+
+# Streak multiplier configuration
+STREAK_MULTIPLIERS = {
+    7: 2.0,    # Day 7 = "Payout Day" (double XP)
+    30: 1.5,   # 30+ days = permanent 1.5x while streak held
+    60: 1.75,  # 60+ days = 1.75x
+    100: 2.0,  # 100+ days = permanent 2x
+}
 
 
 class LearningVelocityService:
@@ -198,4 +207,118 @@ class LearningVelocityService:
             })
         
         return list(reversed(weekly_data))  # Oldest first
+    
+    def record_activity_and_check_streak(self, user_id: UUID) -> Tuple[int, bool, float]:
+        """
+        Record today's activity and check if streak was extended.
+        
+        This should be called when a user completes a review or learns a word.
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            Tuple of (current_streak, streak_extended, xp_multiplier)
+            - current_streak: The current streak count
+            - streak_extended: True if this is the first activity today (streak extended)
+            - xp_multiplier: The XP multiplier to apply based on streak
+        """
+        today = date.today()
+        yesterday = today - timedelta(days=1)
+        
+        # Check if user already had activity today
+        today_activity_result = self.db.execute(
+            text("""
+                SELECT COUNT(*) FROM (
+                    SELECT 1 FROM learning_progress 
+                    WHERE user_id = :user_id 
+                    AND DATE(learned_at) = :today
+                    UNION ALL
+                    SELECT 1 FROM fsrs_review_history
+                    WHERE user_id = :user_id
+                    AND DATE(review_date) = :today
+                ) AS today_activities
+            """),
+            {'user_id': user_id, 'today': today}
+        )
+        had_activity_today = (today_activity_result.scalar() or 0) > 1  # > 1 because current activity counts
+        
+        # Calculate current streak
+        current_streak = self.calculate_activity_streak(user_id)
+        
+        # Streak is "extended" if this is the first activity today
+        streak_extended = not had_activity_today
+        
+        # Calculate XP multiplier based on streak
+        xp_multiplier = self._get_streak_multiplier(current_streak)
+        
+        return current_streak, streak_extended, xp_multiplier
+    
+    def _get_streak_multiplier(self, streak_days: int) -> float:
+        """
+        Get XP multiplier based on streak length.
+        
+        Multipliers:
+        - Day 7: 2.0x (Payout Day)
+        - Day 30+: 1.5x permanent
+        - Day 60+: 1.75x permanent
+        - Day 100+: 2.0x permanent
+        
+        Args:
+            streak_days: Current streak in days
+            
+        Returns:
+            XP multiplier (1.0 = no multiplier)
+        """
+        # Special "Payout Day" on day 7
+        if streak_days == 7:
+            return 2.0
+        
+        # Permanent multipliers based on streak length
+        if streak_days >= 100:
+            return 2.0
+        elif streak_days >= 60:
+            return 1.75
+        elif streak_days >= 30:
+            return 1.5
+        
+        return 1.0
+    
+    def get_streak_info(self, user_id: UUID) -> Dict[str, any]:
+        """
+        Get comprehensive streak information.
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            Dictionary with streak details including multiplier info
+        """
+        streak = self.calculate_activity_streak(user_id)
+        multiplier = self._get_streak_multiplier(streak)
+        
+        # Calculate next milestone
+        next_milestone = None
+        next_multiplier = None
+        if streak < 7:
+            next_milestone = 7
+            next_multiplier = 2.0
+        elif streak < 30:
+            next_milestone = 30
+            next_multiplier = 1.5
+        elif streak < 60:
+            next_milestone = 60
+            next_multiplier = 1.75
+        elif streak < 100:
+            next_milestone = 100
+            next_multiplier = 2.0
+        
+        return {
+            "current_streak": streak,
+            "current_multiplier": multiplier,
+            "is_payout_day": streak == 7,
+            "next_milestone": next_milestone,
+            "next_multiplier": next_multiplier,
+            "days_to_next_milestone": next_milestone - streak if next_milestone else None
+        }
 

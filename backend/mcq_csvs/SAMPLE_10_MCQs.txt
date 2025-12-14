@@ -1,0 +1,294 @@
+================================================================================
+10 SAMPLE MCQs - Quality Check (Meaning Scope Verification)
+================================================================================
+
+Total MCQs in dataset: 161,597
+
+
+================================================================================
+MCQ #1 - MEANING
+================================================================================
+Word: SANE (Sense: sane.a.01)
+
+Question: 在這個句子中，"sane" 是什麼意思？
+Context: The doctor confirmed that the patient was sane and competent to make his own decisions.
+
+Options:
+    [A] 刺激的
+    [B] 可預測的
+    [C] 公開的
+    [D] 不新鮮
+  ✓ [E] 神智清醒
+    [F] 男子氣概
+    [G] 步調
+    [H] 沙質的
+    [I] 值得尊敬的
+    [J] 派遣
+    [K] 精神失常
+    [L] 特價
+    [M] 合理的
+    [N] 同義的
+    [O] 象徵性的
+    [P] 高手
+
+✓ Correct Answer: [E] 神智清醒
+
+Explanation: 正確答案是「神智清醒」。
+在句子「The doctor confirmed that the patient was sane and competent to make his own decisions.」中，"sane" 表示「神智清醒」。
+
+Distractor Quality: Confused (Tier 1): 2, Opposite (Tier 2): 1, Orthographic (Tier 3): 4, Similar (Tier 4): 1, Band Sample (Tier 5): 7
+
+
+================================================================================
+MCQ #2 - USAGE
+================================================================================
+Word: CONTEXT (Sense: context.n.01)
+
+Question: 哪一個句子中的 "context" 表示「上下文」？
+
+Options:
+    [A] Can you connect these two wires?
+    [B] I want to connect with my friends.
+  ✓ [C] The context helps you understand the story.
+    [D] I don't understand the concept.
+
+✓ Correct Answer: [C] The context helps you understand the story.
+
+Explanation: 正確答案是：「The context helps you understand the story.」
+這個句子中的 "context" 表示「上下文」。
+
+
+================================================================================
+MCQ #3 - USAGE
+================================================================================
+Word: TRACKS (Sense: path.n.04)
+
+Question: 哪一個句子中的 "tracks" 表示「路徑」？
+
+Options:
+    [A] My back hurts after sitting too long.
+    [B] The back of the house faces the park.
+    [C] I like to wear black shoes.
+  ✓ [D] I saw animal tracks near the river.
+
+✓ Correct Answer: [D] I saw animal tracks near the river.
+
+Explanation: 正確答案是：「I saw animal tracks near the river.」
+這個句子中的 "tracks" 表示「路徑」。
+
+
+================================================================================
+MCQ #4 - MEANING
+================================================================================
+Word: ISAAC (Sense: isaac.n.01)
+
+Question: 在這個句子中，"isaac" 是什麼意思？
+Context: The story of Abraham and Isaac is a famous one in the Bible.
+
+Options:
+    [A] 個人
+    [B] 鋼筆
+    [C] 克
+  ✓ [D] 以撒
+    [E] 皮帶
+    [F] 距離
+    [G] 考試
+    [H] 怪物
+    [I] 汽車
+    [J] 字典
+    [K] 畢業生
+
+✓ Correct Answer: [D] 以撒
+
+Explanation: 正確答案是「以撒」。
+在句子「The story of Abraham and Isaac is a famous one in the Bible.」中，"isaac" 表示「以撒」。
+
+Distractor Quality: Band Sample (Tier 5): 10
+
+
+================================================================================
+MCQ #5 - MEANING
+================================================================================
+Word: DEFY (Sense: defy.v.01)
+
+Question: 在這個句子中，"defy" 是什麼意思？
+Context: It's important to question and sometimes defy old traditions.
+
+Options:
+  ✓ [A] 對抗
+    [B] 露水
+    [C] 遵守
+    [D] 消散
+    [E] 理解
+    [F] 借用
+    [G] 豐富
+    [H] 喚起
+    [I] 碎裂
+    [J] 傾斜
+    [K] 閒聊
+    [L] 抵抗
+    [M] 捏造
+
+✓ Correct Answer: [A] 對抗
+
+Explanation: 正確答案是「對抗」。
+在句子「It's important to question and sometimes defy old traditions.」中，"defy" 表示「對抗」。
+
+Distractor Quality: Confused (Tier 1): 1, Similar (Tier 4): 1, Band Sample (Tier 5): 10
+
+
+================================================================================
+MCQ #6 - MEANING
+================================================================================
+Word: MAPS (Sense: map.n.01)
+
+Question: 在這個句子中，"maps" 是什麼意思？
+Context: We use a map app when we drive.
+
+Options:
+    [A] 計畫
+  ✓ [B] 地圖
+    [C] 案例
+    [D] 法律體系
+    [E] 公司
+    [F] 區域
+    [G] 二
+    [H] 憲兵
+    [I] 戰爭
+    [J] 四月
+    [K] 計畫案
+    [L] 節目
+    [M] 粉絲
+    [N] 鱸魚
+    [O] 24小時
+    [P] 標籤
+
+✓ Correct Answer: [B] 地圖
+
+Explanation: 正確答案是「地圖」。
+在句子「We use a map app when we drive.」中，"maps" 表示「地圖」。
+
+Distractor Quality: Confused (Tier 1): 4, Orthographic (Tier 3): 4, Band Sample (Tier 5): 7
+
+
+================================================================================
+MCQ #7 - MEANING
+================================================================================
+Word: JIMMY (Sense: jimmy.n.01)
+
+Question: 在這個句子中，"jimmy" 是什麼意思？
+Context: Before you use a jimmy, think about whether there is another less destructive method.
+
+Options:
+    [A] 化學物質
+  ✓ [B] 撬棍
+    [C] 土地
+    [D] 露營地
+    [E] 方式
+    [F] 籃子
+    [G] 臉
+    [H] 死亡
+    [I] 選擇
+    [J] 名著
+    [K] 休假
+
+✓ Correct Answer: [B] 撬棍
+
+Explanation: 正確答案是「撬棍」。
+在句子「Before you use a jimmy, think about whether there is another less destructive method.」中，"jimmy" 表示「撬棍」。
+
+Distractor Quality: Band Sample (Tier 5): 10
+
+
+================================================================================
+MCQ #8 - MEANING
+================================================================================
+Word: BALLET (Sense: ballet.n.01)
+
+Question: 在這個句子中，"ballet" 是什麼意思？
+Context: The ballet shoes helped her to point her toes perfectly.
+
+Options:
+    [A] 鬆餅
+    [B] 海鷗
+    [C] 博物學家
+    [D] 創辦人
+    [E] 解釋
+    [F] 花瓣
+    [G] 長襪
+    [H] 手電筒
+    [I] 鵝卵石
+    [J] 入口
+  ✓ [K] 芭蕾舞劇
+
+✓ Correct Answer: [K] 芭蕾舞劇
+
+Explanation: 正確答案是「芭蕾舞劇」。
+在句子「The ballet shoes helped her to point her toes perfectly.」中，"ballet" 表示「芭蕾舞劇」。
+
+Distractor Quality: Band Sample (Tier 5): 10
+
+
+================================================================================
+MCQ #9 - MEANING
+================================================================================
+Word: SAVINGS (Sense: savings.n.01)
+
+Question: 在這個句子中，"savings" 是什麼意思？
+Context: We are using our savings to pay for our children's education.
+
+Options:
+    [A] 孩子們
+    [B] 旅館
+    [C] 特價
+    [D] 擁有
+    [E] 公司
+    [F] 頁
+    [G] 群體
+    [H] 相處
+    [I] 春天
+    [J] 服務
+    [K] 演出
+  ✓ [L] 儲蓄
+    [M] 書
+
+✓ Correct Answer: [L] 儲蓄
+
+Explanation: 正確答案是「儲蓄」。
+在句子「We are using our savings to pay for our children's education.」中，"savings" 表示「儲蓄」。
+
+Distractor Quality: Orthographic (Tier 3): 2, Band Sample (Tier 5): 10
+
+
+================================================================================
+MCQ #10 - MEANING
+================================================================================
+Word: PLIGHT (Sense: predicament.n.01)
+
+Question: 在這個句子中，"plight" 是什麼意思？
+Context: The animal shelter rescues dogs from a dangerous plight.
+
+Options:
+    [A] 藥師
+    [B] 壓抑
+    [C] 直覺
+    [D] 拖鞋
+    [E] 兩週
+  ✓ [F] 困境
+    [G] 水桶
+    [H] 直立
+    [I] 人行道
+    [J] 家禽
+    [K] 法郎
+    [L] 夜店
+
+✓ Correct Answer: [F] 困境
+
+Explanation: 正確答案是「困境」。
+在句子「The animal shelter rescues dogs from a dangerous plight.」中，"plight" 表示「困境」。
+
+Distractor Quality: Orthographic (Tier 3): 1, Band Sample (Tier 5): 10
+
+================================================================================
+END OF SAMPLES
+================================================================================

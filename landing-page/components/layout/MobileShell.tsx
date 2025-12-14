@@ -20,8 +20,8 @@ export function MobileShell({ children }: MobileShellProps) {
 
   return (
     <>
-      {/* Main content with bottom padding on mobile */}
-      <div className={isMobile ? 'pb-bottom-nav' : ''}>
+      {/* Main content with top navbar padding and bottom nav padding on mobile */}
+      <div className={`pt-top-nav ${isMobile ? 'pb-bottom-nav' : ''}`}>
         {children}
       </div>
       
