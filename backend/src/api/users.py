@@ -36,10 +36,39 @@ class ChildInfo(BaseModel):
     email: str  # Placeholder email for children
 
 
+class LearnerProfile(BaseModel):
+    """Learner profile from learners table."""
+    id: str  # learner.id (UUID)
+    user_id: Optional[str]  # auth.users.id (NULL for children without accounts)
+    guardian_id: str  # Parent's auth.users.id
+    display_name: str
+    avatar_emoji: str
+    age_group: Optional[str]
+    is_parent_profile: bool
+    is_independent: bool
+    settings: dict
+
+
 class CreateChildRequest(BaseModel):
     """Request to create a child account."""
     name: str = Field(..., description="Child's name")
     age: int = Field(..., description="Child's age (must be < 20)")
+
+
+class CreateLearnerRequest(BaseModel):
+    """Request to create a learner profile (for multi-profile system)."""
+    display_name: str = Field(..., description="Learner's display name")
+    avatar_emoji: str = Field(..., description="Avatar emoji (e.g., 🦄)")
+    age_group: Optional[str] = Field(None, description="Age group (e.g., '3-5', '6-8', '9+')")
+
+
+class CreateLearnerResponse(BaseModel):
+    """Response after creating a learner profile."""
+    success: bool
+    learner_id: str
+    display_name: str
+    avatar_emoji: str
+    message: str
 
 
 class CreateChildResponse(BaseModel):
@@ -355,6 +384,126 @@ async def get_my_children(
         db.close()
 
 
+@router.post("/me/learners", response_model=CreateLearnerResponse)
+async def create_learner(
+    data: CreateLearnerRequest,
+    user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db_session)
+):
+    """
+    Create a new learner profile for the current user (parent).
+    
+    Creates a learner profile in the learners table. This is for the multi-profile system
+    where children don't need their own auth accounts - they're managed by the parent.
+    
+    The learner profile will be linked to the parent via guardian_id.
+    """
+    try:
+        # Insert into learners table
+        result = db.execute(
+            text("""
+                INSERT INTO public.learners (
+                    guardian_id,
+                    display_name,
+                    avatar_emoji,
+                    age_group,
+                    is_parent_profile,
+                    is_independent,
+                    user_id
+                )
+                VALUES (
+                    :guardian_id,
+                    :display_name,
+                    :avatar_emoji,
+                    :age_group,
+                    false,
+                    false,
+                    NULL
+                )
+                RETURNING id
+            """),
+            {
+                'guardian_id': user_id,
+                'display_name': data.display_name,
+                'avatar_emoji': data.avatar_emoji,
+                'age_group': data.age_group
+            }
+        )
+        
+        learner_id = result.fetchone()[0]
+        db.commit()
+        
+        return CreateLearnerResponse(
+            success=True,
+            learner_id=str(learner_id),
+            display_name=data.display_name,
+            avatar_emoji=data.avatar_emoji,
+            message="Learner profile created successfully"
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create learner: {str(e)}")
+    finally:
+        db.close()
+
+
+@router.get("/me/learners", response_model=List[LearnerProfile])
+async def get_my_learners(
+    user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db_session)
+):
+    """
+    Get all learner profiles managed by the current user (parent).
+    
+    Returns list of learners including:
+    - Parent's own learner profile (is_parent_profile=true)
+    - All children's learner profiles (is_parent_profile=false)
+    
+    This is the new multi-profile system that enables parent-child switching.
+    """
+    try:
+        # Query learners table for all profiles where user is guardian
+        result = db.execute(
+            text("""
+                SELECT 
+                    l.id,
+                    l.user_id,
+                    l.guardian_id,
+                    l.display_name,
+                    l.avatar_emoji,
+                    l.age_group,
+                    l.is_parent_profile,
+                    l.is_independent,
+                    l.settings
+                FROM public.learners l
+                WHERE l.guardian_id = :guardian_id
+                ORDER BY l.is_parent_profile DESC, l.display_name ASC
+            """),
+            {"guardian_id": user_id}
+        )
+        
+        learners = []
+        for row in result:
+            learners.append(LearnerProfile(
+                id=str(row.id),
+                user_id=str(row.user_id) if row.user_id else None,
+                guardian_id=str(row.guardian_id),
+                display_name=row.display_name,
+                avatar_emoji=row.avatar_emoji or '🦄',
+                age_group=row.age_group,
+                is_parent_profile=row.is_parent_profile,
+                is_independent=row.is_independent,
+                settings=row.settings or {}
+            ))
+        
+        return learners
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to get learners: {str(e)}")
+    finally:
+        db.close()
+
+
 class ChildSummary(BaseModel):
     """Lightweight child summary for parent quick view."""
     id: str
@@ -617,6 +766,47 @@ async def create_child(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create child: {str(e)}")
+    finally:
+        db.close()
+
+
+@router.post("/me/learners/backfill", response_model=dict)
+async def backfill_learner_profiles(
+    user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db_session)
+):
+    """
+    Backfill Learner profiles for existing children that don't have them.
+    
+    This syncs old system (User + Relationship) with new system (Learner profiles).
+    Only creates profiles for children that don't already have them.
+    
+    Returns:
+        Number of learner profiles created
+    """
+    try:
+        # Verify user is a parent
+        if not user_crud.user_has_role(db, user_id, 'parent'):
+            raise HTTPException(
+                status_code=403,
+                detail="You must be a parent to backfill learner profiles"
+            )
+        
+        created_count = user_crud.backfill_learner_profiles_for_children(db, user_id)
+        
+        # Explicitly commit the transaction to ensure learners are visible immediately
+        db.commit()
+        
+        return {
+            "success": True,
+            "created_count": created_count,
+            "message": f"Created {created_count} learner profile(s) for existing children"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to backfill learner profiles: {str(e)}")
     finally:
         db.close()
 

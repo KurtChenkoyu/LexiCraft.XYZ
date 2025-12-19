@@ -142,10 +142,19 @@ def health_check():
 @app.get("/health")
 def health():
     """Detailed health check endpoint."""
+    import os
+    from pathlib import Path
+    
+    # Get the project root path (backend directory)
+    backend_dir = Path(__file__).parent.parent.parent.absolute()
+    project_root = backend_dir.parent.absolute()
+    
     return {
         "status": "ok",
         "version": "8.1",
         "service": "LexiCraft Survey API",
+        "project_path": str(project_root),
+        "backend_path": str(backend_dir),
         "features": [
             "Progressive Survey Model",
             "Warm-Start",

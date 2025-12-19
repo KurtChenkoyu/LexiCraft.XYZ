@@ -74,39 +74,34 @@ applyDelta({
 
 ---
 
-## 3. Player Context System
+## 3. Learner Context System
 
 ### Who Can Play?
 
-| Player | Can Play | Notes |
+| Learner | Can Play | Notes |
 |--------|----------|-------|
-| Parent | ✅ Yes | Parent can learn too! |
-| Child (added) | ✅ Yes | Primary use case |
+| Parent profile | ✅ Yes | Parent can learn too! |
+| Child profile (added) | ✅ Yes | Primary use case |
 | Child (not added) | ⚠️ Prompt | "Ask your parent to add you!" |
 
-### New State: `activePlayer`
+### Identity Source of Truth: `activeLearner`
 
 ```typescript
 // In useAppStore.ts
-activePlayer: {
-  id: string           // learner_id (child OR parent)
-  name: string
-  avatar?: string
-  type: 'parent' | 'child'
-} | null
+learners: LearnerProfile[]          // All learner profiles (parent + children)
+activeLearner: LearnerProfile | null // Currently active learner
 
-setActivePlayer: (player) => void
-clearActivePlayer: () => void
+switchLearner: (learnerId: string) => Promise<void>
 ```
 
-### Flow:
+### Flow (Learner-first):
 
 ```
 Parent logs in
     │
-    ├─> Has children? 
+    ├─> Has learners (parent + children)? 
     │       │
-    │       ├─> Yes: Show player selector
+    │       ├─> Yes: Show learner selector (modal + top-bar switcher)
     │       │       "Who's playing today?"
     │       │       [👧 Amy] [👦 Ben] [👨 Me (Parent)]
     │       │
@@ -114,7 +109,7 @@ Parent logs in
     │               "Add your children to track their progress!"
     │               [Add Child] [Play as Parent]
     │
-    └─> Player selected → activePlayer set → App shows that player's data
+    └─> Learner selected → switchLearner(id) → App shows that learner's data
 ```
 
 ### No Children Added - UX
@@ -132,7 +127,7 @@ If a child is using a parent's device but not added:
 └─────────────────────────────────────────┘
 ```
 
-- "Play as Guest" → Uses parent's profile (progress saved to parent)
+- "Play as Guest" → Uses parent's learner profile (progress saved to parent)
 - "Add Me!" → Opens child creation flow for parent
 
 ---
@@ -168,7 +163,7 @@ Even though additional packs are out of scope, the **pack selector infrastructur
 
 ```typescript
 // When pack changes:
-1. Save preference to activePlayer's profile
+1. Save preference to the **active learner's** profile
 2. Clear pack-specific cached data
 3. Reload appropriate vocabulary
 4. Re-render tabs with correct skin
@@ -204,11 +199,11 @@ return <LegacyVersionComponent />
 
 ## 6. New Components
 
-### 6.1 `PlayerSwitcher`
+### 6.1 `LearnerSwitcher`
 **File:** `components/layout/PlayerSwitcher.tsx`
 
-- Dropdown showing all family members
-- Current player highlighted
+- Dropdown showing all family member learner profiles
+- Current learner highlighted
 - Player stats display (XP, streak, coins)
 - "Add Child" option at bottom
 
@@ -242,20 +237,13 @@ return <LegacyVersionComponent />
 ## 7. File Changes Summary
 
 ### Store (`stores/useAppStore.ts`)
-```typescript
-// ADD:
-activePlayer: { id, name, type } | null
-setActivePlayer: (player) => void
-clearActivePlayer: () => void
 
-// EXISTING (keep):
-activePack
-setActivePack
-```
+- Use `learners[]` + `activeLearner` + `switchLearner(learnerId)` as the **only** identity model.
+- Do **not** introduce a second identity state like `activePlayer` for backend calls.
 
 ### Top Nav (`components/layout/LearnerTopBar.tsx`)
-- Add `<PlayerSwitcher />`
-- Show `activePlayer` stats
+- Add `<LearnerSwitcher />` (already implemented)
+- Show stats derived from the current `activeLearner` and its gamification profile
 
 ### Tab Pages
 Each tab checks `isEmojiPack` and renders appropriate component.
@@ -264,11 +252,11 @@ Each tab checks `isEmojiPack` and renders appropriate component.
 
 ## 8. Implementation Phases
 
-### Phase 1: Player Context ⬅️ START HERE
-- [ ] Add `activePlayer` to store
-- [ ] Create `PlayerSwitcher` component  
-- [ ] Player selection on app entry
-- [ ] Pass `activePlayer.id` to data fetches
+### Phase 1: Learner Context ⬅️ START HERE
+- [x] Use `learners[]` + `activeLearner` in store
+- [x] Create `LearnerSwitcher` component  
+- [x] Learner selection on app entry (modal + top bar)
+- [x] All data fetches use `activeLearner.id`
 
 ### Phase 2: Pack Selector Enhancement
 - [ ] Move pack selector to top nav
@@ -278,12 +266,12 @@ Each tab checks `isEmojiPack` and renders appropriate component.
 ### Phase 3: Mine Tab (Collection Grid)
 - [ ] Create `EmojiCollectionGrid`
 - [ ] Conditional render in Mine page
-- [ ] Load progress for `activePlayer`
+- [ ] Load progress for **active learner**
 - [ ] Tap-to-quiz
 
 ### Phase 4: Verification Integration  
-- [ ] `EmojiMCQSession` uses `activePlayer.id`
-- [ ] Progress saves to correct profile
+- [ ] `EmojiMCQSession` uses `activeLearner.id` indirectly via store
+- [ ] Progress saves to correct learner profile
 - [ ] Delta strategy for updates
 
 ### Phase 5: Build Tab (Showcase)

@@ -1,9 +1,9 @@
 'use client'
 
-import { LearnerProfile, StreakInfo } from '@/services/gamificationApi'
+import { LearnerGamificationProfile, StreakInfo } from '@/services/gamificationApi'
 
 interface StatsGridProps {
-  profile: LearnerProfile | null
+  profile: LearnerGamificationProfile | null
   streaks: StreakInfo | null
 }
 

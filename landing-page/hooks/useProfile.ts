@@ -3,14 +3,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   learnerProfileApi,
-  LearnerProfile,
+  LearnerGamificationProfile,
   Achievement,
   StreakInfo,
 } from '@/services/gamificationApi'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface UseProfileReturn {
-  profile: LearnerProfile | null
+  profile: LearnerGamificationProfile | null
   achievements: Achievement[]
   streaks: StreakInfo | null
   isLoading: boolean
@@ -20,7 +20,7 @@ interface UseProfileReturn {
 
 export function useProfile(): UseProfileReturn {
   const { user } = useAuth()
-  const [profile, setProfile] = useState<LearnerProfile | null>(null)
+  const [profile, setProfile] = useState<LearnerGamificationProfile | null>(null)
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const [streaks, setStreaks] = useState<StreakInfo | null>(null)
   const [isLoading, setIsLoading] = useState(true)

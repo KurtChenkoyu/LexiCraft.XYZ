@@ -4,7 +4,7 @@ CRUD operations for Users, UserRoles, and UserRelationships.
 from typing import Optional, List, Tuple
 from uuid import UUID
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, text
 
 from ..models import User, UserRole, UserRelationship
 
@@ -284,6 +284,27 @@ def delete_parent_child_relationship(
 
 # ========== Child Account Creation ==========
 
+def _age_to_age_group(age: int) -> str:
+    """
+    Convert age to age_group format.
+    
+    Age groups: '1', '2', '3', ..., '19' (simple format for now)
+    Future: Could use ranges like '3-5', '6-8', '9-12', etc.
+    
+    Args:
+        age: Child's age (1-19)
+    
+    Returns:
+        Age group string (e.g., '8' for age 8)
+    
+    Raises:
+        ValueError: If age is out of valid range
+    """
+    if age < 1 or age >= 20:
+        raise ValueError(f"Invalid age for age_group conversion: {age}")
+    return str(age)
+
+
 def create_child_account(
     session: Session,
     parent_id: UUID,
@@ -345,6 +366,45 @@ def create_child_account(
         relationship_type='parent_child'
     )
     
+    # Create corresponding Learner profile
+    # This ensures the child appears in PlayerSwitcher and can be switched to
+    age_group = _age_to_age_group(child_age)
+    
+    # Insert into learners table
+    result = session.execute(
+        text("""
+            INSERT INTO public.learners (
+                guardian_id,
+                display_name,
+                avatar_emoji,
+                age_group,
+                is_parent_profile,
+                is_independent,
+                user_id
+            )
+            VALUES (
+                :guardian_id,
+                :display_name,
+                :avatar_emoji,
+                :age_group,
+                false,
+                false,
+                NULL
+            )
+            RETURNING id
+        """),
+        {
+            'guardian_id': parent_id,  # Parent's auth.users.id
+            'display_name': child_name,
+            'avatar_emoji': '👧',  # Default child emoji
+            'age_group': age_group
+        }
+    )
+    
+    learner_id = result.fetchone()[0]
+    # Note: Don't commit here - let the caller handle transaction
+    # If this fails, the whole create_child_account will rollback via context manager
+    
     # Option B: Create Supabase Auth account (not implemented yet)
     password = None
     if create_auth_account:
@@ -357,4 +417,92 @@ def create_child_account(
         pass
     
     return child_user, password
+
+
+def backfill_learner_profiles_for_children(
+    session: Session,
+    parent_id: UUID
+) -> int:
+    """
+    Backfill Learner profiles for existing children that don't have them.
+    
+    This is a migration function to sync old system (User + Relationship) 
+    with new system (Learner profiles).
+    
+    Args:
+        session: Database session
+        parent_id: UUID of parent user
+    
+    Returns:
+        Number of learner profiles created
+    """
+    # Get all children for this parent
+    children = get_user_children(session, parent_id)
+    
+    if not children:
+        return 0
+    
+    created_count = 0
+    
+    for child in children:
+        # Check if this child already has a learner profile
+        # We check by guardian_id and display_name since user_id is NULL for children
+        existing_learner = session.execute(
+            text("""
+                SELECT id FROM public.learners
+                WHERE guardian_id = :guardian_id
+                AND display_name = :display_name
+                AND is_parent_profile = false
+                AND user_id IS NULL
+            """),
+            {
+                'guardian_id': parent_id,
+                'display_name': child.name or f"Child {child.id}"
+            }
+        ).fetchone()
+        
+        if existing_learner:
+            # Already has a learner profile, skip
+            continue
+        
+        # Create learner profile for this child
+        try:
+            age_group = _age_to_age_group(child.age) if child.age else '8'  # Default to 8 if age missing
+            
+            session.execute(
+                text("""
+                    INSERT INTO public.learners (
+                        guardian_id,
+                        display_name,
+                        avatar_emoji,
+                        age_group,
+                        is_parent_profile,
+                        is_independent,
+                        user_id
+                    )
+                    VALUES (
+                        :guardian_id,
+                        :display_name,
+                        :avatar_emoji,
+                        :age_group,
+                        false,
+                        false,
+                        NULL
+                    )
+                """),
+                {
+                    'guardian_id': parent_id,
+                    'display_name': child.name or f"Child {child.id}",
+                    'avatar_emoji': '👧',  # Default child emoji
+                    'age_group': age_group
+                }
+            )
+            created_count += 1
+        except Exception as e:
+            # Log error but continue with other children
+            print(f"Warning: Failed to create learner profile for child {child.id}: {e}")
+            continue
+    
+    # Note: Don't commit here - let the caller handle transaction
+    return created_count
 

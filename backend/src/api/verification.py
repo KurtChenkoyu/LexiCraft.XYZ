@@ -15,7 +15,7 @@ from datetime import date, datetime
 from typing import Optional, List, Dict, Any, Generator
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -257,38 +257,99 @@ async def migrate_to_fsrs(
 @router.get("/due", response_model=List[DueCardResponse])
 async def get_due_cards(
     limit: int = 20,
+    learner_id: Optional[UUID] = Query(None, description="Learner ID (defaults to parent's learner profile)"),
     user_id: UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db_session),
 ):
     """
     Get cards due for review.
     
+    - If learner_id is provided: Must verify user_id is guardian of that learner
+    - If learner_id is None: Returns parent's own learner profile due cards
+    
     Returns cards sorted by:
     1. Overdue cards first (most overdue first)
     2. Then by predicted retention (lowest first)
     """
     try:
+        # 1. Determine target learner_id
+        target_learner_id = None
+        
+        if learner_id:
+            # Security check: Verify user is guardian of this learner
+            learner_check = db.execute(
+                text("""
+                    SELECT id FROM public.learners
+                    WHERE id = :learner_id AND guardian_id = :guardian_id
+                """),
+                {'learner_id': learner_id, 'guardian_id': user_id}
+            ).fetchone()
+            
+            if not learner_check:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You can only view due cards for learners you manage"
+                )
+            target_learner_id = learner_id
+        else:
+            # Fallback: Find parent's own learner profile
+            parent_learner = db.execute(
+                text("""
+                    SELECT id FROM public.learners
+                    WHERE user_id = :user_id AND is_parent_profile = true
+                """),
+                {'user_id': user_id}
+            ).fetchone()
+            
+            if parent_learner:
+                target_learner_id = parent_learner[0]
+            # If no parent learner found, target_learner_id stays None (legacy fallback)
+        
         today = date.today()
         
-        result = db.execute(
-            text("""
-                SELECT 
-                    vs.id,
-                    vs.learning_progress_id,
-                    lp.learning_point_id,
-                    vs.scheduled_date,
-                    lp.status,
-                    lp.tier
-                FROM verification_schedule vs
-                JOIN learning_progress lp ON lp.id = vs.learning_progress_id
-                WHERE vs.user_id = :user_id
-                AND vs.scheduled_date <= :today
-                AND vs.completed = FALSE
-                ORDER BY vs.scheduled_date ASC
-                LIMIT :limit
-            """),
-            {'user_id': user_id, 'today': today, 'limit': limit}
-        )
+        # 2. Query verification_schedule filtered by learner_id via learning_progress
+        if target_learner_id:
+            # New system: Filter by learner_id via learning_progress
+            result = db.execute(
+                text("""
+                    SELECT 
+                        vs.id,
+                        vs.learning_progress_id,
+                        lp.learning_point_id,
+                        vs.scheduled_date,
+                        lp.status,
+                        lp.tier
+                    FROM verification_schedule vs
+                    JOIN learning_progress lp ON lp.id = vs.learning_progress_id
+                    WHERE lp.learner_id = :learner_id
+                    AND vs.scheduled_date <= :today
+                    AND vs.completed = FALSE
+                    ORDER BY vs.scheduled_date ASC
+                    LIMIT :limit
+                """),
+                {'learner_id': target_learner_id, 'today': today, 'limit': limit}
+            )
+        else:
+            # Legacy: Filter by user_id (backward compatibility)
+            result = db.execute(
+                text("""
+                    SELECT 
+                        vs.id,
+                        vs.learning_progress_id,
+                        lp.learning_point_id,
+                        vs.scheduled_date,
+                        lp.status,
+                        lp.tier
+                    FROM verification_schedule vs
+                    JOIN learning_progress lp ON lp.id = vs.learning_progress_id
+                    WHERE vs.user_id = :user_id
+                    AND vs.scheduled_date <= :today
+                    AND vs.completed = FALSE
+                    ORDER BY vs.scheduled_date ASC
+                    LIMIT :limit
+                """),
+                {'user_id': user_id, 'today': today, 'limit': limit}
+            )
         
         cards = []
         for row in result.fetchall():

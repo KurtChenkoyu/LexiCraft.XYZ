@@ -44,12 +44,15 @@ export interface UserAction {
  * Block progress stored locally
  */
 export interface LocalBlockProgress {
+  id?: number // Auto-increment primary key (used by IndexedDB)
+  learnerId: string // UUID from public.learners.id (required for multi-learner isolation)
   senseId: string
-  status: 'raw' | 'hollow' | 'solid'
+  status: 'raw' | 'hollow' | 'solid' | 'mastered'
   tier?: number
-  startedAt?: string
+  startedAt?: number
   masteryLevel?: string
   updatedAt: number
+  lastInteracted: number // Timestamp of last interaction
 }
 
 /**
@@ -81,9 +84,13 @@ export interface VerificationBundleData {
  */
 interface LexiCraftDB extends DBSchema {
   progress: {
-    key: string
+    key: number // Auto-increment ID
     value: LocalBlockProgress
-    indexes: { 'by-status': string }
+    indexes: { 
+      'by-status': string
+      'by-learnerId': string
+      'by-senseId': string
+    }
   }
   syncQueue: {
     key: string
@@ -105,7 +112,7 @@ interface LexiCraftDB extends DBSchema {
 }
 
 const DB_NAME = 'lexicraft'
-const DB_VERSION = 2  // Bumped for verificationBundles store
+const DB_VERSION = 3  // Bumped for multi-learner support (learnerId field)
 
 /**
  * Get or create database instance
@@ -118,10 +125,23 @@ function getDB(): Promise<IDBPDatabase<LexiCraftDB>> {
       upgrade(db, oldVersion) {
         console.log(`Upgrading IndexedDB from v${oldVersion} to v${DB_VERSION}`)
         
-        // Progress store (v1)
+        // Migration from v2 to v3: Multi-learner support
+        if (oldVersion < 3 && db.objectStoreNames.contains('progress')) {
+          // Clean slate strategy: Delete old progress store
+          console.log('🔄 Migrating progress store: Deleting old schema (clean slate)')
+          db.deleteObjectStore('progress')
+        }
+
+        // Progress store (v3: Multi-learner with learnerId)
         if (!db.objectStoreNames.contains('progress')) {
-          const progressStore = db.createObjectStore('progress', { keyPath: 'senseId' })
+          const progressStore = db.createObjectStore('progress', { 
+            keyPath: 'id', 
+            autoIncrement: true 
+          })
           progressStore.createIndex('by-status', 'status')
+          progressStore.createIndex('by-learnerId', 'learnerId')
+          progressStore.createIndex('by-senseId', 'senseId')
+          console.log('✅ Created progress store with multi-learner support')
         }
 
         // Sync queue store (v1)
@@ -171,40 +191,143 @@ async function hasVerificationBundlesStore(): Promise<boolean> {
  */
 export const localStore = {
   /**
-   * Save block progress locally
+   * Save block progress locally (learner-scoped)
    */
-  async saveProgress(senseId: string, status: 'raw' | 'hollow' | 'solid', extra?: Partial<LocalBlockProgress>): Promise<void> {
+  async saveProgress(
+    learnerId: string, 
+    senseId: string, 
+    status: 'raw' | 'hollow' | 'solid' | 'mastered',
+    extra?: Partial<LocalBlockProgress>
+  ): Promise<void> {
+    if (!learnerId) {
+      console.warn('⚠️ saveProgress called without learnerId - skipping')
+      return
+    }
+
     const db = await getDB()
-    await db.put('progress', {
-      senseId,
-      status,
-      updatedAt: Date.now(),
-      ...extra,
+    const now = Date.now()
+
+    // Query by learnerId index, then filter by senseId (no compound index support in idb)
+    const allProgress = await db.getAllFromIndex('progress', 'by-learnerId', learnerId)
+    const existing = allProgress.find(p => p.senseId === senseId)
+
+    if (existing) {
+      // Update existing entry
+      await db.put('progress', {
+        ...existing,
+        status,
+        updatedAt: now,
+        lastInteracted: now,
+        ...extra,
+      })
+    } else {
+      // Add new entry
+      await db.add('progress', {
+        learnerId,
+        senseId,
+        status,
+        updatedAt: now,
+        lastInteracted: now,
+        startedAt: now,
+        ...extra,
+      } as LocalBlockProgress)
+    }
+  },
+
+  /**
+   * Get progress for a specific block (learner-scoped)
+   */
+  async getProgress(learnerId: string, senseId: string): Promise<LocalBlockProgress | undefined> {
+    if (!learnerId) return undefined
+    
+    const db = await getDB()
+    // Query by learnerId index, then filter by senseId
+    const allProgress = await db.getAllFromIndex('progress', 'by-learnerId', learnerId)
+    return allProgress.find(p => p.senseId === senseId)
+  },
+
+  /**
+   * Get all progress entries for a specific learner
+   * Returns Map<senseId, status> for fast lookups
+   */
+  async getAllProgress(learnerId: string): Promise<Map<string, string>> {
+    if (!learnerId) return new Map()
+
+    const db = await getDB()
+    const entries = await db.getAllFromIndex('progress', 'by-learnerId', learnerId)
+    
+    const map = new Map<string, string>()
+    entries.forEach(e => map.set(e.senseId, e.status))
+    return map
+  },
+
+  /**
+   * Get SRS mastery levels for a specific learner
+   * Returns Map<senseId, mastery_level> for fast lookups
+   */
+  async getSRSLevels(learnerId: string): Promise<Map<string, string>> {
+    if (!learnerId) return new Map()
+
+    const db = await getDB()
+    const entries = await db.getAllFromIndex('progress', 'by-learnerId', learnerId)
+    
+    const map = new Map<string, string>()
+    entries.forEach(e => {
+      if (e.masteryLevel) {
+        map.set(e.senseId, e.masteryLevel)
+      }
     })
+    return map
   },
 
   /**
-   * Get progress for a specific block
+   * Get progress by status (learner-scoped)
    */
-  async getProgress(senseId: string): Promise<LocalBlockProgress | undefined> {
+  async getProgressByStatus(learnerId: string, status: 'raw' | 'hollow' | 'solid' | 'mastered'): Promise<LocalBlockProgress[]> {
+    if (!learnerId) return []
+
     const db = await getDB()
-    return db.get('progress', senseId)
+    // Query by learnerId index, then filter by status
+    const allProgress = await db.getAllFromIndex('progress', 'by-learnerId', learnerId)
+    return allProgress.filter(p => p.status === status)
   },
 
   /**
-   * Get all progress entries
+   * Get collected words for a specific learner
+   * Returns array of CollectedWord objects
    */
-  async getAllProgress(): Promise<LocalBlockProgress[]> {
-    const db = await getDB()
-    return db.getAll('progress')
+  async getCollectedWords(learnerId: string): Promise<import('@/stores/useAppStore').CollectedWord[]> {
+    if (!learnerId) return []
+    const cacheKey = `collected_words_${learnerId}`
+    return await this.getCache<import('@/stores/useAppStore').CollectedWord[]>(cacheKey) || []
   },
 
   /**
-   * Get progress by status
+   * Save a collected word (add or update)
+   * Preserves timestamps when updating existing words
    */
-  async getProgressByStatus(status: 'raw' | 'hollow' | 'solid'): Promise<LocalBlockProgress[]> {
-    const db = await getDB()
-    return db.getAllFromIndex('progress', 'by-status', status)
+  async saveCollectedWord(learnerId: string, word: import('@/stores/useAppStore').CollectedWord): Promise<void> {
+    if (!learnerId) return
+    const existing = await this.getCollectedWords(learnerId)
+    const index = existing.findIndex(w => w.sense_id === word.sense_id)
+    
+    if (index >= 0) {
+      existing[index] = word  // Update existing (preserves collectedAt timestamp)
+    } else {
+      existing.push(word)  // Add new
+    }
+    
+    const cacheKey = `collected_words_${learnerId}`
+    await this.setCache(cacheKey, existing, 30 * 24 * 60 * 60 * 1000)  // 30 days TTL
+  },
+
+  /**
+   * Bulk import collected words (for backend sync)
+   */
+  async importCollectedWords(learnerId: string, words: import('@/stores/useAppStore').CollectedWord[]): Promise<void> {
+    if (!learnerId) return
+    const cacheKey = `collected_words_${learnerId}`
+    await this.setCache(cacheKey, words, 30 * 24 * 60 * 60 * 1000)
   },
 
   /**
@@ -296,6 +419,26 @@ export const localStore = {
   },
 
   /**
+   * Get cached data ignoring expiry (for fallback scenarios)
+   * Returns expired cache entries without deleting them
+   */
+  async getCacheIgnoreExpiry<T>(key: string): Promise<T | undefined> {
+    const db = await getDB()
+    const entry = await db.get('cache', key)
+    if (!entry) return undefined
+    // Return data even if expired (don't delete)
+    return entry.data as T
+  },
+
+  /**
+   * Delete a cached entry
+   */
+  async deleteCache(key: string): Promise<void> {
+    const db = await getDB()
+    await db.delete('cache', key)
+  },
+
+  /**
    * Set persistent data (no expiration)
    */
   async set<T>(key: string, data: T): Promise<void> {
@@ -364,30 +507,68 @@ export const localStore = {
   },
 
   /**
-   * Import progress from server (merge with local)
+   * Import progress from server (learner-scoped, replaces all progress for this learner)
    */
-  async importProgress(serverProgress: Array<{ sense_id: string; status: string }>): Promise<void> {
+  async importProgress(
+    learnerId: string, 
+    serverProgress: Array<{ 
+      sense_id: string
+      status: string
+      tier?: number
+      started_at?: string
+      mastery_level?: string
+      last_reviewed_at?: string
+    }>
+  ): Promise<void> {
+    if (!learnerId) return
+
     const db = await getDB()
-    const tx = db.transaction('progress', 'readwrite')
     
+    // FIX: Get all progress entries BEFORE opening transaction
+    // This ensures we have the data before the transaction starts
+    // Calling getAllFromIndex outside the transaction prevents the transaction
+    // from auto-committing before we use it
+    const allProgress = await db.getAllFromIndex('progress', 'by-learnerId', learnerId)
+    const idsToDelete = allProgress.map(entry => entry.id).filter((id): id is number => id !== undefined)
+    
+    // Now open transaction and do all operations within it
+    const tx = db.transaction('progress', 'readwrite')
+    const store = tx.objectStore('progress')
+    
+    // 1. Clear ONLY this learner's old data (within transaction)
+    for (const id of idsToDelete) {
+      await store.delete(id)
+    }
+    
+    // 2. Bulk insert new data (within same transaction)
+    const now = Date.now()
     for (const item of serverProgress) {
       // Map server status to local status
-      let status: 'raw' | 'hollow' | 'solid' = 'raw'
-      if (item.status === 'verified' || item.status === 'mastered') {
+      let status: 'raw' | 'hollow' | 'solid' | 'mastered' = 'raw'
+      if (item.status === 'verified' || item.status === 'mastered' || item.status === 'solid') {
         status = 'solid'
-      } else if (item.status === 'learning' || item.status === 'pending') {
+      } else if (item.status === 'learning' || item.status === 'pending' || item.status === 'hollow') {
         status = 'hollow'
       }
       
-      // Only update if not already locally modified
-      const existing = await tx.store.get(item.sense_id)
-      if (!existing || existing.updatedAt < Date.now() - 60000) {
-        await tx.store.put({
-          senseId: item.sense_id,
-          status,
-          updatedAt: Date.now(),
-        })
-      }
+      const startedAt = item.started_at 
+        ? new Date(item.started_at).getTime() 
+        : now
+      
+      const updatedAt = item.last_reviewed_at 
+        ? new Date(item.last_reviewed_at).getTime() 
+        : now
+
+      await store.add({
+        learnerId,
+        senseId: item.sense_id,
+        status,
+        tier: item.tier,
+        masteryLevel: item.mastery_level,
+        startedAt,
+        updatedAt,
+        lastInteracted: updatedAt,
+      } as LocalBlockProgress)
     }
     
     await tx.done

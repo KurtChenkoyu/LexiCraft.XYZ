@@ -79,7 +79,7 @@ def run_batch(batch_info: dict, batch_size: int = 10):
     
     # Run the batch
     try:
-        result = subprocess.run(cmd, cwd="/Users/kurtchen/earn-money-back-project/backend")
+        result = subprocess.run(cmd, cwd="/Users/kurtchen/LexiCraft.xyz/backend")
         return result.returncode == 0
     except Exception as e:
         print(f"❌ Error running {name}: {e}")

@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { useAppStore, selectLeaderboardData } from '@/stores/useAppStore'
+import { useAppStore, selectLeaderboardData, selectActivePack } from '@/stores/useAppStore'
 import { Link } from '@/i18n/routing'
 import { leaderboardsApi, LeaderboardEntry, UserRank } from '@/services/gamificationApi'
+import { FamilyLeaderboard } from '@/components/features/emoji/FamilyLeaderboard'
 
 type Period = 'weekly' | 'monthly' | 'all_time'
 type Metric = 'xp' | 'words' | 'streak'
@@ -32,6 +33,10 @@ export default function LeaderboardsPage() {
   // ⚡ ZUSTAND-FIRST: Read from store (pre-loaded by Bootstrap)
   const leaderboardFromStore = useAppStore(selectLeaderboardData)
   const setLeaderboardInStore = useAppStore((state) => state.setLeaderboardData)
+  const activePack = useAppStore(selectActivePack)
+  
+  // Emoji Mode: Show family leaderboard
+  const isEmojiPack = activePack?.id === 'emoji_core'
 
   const [tab, setTab] = useState<Tab>('global')
   const [period, setPeriod] = useState<Period>('weekly')
@@ -125,6 +130,17 @@ export default function LeaderboardsPage() {
       fetchingRef.current = false
     }
   }, [user, tab, period, metric, getCacheKey])
+
+  // Emoji Mode: Show family leaderboard
+  if (isEmojiPack) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 pt-20 pb-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <FamilyLeaderboard />
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 pt-20 pb-20">

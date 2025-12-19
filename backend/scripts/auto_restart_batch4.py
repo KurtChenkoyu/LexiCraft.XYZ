@@ -70,7 +70,7 @@ def restart_process():
     
     process = subprocess.Popen(
         cmd,
-        cwd="/Users/kurtchen/earn-money-back-project/backend",
+        cwd="/Users/kurtchen/LexiCraft.xyz/backend",
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )

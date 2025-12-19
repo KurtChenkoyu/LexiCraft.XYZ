@@ -69,6 +69,14 @@ export async function createAuthenticatedClient(): Promise<AxiosInstance> {
   client.interceptors.response.use(
     (response) => response,
     (error) => {
+      // Handle 401 Unauthorized - clear cache and let callers decide how to react
+      if (error.response?.status === 401) {
+        console.warn('⚠️ Authentication failed (401) in API client, clearing token cache')
+        // Clear cached token to force refresh on next request
+        clearClientCache()
+        return Promise.reject(error)
+      }
+      
       if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
         console.debug('Request timeout - backend may be down:', error.config?.url)
       } else if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
@@ -92,10 +100,25 @@ export function clearClientCache() {
 
 /**
  * Make an authenticated GET request
+ * 
+ * Note: By default, we disable caching to ensure fresh data after mutations.
+ * If you need caching for a specific request, pass cache: true in options.
  */
-export async function authenticatedGet<T>(url: string): Promise<T> {
+export async function authenticatedGet<T>(
+  url: string, 
+  options?: { cache?: boolean }
+): Promise<T> {
   const client = await createAuthenticatedClient()
-  const response = await client.get<T>(url)
+  const response = await client.get<T>(url, {
+    headers: {
+      // Disable caching by default (can be overridden with cache: true)
+      ...(options?.cache ? {} : {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }),
+    },
+  })
   return response.data
 }
 

@@ -36,9 +36,14 @@ def _get_engine():
         _engine = create_engine(
             connection_string,
             poolclass=NullPool,  # Essential for Transaction mode
+            pool_pre_ping=True,  # Test connections before using (fixes stale SSL connections)
             connect_args={
-                "sslmode": "require",
+                "sslmode": "prefer",  # Try 'prefer' first, fallback to 'require' if needed
                 "connect_timeout": 30,
+                "keepalives": 1,
+                "keepalives_idle": 30,
+                "keepalives_interval": 10,
+                "keepalives_count": 5,
             },
             echo=False
         )
@@ -101,9 +106,14 @@ class PostgresConnection:
             self.engine = create_engine(
                 self.connection_string,
                 poolclass=NullPool,
+                pool_pre_ping=True,  # Test connections before using (fixes stale SSL connections)
                 connect_args={
-                    "sslmode": "require",
+                    "sslmode": "prefer",  # Try 'prefer' first, fallback to 'require' if needed
                     "connect_timeout": 30,
+                    "keepalives": 1,
+                    "keepalives_idle": 30,
+                    "keepalives_interval": 10,
+                    "keepalives_count": 5,
                 },
                 echo=False
             )

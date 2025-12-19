@@ -359,6 +359,30 @@ export function UserDataProvider({ children: childrenProp }: { children: ReactNo
         // Select the new child
         setSelectedChildId(response.child_id)
         
+        // 🔄 Ensure learner profiles stay in sync after adding a child
+        // 1) Ask backend to backfill any missing learner rows (idempotent)
+        try {
+          await authenticatedPost<{ created_count: number }>(
+            '/api/users/me/learners/backfill',
+            {},
+          )
+        } catch (backfillError) {
+          console.warn('Failed to backfill learners after adding child (non-critical):', backfillError)
+        }
+
+        // 2) Refresh learners from API and sync to Zustand so LearnerSwitcher sees the new learner
+        try {
+          const { downloadService } = await import('@/services/downloadService')
+          const freshLearners = await downloadService.refreshLearners()
+          if (freshLearners && freshLearners.length > 0) {
+            const { useAppStore } = await import('@/stores/useAppStore')
+            const store = useAppStore.getState()
+            store.setLearners(freshLearners)
+          }
+        } catch (learnerRefreshError) {
+          console.warn('Failed to refresh learners after adding child (non-critical):', learnerRefreshError)
+        }
+
         return newChild
       }
       return null
@@ -387,6 +411,16 @@ export function UserDataProvider({ children: childrenProp }: { children: ReactNo
         // Optionally clear selectedChildId on logout
         localStorage.removeItem(SELECTED_CHILD_KEY)
       }
+      return
+    }
+
+    // CRITICAL: Skip if bootstrap is running or complete
+    // Bootstrap handles all initial data loading at /start
+    const { useAppStore } = require('@/stores/useAppStore')
+    const isBootstrapped = useAppStore.getState().isBootstrapped
+    if (isBootstrapped) {
+      // Bootstrap already loaded everything, just sync in background if needed
+      // Don't run the full loadData() which would duplicate work
       return
     }
 
@@ -427,7 +461,18 @@ export function UserDataProvider({ children: childrenProp }: { children: ReactNo
           setIsLoading(false)
         }
         
-        // Then trigger background sync to get fresh data
+        // CRITICAL: Check again if bootstrap completed while we were loading cache
+        // Bootstrap handles all initial data loading, so skip background sync if it's done
+        const { useAppStore } = require('@/stores/useAppStore')
+        const isBootstrapped = useAppStore.getState().isBootstrapped
+        if (isBootstrapped) {
+          console.log('⏭️ Bootstrap complete, skipping background sync in UserDataContext')
+          setIsSyncing(false)
+          setIsLoading(false)
+          return
+        }
+        
+        // Then trigger background sync to get fresh data (only if bootstrap hasn't completed)
         setIsSyncing(true)
         downloadService.downloadAllUserData(user.id, (progress) => {
           console.debug(`Sync: ${progress.completed}/${progress.total} - ${progress.current}`)
@@ -511,7 +556,7 @@ export function UserDataProvider({ children: childrenProp }: { children: ReactNo
     loadData()
     
     return () => { cancelled = true }
-  }, [user?.id, authLoading]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, authLoading, profile]) // Added profile to dependencies
 
   // Fetch balance when selected child changes
   // FIXED: Removed refreshBalance from dependencies to break circular dependency

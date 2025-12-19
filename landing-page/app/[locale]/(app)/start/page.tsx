@@ -108,7 +108,24 @@ export default function StartPage() {
         const result = await bootstrapApp(user.id, (progressUpdate) => {
           const percent = Math.min(50, 10 + (progressUpdate.percentage * 0.4))
           setOverallProgress(percent)
-          updateStep('profile', 'loading', progressUpdate.step)
+          
+          // Map bootstrap steps to UI steps - only show relevant details
+          const stepRaw = progressUpdate.step.toLowerCase()
+
+          if (stepRaw.includes('profile') || stepRaw.includes('children') || stepRaw.includes('learners')) {
+            updateStep('profile', 'loading', progressUpdate.step)
+          } else if (stepRaw.includes('wallet') || stepRaw.includes('currencies')) {
+            // Map wallet/currency loading to profile
+            updateStep('profile', 'loading', progressUpdate.step)
+          } else if (stepRaw.includes('progress') || stepRaw.includes('achievements') || stepRaw.includes('goals')) {
+            updateStep('progress', 'loading', progressUpdate.step)
+          } else if (stepRaw.includes('vocabulary')) {
+            updateStep('vocabulary', 'loading', progressUpdate.step)
+          } else {
+            // Background tasks (leaderboard, due cards, mining, finalizing)
+            // Don't change the text, just let the progress bar fill up.
+            // This prevents "Loading leaderboard..." from appearing under "Profile"
+          }
         })
 
         if (!result.success) {
@@ -119,38 +136,53 @@ export default function StartPage() {
         setOverallProgress(50)
         
         setCurrentStep(2)
-        updateStep('vocabulary', 'loading', '檢查詞彙快取...')
         
-        vocabularyLoader.startLoading()
-        
-        await new Promise<void>((resolve) => {
-          let attempts = 0
-          const maxAttempts = 60
-          const poll = setInterval(() => {
-            attempts++
-            const status = vocabularyLoader.getCurrentStatus()
-            
-            if (status.state === 'cached' || status.state === 'complete') {
-              clearInterval(poll)
-              const count = 'count' in status ? status.count : 0
-              updateStep('vocabulary', 'complete', `${count.toLocaleString()} 個詞彙`)
-              setOverallProgress(70)
-              resolve()
-            } else if (status.state === 'error' || attempts >= maxAttempts) {
-              clearInterval(poll)
-              updateStep('vocabulary', 'complete', '使用快取資料')
-              setOverallProgress(70)
-              resolve()
-            } else {
-              const detail = status.state === 'downloading' ? '下載詞彙庫...' 
-                : status.state === 'parsing' ? '解析中...'
-                : status.state === 'inserting' ? `載入中 ${(status as any).current || 0}/${(status as any).total || 0}`
-                : '檢查中...'
-              updateStep('vocabulary', 'loading', detail)
-              setOverallProgress(50 + (attempts / maxAttempts) * 20)
-            }
-          }, 500)
-        })
+        const store = useAppStore.getState()
+        const activePack = store.activePack
+        // Default to emoji pack if none selected (Safety for MVP)
+        const isEmojiPackActive = activePack?.id === 'emoji_core' || !activePack
+
+        if (isEmojiPackActive) {
+          // 🎯 MVP Mode: Skip 10k vocabulary loading
+          console.log('🎯 Start: Skipping 10k vocabulary (Emoji Pack Active)')
+          updateStep('vocabulary', 'complete', '使用表情包核心詞彙')
+          setOverallProgress(70)
+          // Short UX delay
+          await new Promise(resolve => setTimeout(resolve, 500))
+        } else {
+          // Legacy Mode: Load full 10k vocabulary
+          updateStep('vocabulary', 'loading', '檢查詞彙快取...')
+          vocabularyLoader.startLoading()
+          
+          await new Promise<void>((resolve) => {
+            let attempts = 0
+            const maxAttempts = 60
+            const poll = setInterval(() => {
+              attempts++
+              const status = vocabularyLoader.getCurrentStatus()
+              
+              if (status.state === 'cached' || status.state === 'complete') {
+                clearInterval(poll)
+                const count = 'count' in status ? status.count : 0
+                updateStep('vocabulary', 'complete', `${count.toLocaleString()} 個詞彙`)
+                setOverallProgress(70)
+                resolve()
+              } else if (status.state === 'error' || attempts >= maxAttempts) {
+                clearInterval(poll)
+                updateStep('vocabulary', 'complete', '使用快取資料')
+                setOverallProgress(70)
+                resolve()
+              } else {
+                const detail = status.state === 'downloading' ? '下載詞彙庫...' 
+                  : status.state === 'parsing' ? '解析中...'
+                  : status.state === 'inserting' ? `載入中 ${(status as any).current || 0}/${(status as any).total || 0}`
+                  : '檢查中...'
+                updateStep('vocabulary', 'loading', detail)
+                setOverallProgress(50 + (attempts / maxAttempts) * 20)
+              }
+            }, 500)
+          })
+        }
         
         setCurrentStep(3)
         updateStep('progress', 'loading', '同步學習紀錄...')

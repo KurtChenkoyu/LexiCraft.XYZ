@@ -25,9 +25,12 @@ if not db_url:
 
 # Parse connection string (handle URL encoding)
 parsed = urlparse(db_url)
+# Use direct connection port (5432) for DDL operations like CREATE INDEX
+# Pooler (6543) doesn't support DDL
+port = 5432 if parsed.port == 6543 else (parsed.port or 5432)
 conn_params = {
     'host': parsed.hostname,
-    'port': parsed.port or 5432,
+    'port': port,
     'database': parsed.path.lstrip('/'),
     'user': unquote(parsed.username) if parsed.username else None,
     'password': unquote(parsed.password) if parsed.password else None,

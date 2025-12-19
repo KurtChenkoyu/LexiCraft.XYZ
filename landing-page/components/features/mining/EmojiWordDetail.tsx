@@ -3,27 +3,38 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Block } from '@/types/mine'
-import { audioService, VOICES, Voice, DEFAULT_VOICE } from '@/lib/audio-service'
+import { audioService, VOICES, Voice, DEFAULT_VOICE, AUDIO_PATHS } from '@/lib/audio-service'
 
 interface EmojiWordDetailProps {
   block: Block | null
   isOpen: boolean
   onClose: () => void
-  onStartQuiz?: (senseId: string) => void
+  onAddToSmelting?: (senseId: string, word: string) => void  // For raw words
+  onStartQuiz?: (senseId: string) => void  // For hollow words (in queue/SRS)
 }
 
 /**
  * EmojiWordDetail - Full-screen detail view for a word
  * Shows emoji, word, translation, and audio playback
  */
-export function EmojiWordDetail({ block, isOpen, onClose, onStartQuiz }: EmojiWordDetailProps) {
+export function EmojiWordDetail({ block, isOpen, onClose, onAddToSmelting, onStartQuiz }: EmojiWordDetailProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [selectedVoice, setSelectedVoice] = useState<Voice>(DEFAULT_VOICE)
   
-  // Auto-play word on open
+  // Preload all voice variants and auto-play word on open
   useEffect(() => {
     if (isOpen && block) {
-      // Small delay so user sees the modal first
+      // Preload all 9 voice variants for this word
+      const word = block.word.toLowerCase().replace(/\s+/g, '_')
+      VOICES.forEach(voice => {
+        const path = `${AUDIO_PATHS.emoji}/${word}_${voice}.mp3`
+        const audio = new Audio()
+        audio.preload = 'auto'
+        audio.src = path
+        // Browser will cache automatically
+      })
+      
+      // Auto-play default voice after preload starts
       const timer = setTimeout(() => {
         handlePlayWord()
       }, 300)
@@ -152,7 +163,7 @@ export function EmojiWordDetail({ block, isOpen, onClose, onStartQuiz }: EmojiWo
             <div className="mt-4">
               <p className="text-sm text-slate-400 text-center mb-2">選擇聲音風格：</p>
               <div className="flex flex-wrap justify-center gap-2">
-                {VOICES.slice(0, 5).map((voice) => (
+                {VOICES.map((voice) => (
                   <button
                     key={voice}
                     onClick={() => handlePlayWithVoice(voice)}
@@ -168,15 +179,26 @@ export function EmojiWordDetail({ block, isOpen, onClose, onStartQuiz }: EmojiWo
               </div>
             </div>
             
-            {/* Start quiz button */}
-            {onStartQuiz && block.status !== 'solid' && (
+            {/* Action buttons based on status */}
+            {block?.status === 'raw' && onAddToSmelting && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onAddToSmelting(block.sense_id, block.word)}
+                className="w-full mt-4 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold rounded-xl"
+              >
+                🔥 加入冶煉列表
+              </motion.button>
+            )}
+
+            {block?.status === 'hollow' && onStartQuiz && (
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => onStartQuiz(block.sense_id)}
-                className="w-full mt-4 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold rounded-xl"
+                className="w-full mt-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl"
               >
-                🎯 開始測驗
+                ✨ 開始驗證
               </motion.button>
             )}
             

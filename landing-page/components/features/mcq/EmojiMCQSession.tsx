@@ -12,6 +12,8 @@ interface EmojiMCQSessionProps {
   senseIds: string[]
   /** Pack ID (default emoji_core) */
   packId?: string
+  /** Pre-generated MCQs (optional - if provided, skips generation for instant start) */
+  preGeneratedMcqs?: EmojiMCQ[]
   /** Callback when session completes */
   onComplete?: (result: SessionResult) => void
   /** Callback to exit session */
@@ -23,6 +25,7 @@ interface SessionResult {
   correct: number
   accuracy: number
   xpEarned: number
+  verifiedWords: Array<{ senseId: string, isCorrect: boolean }>
 }
 
 interface Answer {
@@ -92,6 +95,7 @@ function CelebrationEffect({ show }: { show: boolean }) {
 export function EmojiMCQSession({
   senseIds,
   packId = 'emoji_core',
+  preGeneratedMcqs,
   onComplete,
   onExit,
 }: EmojiMCQSessionProps) {
@@ -107,6 +111,15 @@ export function EmojiMCQSession({
   
   // Load MCQs for all sense IDs
   useEffect(() => {
+    // Fast path: Use pre-generated questions if available (instant start)
+    if (preGeneratedMcqs && preGeneratedMcqs.length > 0) {
+      setMcqs(preGeneratedMcqs)
+      setStatus('active')
+      console.log(`⚡ Using ${preGeneratedMcqs.length} pre-generated MCQs (instant start)`)
+      return
+    }
+    
+    // Fallback: Generate on mount (current behavior)
     const loadMCQs = async () => {
       setStatus('loading')
       try {
@@ -127,12 +140,62 @@ export function EmojiMCQSession({
     } else {
       setStatus('complete')
     }
-  }, [senseIds, packId])
+  }, [senseIds, packId, preGeneratedMcqs])
   
   const currentMCQ = mcqs[currentIndex]
   
+  // Play prompt audio when a new question loads, then auto-play word pronunciation
+  useEffect(() => {
+    if (currentMCQ && status === 'active' && !showResult) {
+      // Map MCQ type to prompt ID
+      let promptId: string
+      if (currentMCQ.type === 'word_to_emoji') {
+        const word = currentMCQ.question.text?.toLowerCase()
+        if (word === 'apple') {
+          promptId = 'click_on_apple'
+        } else if (word === 'cat') {
+          promptId = 'pick_the_cat'
+        } else {
+          promptId = 'which_emoji_matches'
+        }
+      } else {
+        // emoji_to_word
+        promptId = 'which_word_matches'
+      }
+      
+      // Play prompt audio, then auto-play the word pronunciation
+      audioService.playPrompt(promptId, 'questions')
+        .then(() => {
+          // After prompt finishes, auto-play the word/question audio
+          if (currentMCQ.type === 'word_to_emoji') {
+            // For word_to_emoji: play the word from question.text
+            const wordToSpeak = currentMCQ.question.text
+            if (wordToSpeak) {
+              return audioService.playWord(wordToSpeak, 'emoji')
+            }
+          } else {
+            // For emoji_to_word: play the correct word (to show what word matches the emoji)
+            const correctWord = currentMCQ.options[currentMCQ.correct_index]?.text
+            if (correctWord) {
+              return audioService.playWord(correctWord, 'emoji')
+            }
+          }
+        })
+        .catch(err => {
+          console.warn('Failed to play prompt/word audio:', err)
+        })
+    }
+  }, [currentMCQ, status, showResult])
+  
   const handleOptionSelect = (index: number) => {
     if (showResult) return
+    
+    // Defensive: Only allow selection if user explicitly clicked
+    // This prevents any accidental auto-selection
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🎯 User selected option ${index} for question ${currentIndex + 1}`)
+    }
+    
     setSelectedOption(index)
   }
   
@@ -151,10 +214,16 @@ export function EmojiMCQSession({
     setAnswers(prev => [...prev, answer])
     setShowResult(true)
     
-    // Play audio feedback + word pronunciation
+    // Get the selected option's audio (what user chose)
+    const selectedOptionData = currentMCQ.options[selectedOption]
+    const selectedWord = selectedOptionData?.text // For emoji_to_word, this is the word they selected
+    
+    // Get the correct answer's audio
+    const correctOptionData = currentMCQ.options[currentMCQ.correct_index]
+    const correctWord = correctOptionData?.text // For emoji_to_word, this is the correct word
+    
+    // Show celebration if correct
     if (isCorrect) {
-      // Play correct sound and show celebration
-      audioService.playCorrect()
       setShowCelebration(true)
       setTimeout(() => setShowCelebration(false), 1500)
       
@@ -163,20 +232,69 @@ export function EmojiMCQSession({
         delta_xp: 5,
         delta_sparks: 2,
       })
-      
-      // Play the word pronunciation after a short delay
-      // For word_to_emoji: question.text has the word
-      // For emoji_to_word: correct option has the word
-      const wordToSpeak = currentMCQ.question.text || currentMCQ.options[currentMCQ.correct_index]?.text
-      if (wordToSpeak) {
-        setTimeout(() => {
-          audioService.playWord(wordToSpeak, 'emoji')
-        }, 300)
-      }
-    } else {
-      // Play wrong sound
-      audioService.playWrong()
     }
+    
+    // Play audio sequence:
+    // 1. Play audio for user's selection (if it's a word, i.e., emoji_to_word)
+    // 2. Play feedback (correct/wrong sound + feedback phrase)
+    // 3. Play the correct answer's audio (if wrong, or if word_to_emoji and we want to reinforce)
+    
+    const playSequence = async () => {
+      // Step 1: Play selected option's audio (only for emoji_to_word where options are words)
+      if (selectedWord && currentMCQ.type === 'emoji_to_word') {
+        await audioService.playWord(selectedWord, 'emoji').catch(err => {
+          console.warn('Failed to play selected word audio:', err)
+        })
+      }
+      
+      // Step 2: Play feedback
+      if (isCorrect) {
+        // Play correct sound → feedback
+        await audioService.playCorrect()
+          .then(() => new Promise(resolve => setTimeout(resolve, 100)))
+          .then(() => audioService.playRandomFeedback('correct'))
+          .catch(err => {
+            console.warn('Failed to play correct feedback:', err)
+          })
+      } else {
+        // Play wrong sound → feedback
+        await audioService.playWrong()
+          .then(() => new Promise(resolve => setTimeout(resolve, 100)))
+          .then(() => audioService.playRandomFeedback('incorrect'))
+          .catch(err => {
+            console.warn('Failed to play incorrect feedback:', err)
+          })
+      }
+      
+      // Step 3: Play the correct answer's audio (always play to reinforce the correct answer)
+      if (currentMCQ.type === 'emoji_to_word' && correctWord) {
+        // For emoji_to_word: always play correct word (reinforcement if correct, correction if wrong)
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🔊 Step 3: Playing correct word for emoji_to_word: ${correctWord}`)
+        }
+        await audioService.playWord(correctWord, 'emoji').catch(err => {
+          console.warn('Failed to play correct answer audio:', err)
+        })
+      } else if (currentMCQ.type === 'word_to_emoji' && currentMCQ.question.text) {
+        // For word_to_emoji: always play the question word (the correct answer)
+        // This reinforces the word regardless of whether they got it right or wrong
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🔊 Step 3: Playing correct word for word_to_emoji: ${currentMCQ.question.text}`)
+        }
+        await audioService.playWord(currentMCQ.question.text, 'emoji').catch(err => {
+          console.warn('Failed to play correct word audio:', err)
+        })
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`⚠️ Step 3: Skipped - type: ${currentMCQ.type}, correctWord: ${correctWord}, question.text: ${currentMCQ.question.text}`)
+        }
+      }
+    }
+    
+    // Execute sequence (fire and forget - don't block UI)
+    playSequence().catch(err => {
+      console.warn('Audio sequence error:', err)
+    })
   }, [selectedOption, currentMCQ, applyDelta])
   
   const handleNext = useCallback(() => {
@@ -192,11 +310,16 @@ export function EmojiMCQSession({
   
   const handleComplete = () => {
     const correctCount = answers.filter(a => a.isCorrect).length
+    const verifiedWords = answers.map(a => ({
+      senseId: a.senseId,
+      isCorrect: a.isCorrect
+    }))
     const result: SessionResult = {
       total: answers.length,
       correct: correctCount,
       accuracy: answers.length > 0 ? correctCount / answers.length : 0,
       xpEarned: correctCount * 5,
+      verifiedWords,
     }
     onComplete?.(result)
   }

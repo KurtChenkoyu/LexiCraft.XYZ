@@ -88,6 +88,22 @@ Check `UserDataContext.tsx` and `downloadService.ts` for the correct pattern.
 
 ---
 
+## 👤 Identity Naming: Learner vs Player
+
+- **In code (source of truth):**
+  - Use **Learner** terminology for identity: `LearnerProfile`, `learners[]`, `activeLearner`, `switchLearner(learnerId)`.
+  - All reads/writes that affect progress, SRS, wallet, achievements, etc. MUST flow through `activeLearner.id`.
+- **In UI copy only:**
+  - You MAY use “玩家 / Player” in labels, buttons, and headings (e.g. “選擇玩家”) to match the game vibe.
+  - These labels must always be derived from `activeLearner` (or the learners list), not from a separate `player` identity.
+- **Forbidden patterns:**
+  - No separate `activePlayer` identity for backend calls.
+  - No API requests or cache keys keyed by a `playerId` that can diverge from `activeLearner.id`.
+
+This keeps the mental model simple: **one canonical identity in code (`activeLearner`), many playful “player” presentations in the UI.**
+
+---
+
 ## 🚀 Bootstrap Frontloading Strategy (December 2024)
 
 **This is the implementation of the "Last War" pattern. All pages load instantly after Bootstrap.**
@@ -182,21 +198,59 @@ The Mine page has special logic because its data depends on user progress:
 
 ```typescript
 // 1. Load from IndexedDB first (instant, offline-first)
-const progressMap = new Map()
-const localProgress = await localStore.getAllProgress()
-localProgress.forEach(p => progressMap.set(p.senseId, p.status))
+const progressMap = new Map<string, string>() // senseId -> status
+const srsLevelsMap = new Map<string, string>() // senseId -> mastery_level
+const localProgress = await localStore.getAllProgress(learnerId)
+const localSRS = await localStore.getSRSLevels(learnerId)
+localProgress.forEach((status, senseId) => progressMap.set(senseId, status))
+localSRS.forEach((level, senseId) => srsLevelsMap.set(senseId, level))
 
 // 2. Try backend API (with timeout)
 try {
-  const fresh = await Promise.race([api.getProgress(), timeout(5000)])
-  fresh.forEach(p => progressMap.set(p.sense_id, p.status))
+  const freshProgress = await Promise.race([
+    progressApi.getUserProgress(learnerId),
+    timeout(5000)
+  ])
+  // Update both maps with fresh data
+  freshProgress.progress.forEach(p => {
+    progressMap.set(p.sense_id, p.status)
+    if (p.mastery_level) {
+      srsLevelsMap.set(p.sense_id, p.mastery_level)
+    }
+  })
 } catch { /* use IndexedDB data */ }
 
-// 3. Build blocks with correct status
+// 3. Update Zustand store (both maps for parallel state pattern)
+// NOTE: emojiProgress and emojiSRSLevels are typed as Map | null, but runtime guards
+// ensure they're always Maps (never null) when emoji pack is active
+if (store.activePack?.id === 'emoji_core') {
+  store.setEmojiProgress(new Map(progressMap))  // Runtime guard converts null to empty Map if needed
+  store.setEmojiSRSLevels(new Map(srsLevelsMap))  // Runtime guard converts null to empty Map if needed
+}
+
+// 4. Build blocks with correct status
 for (const [senseId, status] of progressMap) {
   blocks.push({ ...blockData, status })
 }
 ```
+
+### Emoji Progress State Management
+
+**Type Definition:**
+- `emojiProgress: Map<string, string> | null` - Maps `sense_id` → workflow status ('raw', 'hollow', 'solid', 'mastered')
+- `emojiSRSLevels: Map<string, string> | null` - Maps `sense_id` → SRS mastery level ('learning', 'familiar', 'known', 'mastered')
+
+**Runtime Guarantees:**
+- Initialized as empty Maps (`new Map<string, string>()`) in store initial state
+- Runtime guards in `setEmojiProgress` and `setEmojiSRSLevels` convert `null` to empty Map if emoji pack is active
+- Empty learners have empty Maps (`size === 0`), not `null`
+- All code paths (bootstrap, switchLearner, downloadService) ensure Maps are always initialized
+
+**UI Component Requirements:**
+- Components must handle both `null` (when pack not active) and empty Maps (when pack active but no progress)
+- Filtering effects must run even when `progress.size === 0` to clear stale state for empty learners
+- Include `activeLearner?.id` in `useEffect` dependency arrays to react to learner switches
+- Example: `EmojiCollectionShowcase` clears `masteredWords` when `progress.size === 0`
 
 ### Reference Files
 

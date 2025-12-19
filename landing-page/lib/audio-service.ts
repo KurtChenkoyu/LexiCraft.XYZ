@@ -39,6 +39,8 @@ export const AUDIO_PATHS = {
   emoji: '/audio/emoji',     // {word}_{voice}.mp3
   legacy: '/audio/legacy',   // {sense_id}.wav (future)
   fx: '/audio/fx',           // UI sound effects
+  prompts: '/audio/prompts', // {prompt_id}_{voice}.mp3 (in category subdirs)
+  feedback: '/audio/feedback', // {feedback_id}_{voice}.mp3 (in category subdirs)
 } as const
 
 /**
@@ -153,17 +155,17 @@ class AudioServiceClass {
     // try {
     //   await this.playAudio(path, masterVolume * sfxVolume)
     // } catch {
-    //   this.playGeneratedSfx(effect)
+    //   return this.playGeneratedSfx(effect)
     // }
     
-    this.playGeneratedSfx(effect)
+    return this.playGeneratedSfx(effect)
   }
   
   /**
    * Generate simple sound effect using Web Audio API
    * Used as fallback when audio files are not available
    */
-  private playGeneratedSfx(effect: SoundEffect): void {
+  private async playGeneratedSfx(effect: SoundEffect): Promise<void> {
     if (typeof window === 'undefined' || !window.AudioContext) return
     
     try {
@@ -177,6 +179,8 @@ class AudioServiceClass {
       const volume = masterVolume * sfxVolume * 0.3
       gainNode.gain.value = volume
       
+      let duration = 0.3 // Default duration
+      
       switch (effect) {
         case 'correct':
           // Happy ascending tone
@@ -186,6 +190,7 @@ class AudioServiceClass {
           gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3)
           oscillator.start(ctx.currentTime)
           oscillator.stop(ctx.currentTime + 0.3)
+          duration = 0.3
           break
           
         case 'wrong':
@@ -196,6 +201,7 @@ class AudioServiceClass {
           gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2)
           oscillator.start(ctx.currentTime)
           oscillator.stop(ctx.currentTime + 0.2)
+          duration = 0.2
           break
           
         case 'celebrate':
@@ -207,6 +213,7 @@ class AudioServiceClass {
           gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6)
           oscillator.start(ctx.currentTime)
           oscillator.stop(ctx.currentTime + 0.6)
+          duration = 0.6
           break
           
         default:
@@ -215,7 +222,15 @@ class AudioServiceClass {
           gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05)
           oscillator.start(ctx.currentTime)
           oscillator.stop(ctx.currentTime + 0.05)
+          duration = 0.05
       }
+      
+      // Wait for the sound to finish
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolve()
+        }, duration * 1000 + 50) // Add 50ms buffer
+      })
     } catch (err) {
       console.warn('Failed to generate SFX:', err)
     }
@@ -263,6 +278,21 @@ class AudioServiceClass {
       await audio.play().catch(err => {
         // Browser might block autoplay - fail silently
         console.warn('Audio playback blocked:', err.message)
+      })
+      
+      // Wait for audio to finish playing
+      return new Promise<void>((resolve) => {
+        const handleEnded = () => {
+          audio.removeEventListener('ended', handleEnded)
+          resolve()
+        }
+        audio.addEventListener('ended', handleEnded)
+        
+        // Fallback: resolve after a maximum duration (3 seconds) to prevent hanging
+        setTimeout(() => {
+          audio.removeEventListener('ended', handleEnded)
+          resolve()
+        }, 3000)
       })
     } catch (err) {
       console.warn('Failed to play audio:', path, err)
@@ -323,19 +353,187 @@ class AudioServiceClass {
     return [`${basePath}/${cleanWord}.wav`]
   }
   
-  /**
-   * Get list of all available voices
-   */
-  getAvailableVoices(): readonly Voice[] {
-    return VOICES
+/**
+ * Play MCQ question prompt audio
+ * @param promptId - ID of the prompt (e.g., 'which_emoji_matches', 'click_on_apple')
+ * @param category - Category subdirectory ('questions' or 'instructions')
+ * @param voice - Optional specific voice (defaults to the voice specified in the prompt data)
+ */
+async playPrompt(
+  promptId: string,
+  category: 'questions' | 'instructions' = 'questions',
+  voice?: Voice
+): Promise<void> {
+  if (!this.enabled) return
+  
+  // Normalize prompt ID for filename
+  const normalizedId = promptId.toLowerCase().replace(/\s+/g, '_').replace('?', '').replace('!', '').replace(',', '').replace("'", "")
+  
+  // Load prompt data to get the correct voice if not specified
+  let selectedVoice: Voice = voice || 'echo' // Fallback default
+  
+  if (!voice) {
+    try {
+      const response = await fetch('/data/audio-prompts.json')
+      const data = await response.json()
+      
+      // Search through all prompt categories to find the matching prompt
+      for (const promptCategory of Object.values(data.prompts || {})) {
+        const prompts = Array.isArray(promptCategory) ? promptCategory : []
+        const prompt = prompts.find((p: any) => p.id === promptId)
+        if (prompt && prompt.voice) {
+          selectedVoice = prompt.voice as Voice
+          break
+        }
+      }
+    } catch (err) {
+      // If loading fails, use fallback default based on category
+      selectedVoice = category === 'questions' ? 'echo' : 'nova'
+      console.warn('Failed to load prompt data, using default voice:', err)
+    }
   }
   
-  /**
-   * Clear audio cache
-   */
-  clearCache() {
-    audioCache.clear()
+  const path = `${AUDIO_PATHS.prompts}/${category}/${normalizedId}_${selectedVoice}.mp3`
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🔊 Playing prompt: ${path}`)
   }
+  
+  return this.playAudio(path, masterVolume * voiceVolume).catch(err => {
+    console.warn(`Failed to play prompt audio at ${path}:`, err)
+    // Don't throw, just log warning so game continues
+  })
+}
+
+/**
+ * Play MCQ feedback message audio
+ * @param feedbackId - ID of the feedback (e.g., 'well_done', 'almost_so_close')
+ * @param category - Category ('correct' or 'incorrect')
+ * @param voice - Optional specific voice (defaults to the voice specified in the feedback data)
+ */
+async playFeedback(
+  feedbackId: string,
+  category: 'correct' | 'incorrect' = 'correct',
+  voice?: Voice
+): Promise<void> {
+  if (!this.enabled) return
+  
+  // Normalize feedback ID for filename
+  // The IDs from JSON are already normalized (well_done, youre_on_fire, etc.)
+  // But handle edge cases where text might be passed instead of ID
+  // "Well Done!" -> "well_done"
+  // "Try Again..." -> "try_again"
+  const normalizedId = feedbackId
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_') // Replace non-alphanumeric with _
+    .replace(/^_+|_+$/g, '')     // Trim leading/trailing _
+  
+  // If voice not specified, use default (coral for correct, nova for incorrect)
+  const defaultVoice = category === 'correct' ? 'coral' : 'nova'
+  const selectedVoice = voice || defaultVoice
+  
+  const path = `${AUDIO_PATHS.feedback}/${category}/${normalizedId}_${selectedVoice}.mp3`
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🔊 Attempting to play feedback: ${path}`)
+  }
+  
+  // Calculate volume with emphasis (1.1x) but clamp to valid range [0, 1]
+  const calculatedVolume = masterVolume * voiceVolume * 1.1
+  const clampedVolume = Math.max(0, Math.min(1, calculatedVolume))
+  
+  return this.playAudio(path, clampedVolume).catch(err => {
+    console.warn(`Failed to play feedback audio at ${path}:`, err)
+    // Don't throw, just log warning so game continues
+  })
+}
+
+/**
+ * Play a random feedback message from a category
+ * @param category - 'correct' or 'incorrect'
+ * @param voice - Optional specific voice
+ */
+async playRandomFeedback(
+  category: 'correct' | 'incorrect',
+  voice?: Voice
+): Promise<void> {
+  // Load feedback data to get available IDs
+  try {
+    const response = await fetch('/data/audio-feedback.json')
+    const data = await response.json()
+    const feedbackItems = data.feedback[category] || []
+    
+    if (feedbackItems.length === 0) {
+      console.warn(`No feedback items found for category: ${category}`)
+      return
+    }
+    
+    // Pick random feedback
+    const randomItem = feedbackItems[Math.floor(Math.random() * feedbackItems.length)]
+    const feedbackId = randomItem.id
+    const defaultVoice = randomItem.voice || (category === 'correct' ? 'coral' : 'nova')
+    const selectedVoice = voice || defaultVoice
+    
+    await this.playFeedback(feedbackId, category, selectedVoice)
+  } catch (err) {
+    console.warn('Failed to load feedback data:', err)
+    // Fallback to a simple feedback
+    const fallbackId = category === 'correct' ? 'well_done' : 'good_try'
+    await this.playFeedback(fallbackId, category, voice)
+  }
+}
+
+/**
+ * Preload prompt audio files
+ */
+async preloadPrompts(promptIds: string[], category: 'questions' | 'instructions' = 'questions'): Promise<void> {
+  if (typeof window === 'undefined') return
+  
+  for (const promptId of promptIds) {
+    const normalizedId = promptId.toLowerCase().replace(/\s+/g, '_').replace('?', '').replace('!', '').replace(',', '').replace("'", "")
+    // Try to load with default voice (we'll need to check the actual voice from data)
+    const defaultVoice = category === 'questions' ? 'echo' : 'nova'
+    const path = `${AUDIO_PATHS.prompts}/${category}/${normalizedId}_${defaultVoice}.mp3`
+    
+    const audio = new Audio()
+    audio.preload = 'auto'
+    audio.src = path
+    audioCache.set(path, audio)
+  }
+}
+
+/**
+ * Preload feedback audio files
+ */
+async preloadFeedback(feedbackIds: string[], category: 'correct' | 'incorrect' = 'correct'): Promise<void> {
+  if (typeof window === 'undefined') return
+  
+  for (const feedbackId of feedbackIds) {
+    const normalizedId = feedbackId.toLowerCase().replace(/\s+/g, '_').replace('?', '').replace('!', '').replace(',', '').replace("'", "")
+    const defaultVoice = category === 'correct' ? 'coral' : 'nova'
+    const path = `${AUDIO_PATHS.feedback}/${category}/${normalizedId}_${defaultVoice}.mp3`
+    
+    const audio = new Audio()
+    audio.preload = 'auto'
+    audio.src = path
+    audioCache.set(path, audio)
+  }
+}
+
+/**
+ * Get list of all available voices
+ */
+getAvailableVoices(): readonly Voice[] {
+  return VOICES
+}
+
+/**
+ * Clear audio cache
+ */
+clearCache() {
+  audioCache.clear()
+}
 }
 
 // Export singleton

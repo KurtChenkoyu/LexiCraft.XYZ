@@ -8,12 +8,13 @@ import { progressApi, UserProgressResponse, BlockProgress } from '@/services/pro
 import { localStore } from '@/lib/local-store'
 import { bundleCacheService } from '@/services/bundleCacheService'
 import { useAuth } from '@/contexts/AuthContext'
-import { useAppStore, selectProgress, selectMineBlocks, selectMineDataLoaded } from '@/stores/useAppStore'
+import { useAppStore, selectProgress, selectMineBlocks, selectMineDataLoaded, selectActiveLearner, selectEmojiVocabulary, selectEmojiProgress } from '@/stores/useAppStore'
 import { Block, UserStats } from '@/types/mine'
 import { Spinner } from '@/components/ui'
 import { MineHeader, BlockList, MineGraphG6, SearchModal } from '@/components/features/mine'
 import { WordGrid } from '@/components/features/mining'
 import { EmojiWordDetail } from '@/components/features/mining/EmojiWordDetail'
+import { EmojiMineGrid } from '@/components/features/emoji/EmojiMineGrid'
 import { BlockDetail } from '@/types/mine'
 // Pack selection is now in the global top bar (LearnerTopBar)
 import { packLoader } from '@/lib/pack-loader'
@@ -160,10 +161,17 @@ export default function MinePage() {
   const hydrateMiningQueue = useAppStore((state) => state.hydrateMiningQueue)
   const setMineBlocks = useAppStore((state) => state.setMineBlocks)
   const setMineDataLoaded = useAppStore((state) => state.setMineDataLoaded)
+  const addToQueue = useAppStore((state) => state.addToQueue)
   
   // 📦 Active pack - determines which vocabulary to show
   const activePack = useAppStore(selectActivePack)
   const isEmojiPack = activePack?.id === 'emoji_core'
+  const activeLearner = useAppStore(selectActiveLearner)
+  
+  // ⚡ Read emoji data from Zustand (pre-loaded by Bootstrap)
+  const emojiVocabulary = useAppStore(selectEmojiVocabulary)
+  const emojiProgress = useAppStore(selectEmojiProgress)
+  const miningQueue = useAppStore((state) => state.miningQueue)
   
   const [userProgress, setUserProgress] = useState<UserProgressResponse | null>(null)
   const [isLoading, setIsLoading] = useState(!mineDataLoaded) // Start as false if already loaded!
@@ -387,15 +395,25 @@ export default function MinePage() {
         
         // FALLBACK: Try loading from IndexedDB (might have been synced by hydrateMiningQueue)
         try {
-          const localProgress = await localStore.getAllProgress()
-          if (localProgress.length > 0) {
-            backendProgress = localProgress.map(p => ({
-              sense_id: p.senseId,
-              status: p.status,
-              tier: p.tier,
-              started_at: p.startedAt,
-              mastery_level: p.masteryLevel,
-            }))
+          const localProgressMap = activeLearner?.id 
+            ? await localStore.getAllProgress(activeLearner.id)
+            : new Map<string, string>()
+          if (localProgressMap.size > 0) {
+            // Convert Map to array format expected by loadOrGenerateStarterPack
+            // Note: getAllProgress returns Map<senseId, status>, we need to get full details
+            backendProgress = []
+            for (const [senseId, status] of localProgressMap.entries()) {
+              const fullProgress = activeLearner?.id 
+                ? await localStore.getProgress(activeLearner.id, senseId)
+                : undefined
+              backendProgress.push({
+                sense_id: senseId,
+                status: status as 'raw' | 'hollow' | 'solid' | 'mastered',
+                tier: fullProgress?.tier,
+                started_at: fullProgress?.startedAt?.toString(),
+                mastery_level: fullProgress?.masteryLevel,
+              })
+            }
             if (isDev) console.log('🔄 Using cached IndexedDB progress:', backendProgress.length, 'items')
           }
         } catch (cacheErr) {
@@ -505,16 +523,27 @@ export default function MinePage() {
         // Don't set isLoading here - it causes flash on tab switch
         
         // Load progress from IndexedDB (populated by hydrateMiningQueue from backend)
-        const localProgress = await localStore.getAllProgress()
+        const localProgressMap = activeLearner?.id 
+          ? await localStore.getAllProgress(activeLearner.id)
+          : new Map<string, string>()
         
-        if (localProgress.length > 0) {
-          const progressData: BlockProgress[] = localProgress.map(p => ({
-            sense_id: p.senseId,
-            status: p.status,
-            tier: p.tier,
-            started_at: p.startedAt,
-            mastery_level: p.masteryLevel,
-          }))
+        if (localProgressMap.size > 0) {
+          // Convert Map to BlockProgress array format
+          // Note: getAllProgress returns Map<senseId, status>, we need to get full details
+          const progressData: BlockProgress[] = []
+          for (const [senseId, status] of localProgressMap.entries()) {
+            // Try to get full progress details if available
+            const fullProgress = activeLearner?.id 
+              ? await localStore.getProgress(activeLearner.id, senseId)
+              : undefined
+            progressData.push({
+              sense_id: senseId,
+              status: status as 'raw' | 'hollow' | 'solid' | 'mastered',
+              tier: fullProgress?.tier,
+              started_at: fullProgress?.startedAt?.toString(),
+              mastery_level: fullProgress?.masteryLevel,
+            })
+          }
           
           // Calculate stats from progress data
           const hollow = progressData.filter(p => p.status === 'hollow').length
@@ -565,9 +594,6 @@ export default function MinePage() {
     }
   }, [localBlocks, session?.access_token])
 
-  // Get mining queue from Zustand (needed for enrichedBlocks calculation)
-  const miningQueue = useAppStore((state) => state.miningQueue)
-  
   // Enrich blocks with user progress status (including queue items as "hollow")
   const enrichedBlocks = useMemo(() => {
     // Create progress lookup map
@@ -803,6 +829,67 @@ export default function MinePage() {
   // - main wrapper with pt-16 pb-20 px-4 overflow-y-auto
   // So we DON'T add our own <main> or padding here.
 
+  // Emoji Mode: Show EmojiMineGrid instead of regular mine page
+  if (isEmojiPack) {
+    // Convert selected word to Block format for EmojiWordDetail
+    const selectedEmojiWord = selectedWordId && emojiVocabulary
+      ? emojiVocabulary.find(w => w.sense_id === selectedWordId)
+      : null
+    
+    const selectedEmojiBlock = selectedEmojiWord ? {
+      sense_id: selectedEmojiWord.sense_id,
+      word: selectedEmojiWord.word,
+      definition_preview: selectedEmojiWord.definition_zh,
+      tier: selectedEmojiWord.difficulty,
+      base_xp: 10 * selectedEmojiWord.difficulty,
+      connection_count: 0,
+      total_value: 100,
+      // FIX: Check both emojiProgress AND miningQueue for status
+      status: (() => {
+        const progressStatus = emojiProgress?.get(selectedEmojiWord.sense_id)
+        if (progressStatus === 'solid' || progressStatus === 'mastered') return 'solid'
+        if (progressStatus === 'hollow' || progressStatus === 'learning' || progressStatus === 'pending') return 'hollow'
+        // Fallback: Check if in mining queue (optimistic update)
+        const isInQueue = miningQueue.some(q => q.senseId === selectedEmojiWord.sense_id)
+        return isInQueue ? 'hollow' : 'raw'
+      })() as 'raw' | 'hollow' | 'solid',
+      rank: selectedEmojiWord.difficulty,
+      emoji: selectedEmojiWord.emoji,
+      translation: selectedEmojiWord.definition_zh,
+      category: selectedEmojiWord.category,
+      difficulty: selectedEmojiWord.difficulty,
+    } : null
+    
+    return (
+      <div className="min-h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="max-w-7xl mx-auto py-6">
+          <EmojiMineGrid 
+            onWordClick={(id) => setSelectedWordId(id)}
+          />
+        </div>
+        
+        {/* Word Detail Modal (Emoji Pack) */}
+        <EmojiWordDetail
+          block={selectedEmojiBlock}
+          isOpen={!!selectedWordId}
+          onClose={() => setSelectedWordId(null)}
+          onAddToSmelting={(senseId, word) => {
+            addToQueue(senseId, word) // This function ALREADY handles all the complex cache stuff
+            setSelectedWordId(null) // Close modal after adding
+          }}
+          onStartQuiz={(senseId) => {
+            setSelectedWordId(null)
+            router.push(`/${locale}/learner/verification`) // Simple navigation for MVP
+          }}
+        />
+      </div>
+    )
+  }
+  // NOTE: This page is inside learner/layout.tsx which provides:
+  // - game-container (fixed viewport, overflow-hidden)
+  // - main wrapper with pt-16 pb-20 px-4 overflow-y-auto
+  // So we DON'T add our own <main> or padding here.
+
   return (
     <div className={`min-h-full ${isGraphView ? 'bg-slate-900' : 'bg-gradient-to-br from-slate-50 to-slate-100'}`}>
       <div className={isGraphView ? 'max-w-full' : 'max-w-6xl mx-auto'}>
@@ -926,9 +1013,13 @@ export default function MinePage() {
         block={selectedBlock}
         isOpen={!!selectedWordId}
         onClose={() => setSelectedWordId(null)}
+        onAddToSmelting={(senseId, word) => {
+          addToQueue(senseId, word) // This function ALREADY handles all the complex cache stuff
+          setSelectedWordId(null) // Close modal after adding
+        }}
         onStartQuiz={(senseId) => {
           setSelectedWordId(null)
-          router.push(`/${locale}/learner/verification?senseId=${senseId}`)
+          router.push(`/${locale}/learner/verification`) // Simple navigation for MVP
         }}
       />
     </div>

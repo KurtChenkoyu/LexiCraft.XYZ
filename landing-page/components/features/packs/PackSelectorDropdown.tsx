@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { Lock } from 'lucide-react'
 import { packLoader } from '@/lib/pack-loader'
 import { VocabularyPack } from '@/lib/pack-types'
-import { useAppStore, selectActivePack } from '@/stores/useAppStore'
+import { useAppStore, selectActivePack, selectActiveLearner } from '@/stores/useAppStore'
 
 interface PackSelectorDropdownProps {
   onClose: () => void
@@ -16,8 +17,13 @@ interface PackSelectorDropdownProps {
  */
 export function PackSelectorDropdown({ onClose }: PackSelectorDropdownProps) {
   const activePack = useAppStore(selectActivePack)
+  const activeLearner = useAppStore(selectActiveLearner)
   const setActivePack = useAppStore((state) => state.setActivePack)
   const setMineDataLoaded = useAppStore((state) => state.setMineDataLoaded)
+  const setEmojiVocabulary = useAppStore((state) => state.setEmojiVocabulary)
+  const setEmojiProgress = useAppStore((state) => state.setEmojiProgress)
+  const setEmojiMasteredWords = useAppStore((state) => state.setEmojiMasteredWords)
+  const setEmojiStats = useAppStore((state) => state.setEmojiStats)
   
   const [packs, setPacks] = useState<VocabularyPack[]>([])
   const [loading, setLoading] = useState(true)
@@ -62,9 +68,47 @@ export function PackSelectorDropdown({ onClose }: PackSelectorDropdownProps) {
     loadPacks()
   }, [])
   
-  const handleSelectPack = (pack: VocabularyPack) => {
-    setActivePack(pack)
+  const handleSelectPack = async (pack: VocabularyPack) => {
+    // 1. Save preference to active learner profile (if selected)
+    // TODO: Save to backend when player profile API is ready
+    
+    // 2. Clear pack-specific cached data
+    // (For now, just log which learner is switching, if available)
+    if (activeLearner) {
+      console.log(`🔄 Switching pack for learner ${activeLearner.display_name}: ${pack.id}`)
+    } else {
+      console.log(`🔄 Switching pack (no active learner set): ${pack.id}`)
+    }
+    
+    // 3. Clear emoji state if switching FROM emoji pack
+    if (activePack?.id === 'emoji_core' && pack.id !== 'emoji_core') {
+      setEmojiVocabulary(null)
+      setEmojiProgress(null)
+      setEmojiMasteredWords(null)
+      setEmojiStats(null)
+      console.log('🧹 Cleared emoji pack state (switching to legacy)')
+    }
+    
+    // 4. Update active pack (triggers re-render)
+    setActivePack({
+      id: pack.id,
+      name: pack.name_zh || pack.name,
+      word_count: pack.word_count
+    })
+    
+    // 5. Mark mine data as not loaded (forces reload)
     setMineDataLoaded(false)
+    
+    // 6. Clear vocabulary cache if switching to/from emoji pack
+    if (activePack?.id === 'emoji_core' || pack.id === 'emoji_core') {
+      // Clear emoji pack cache
+      try {
+        await packLoader.clearCache()
+      } catch (error) {
+        console.warn('Failed to clear pack cache:', error)
+      }
+    }
+    
     onClose()
   }
   
@@ -84,13 +128,24 @@ export function PackSelectorDropdown({ onClose }: PackSelectorDropdownProps) {
         ) : (
           packs.map((pack) => {
             const isActive = activePack?.id === pack.id
+            const isLegacy = pack.id === 'legacy' // MVP: Disable legacy pack
+            const isLocked = !pack.is_free && pack.id !== 'emoji_core' && pack.id !== 'legacy' // Future: check if user has access
             
             return (
               <button
                 key={pack.id}
-                onClick={() => handleSelectPack(pack)}
+                onClick={() => {
+                  // MVP: Prevent legacy pack selection
+                  if (isLegacy) return
+                  if (!isLocked) handleSelectPack(pack)
+                }}
+                disabled={isLocked || isLegacy}
                 className={`w-full px-3 py-2.5 flex items-center gap-2.5 text-left transition-colors ${
-                  isActive
+                  isLegacy
+                    ? 'opacity-50 cursor-not-allowed'
+                    : isLocked
+                    ? 'opacity-50 cursor-not-allowed'
+                    : isActive
                     ? 'bg-cyan-500/20 text-cyan-400'
                     : 'hover:bg-white/5 text-slate-300'
                 }`}
@@ -104,6 +159,17 @@ export function PackSelectorDropdown({ onClose }: PackSelectorDropdownProps) {
                     {isActive && (
                       <span className="text-[10px] px-1.5 py-0.5 bg-cyan-500 text-white rounded">
                         ✓
+                      </span>
+                    )}
+                    {isLegacy && (
+                      <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 bg-slate-700 text-slate-400 rounded border border-slate-600">
+                        <Lock className="w-3 h-3" />
+                        即將推出
+                      </span>
+                    )}
+                    {isLocked && !isLegacy && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-slate-600 text-slate-400 rounded">
+                        🔒
                       </span>
                     )}
                   </div>

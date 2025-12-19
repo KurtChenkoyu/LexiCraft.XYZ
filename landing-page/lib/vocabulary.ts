@@ -6,7 +6,15 @@
  */
 
 import { Block, BlockDetail, BlockConnection } from '@/types/mine'
-import { vocabularyDB, type VocabularySenseIndexed, isVocabularyReady } from './vocabularyDB'
+// Lazy import to prevent SSR issues - vocabularyDB is only accessed in async methods
+import type { VocabularySenseIndexed } from './vocabularyDB'
+import { isVocabularyReady } from './vocabularyDB'
+
+// Lazy getter for vocabularyDB to prevent SSR access
+async function getVocabularyDB() {
+  const { vocabularyDB } = await import('./vocabularyDB')
+  return vocabularyDB
+}
 
 /**
  * Types for vocabulary data structure
@@ -173,7 +181,8 @@ class VocabularyStore {
    * Get sense count
    */
   async senseCount(): Promise<number> {
-    return await vocabularyDB.senses.count()
+    const db = await getVocabularyDB()
+    return await db.senses.count()
   }
 
   /**
@@ -192,7 +201,8 @@ class VocabularyStore {
   private async buildLemmaIndex(): Promise<void> {
     if (this.lemmaIndex.size > 0) return // Already built
     
-    const allSenses = await vocabularyDB.senses.toArray()
+    const db = await getVocabularyDB()
+    const allSenses = await db.senses.toArray()
     for (const sense of allSenses) {
       const lemma = this.extractLemma(sense.id).toLowerCase()
       if (!this.lemmaIndex.has(lemma)) {
@@ -213,7 +223,8 @@ class VocabularyStore {
     }
     
     // Query IndexedDB
-    const sense = await vocabularyDB.senses.get(senseId)
+    const db = await getVocabularyDB()
+    const sense = await db.senses.get(senseId)
     if (sense) {
       const vocabSense = { ...sense, id: sense.id }
       this.cache.set(senseId, vocabSense)
@@ -242,7 +253,8 @@ class VocabularyStore {
     
     // Fetch missing from IndexedDB
     if (toFetch.length > 0) {
-      const fetched = await vocabularyDB.senses.bulkGet(toFetch)
+      const db = await getVocabularyDB()
+      const fetched = await db.senses.bulkGet(toFetch)
       for (const sense of fetched) {
         if (sense) {
           const vocabSense = { ...sense, id: sense.id }
@@ -317,7 +329,8 @@ class VocabularyStore {
     const excludeSet = new Set(excludeSenses)
     
     // Query IndexedDB for senses in rank range
-    const senses = await vocabularyDB.senses
+    const db = await getVocabularyDB()
+    const senses = await db.senses
       .where('frequency_rank')
       .between(minRank, maxRank)
       .toArray()
@@ -336,7 +349,8 @@ class VocabularyStore {
     const allBlocks: Block[] = []
     
     // Debug: Check if vocabularyDB is accessible
-    const dbCount = await vocabularyDB.senses.count()
+    const db = await getVocabularyDB()
+    const dbCount = await db.senses.count()
     console.log('🎲 getStarterPack: vocabularyDB count =', dbCount)
     
     // Distribution across frequency bands
@@ -574,17 +588,18 @@ class VocabularyStore {
   ): Promise<VocabularySense[]> {
     let candidates: VocabularySenseIndexed[]
 
+    const db = await getVocabularyDB()
     if (nearRank) {
       // Get senses from nearby frequency range
       const searchRadius = 500
-      candidates = await vocabularyDB.senses
+      candidates = await db.senses
         .where('frequency_rank')
         .between(Math.max(1, nearRank - searchRadius), nearRank + searchRadius)
         .filter(s => s.word !== excludeWord)
         .toArray()
     } else {
       // Get random senses (limit to first 5000 for performance)
-      candidates = await vocabularyDB.senses
+      candidates = await db.senses
         .where('frequency_rank')
         .between(1, 5000)
         .filter(s => s.word !== excludeWord)
@@ -600,7 +615,8 @@ class VocabularyStore {
    * Search senses by frequency rank range
    */
   async searchByRank(minRank: number, maxRank: number, limit: number = 10): Promise<VocabularySense[]> {
-    const results = await vocabularyDB.senses
+    const db = await getVocabularyDB()
+    const results = await db.senses
       .where('frequency_rank')
       .between(minRank, maxRank)
       .limit(limit)
@@ -625,16 +641,17 @@ class VocabularyStore {
     const results: Array<VocabularySense & { score: number; connection_count: number }> = []
 
     // Query IndexedDB - for empty query or browsing, get top frequency words
+    const db = await getVocabularyDB()
     let candidates: VocabularySenseIndexed[]
     if (normalizedQuery === '') {
-      candidates = await vocabularyDB.senses
+      candidates = await db.senses
         .where('frequency_rank')
         .between(1, 3000)
         .limit(200)
         .toArray()
     } else {
       // Get words that start with or contain the query
-      candidates = await vocabularyDB.senses
+      candidates = await db.senses
         .where('word')
         .startsWith(normalizedQuery)
         .toArray()
@@ -656,7 +673,7 @@ class VocabularyStore {
       
       // Also search for words/lemmas containing the query (if too few results)
       if (candidates.length < limit) {
-        const allSenses = await vocabularyDB.senses.limit(2000).toArray()
+        const allSenses = await db.senses.limit(2000).toArray()
         const containing = allSenses.filter(s => {
           const word = s.word?.toLowerCase() || ''
           const lemma = this.extractLemma(s.id).toLowerCase()
@@ -731,7 +748,8 @@ class VocabularyStore {
    * Get all sense IDs (warning: expensive operation)
    */
   async getAllSenseIds(): Promise<string[]> {
-    const senses = await vocabularyDB.senses.toCollection().primaryKeys()
+    const db = await getVocabularyDB()
+    const senses = await db.senses.toCollection().primaryKeys()
     return senses
   }
 }

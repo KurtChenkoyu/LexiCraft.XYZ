@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { MCQData, MCQResult, GamificationResult, AchievementUnlockedInfo } from '@/services/mcqApi'
+import { audioService } from '@/lib/audio-service'
 // Gamification overlays removed - rewards shown on completion screen only
 
 // Re-export types for components that import from this file
@@ -52,6 +53,11 @@ const MCQCard: React.FC<MCQCardProps> = ({
       clearTimeout(autoAdvanceTimerRef.current)
       autoAdvanceTimerRef.current = null
     }
+    
+    // Play prompt audio when MCQ loads (English only, offline)
+    audioService.playPrompt('which_one_is_correct', 'instructions').catch(err => {
+      console.warn('Failed to play prompt audio:', err)
+    })
   }, [mcq.mcq_id])
 
   // Cleanup timer on unmount
@@ -123,6 +129,23 @@ const MCQCard: React.FC<MCQCardProps> = ({
       
       if (process.env.NODE_ENV === 'development') {
         console.log('⚡ INSTANT FEEDBACK:', isCorrect ? '✅ Correct!' : '❌ Wrong')
+      }
+      
+      // Play audio feedback (English only, offline)
+      if (isCorrect) {
+        audioService.playCorrect()
+        setTimeout(() => {
+          audioService.playRandomFeedback('correct').catch(err => {
+            console.warn('Failed to play feedback audio:', err)
+          })
+        }, 200)
+      } else {
+        audioService.playWrong()
+        setTimeout(() => {
+          audioService.playRandomFeedback('incorrect').catch(err => {
+            console.warn('Failed to play feedback audio:', err)
+          })
+        }, 200)
       }
       
       // Show instant result - answer correctness only, rewards pending

@@ -102,6 +102,74 @@ Stage 5: PostgreSQL Import (bulk COPY)
 5. **If you see localStorage for user data** - flag it as an error and fix it immediately
 6. **If you see `useEffect` fetching in components** - refactor to use Bootstrap + Zustand pattern
 
+### Reactive Background Sync (The "Closing the Loop" Rule)
+
+**CRITICAL:** When implementing background syncs (e.g., in `downloadService.ts`), you must update BOTH IndexedDB AND Zustand store.
+
+**The Pattern:**
+1. **Write to IndexedDB:** Save the fetched data to IndexedDB for persistence (this is the cache).
+2. **Update Zustand Store:** IMMEDIATELY update the Zustand store with the *same data* if it affects the active view.
+   - **Why:** The UI reads from Zustand, not IndexedDB. Writing to IndexedDB without updating Zustand leaves the UI stale until a reload.
+   - **When:** Only update Zustand if the data is currently displayed (e.g., `activeLearner?.id === learnerId`, `activePack?.id === 'emoji_core'`).
+   - **Technique:** Use a new object reference (e.g., `new Map(data)`) when setting state to ensure React re-renders.
+
+**Example (from `downloadService.ts`):**
+```typescript
+// ✅ CORRECT: Update both IndexedDB and Zustand
+await localStore.importProgress(learnerId, data.progress)  // 1. Save to IndexedDB
+if (store.activeLearner?.id === learnerId && store.activePack?.id === 'emoji_core') {
+  const progressMap = await localStore.getAllProgress(learnerId)
+  const srsLevelsMap = await localStore.getSRSLevels(learnerId)
+  store.setEmojiProgress(new Map(progressMap))  // 2. Update Zustand (status)
+  store.setEmojiSRSLevels(new Map(srsLevelsMap))  // 3. Update Zustand (SRS mastery levels)
+}
+
+// ❌ WRONG: Only updating IndexedDB
+await localStore.importProgress(learnerId, data.progress)  // UI won't update!
+```
+
+**Why This Matters:**
+Without this rule, background syncs will successfully download data but leave users looking at stale UI (e.g., "0% progress" bar) until they reload. The service layer must be responsible for UI liveness.
+
+### Parallel State Pattern (SRS Integration)
+
+**When to Use:** When you need to store related but separate data dimensions (e.g., workflow status vs. SRS mastery level).
+
+**Pattern:**
+- Keep existing state type unchanged (maintains backward compatibility)
+- Add parallel state for new data dimension
+- Update both maps together during sync
+- Components read from both maps as needed
+
+**Example:** `emojiProgress` (workflow status) + `emojiSRSLevels` (SRS mastery level)
+- `emojiProgress: Map<string, string>` - Workflow status ('raw', 'hollow', 'solid', 'mastered')
+- `emojiSRSLevels: Map<string, string>` - SRS mastery level ('learning', 'familiar', 'known', 'mastered')
+- Both updated together in `downloadService.ts`, `bootstrap.ts`, and `mine/page.tsx`
+- Only `EmojiCollectionShowcase` reads from both (other components use `emojiProgress` only)
+
+**Why Parallel State?**
+- **Backward Compatibility:** Existing components (Mine, Grid) continue to work with `emojiProgress` unchanged
+- **Isolated Impact:** Only new components need to read from `emojiSRSLevels`
+- **Clear Separation:** Workflow state (mining) vs. SRS progression (build/collection) are separate concerns
+- **Gradual Migration:** Other components can migrate to use SRS data later if needed
+
+**Implementation Pattern:**
+```typescript
+// When loading progress data from API or IndexedDB:
+const statusMap = new Map<string, string>()
+const srsMap = new Map<string, string>()
+
+data.forEach(item => {
+  statusMap.set(item.sense_id, item.status)
+  if (item.mastery_level) {
+    srsMap.set(item.sense_id, item.mastery_level) // 'learning', 'familiar', etc.
+  }
+})
+
+store.setEmojiProgress(statusMap)  // Existing components stay happy
+store.setEmojiSRSLevels(srsMap)    // New components get SRS data
+```
+
 ### Reference Files
 
 - `landing-page/docs/ARCHITECTURE_PRINCIPLES.md` - Has IMMUTABLE section at top

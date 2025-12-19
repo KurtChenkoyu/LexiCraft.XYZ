@@ -58,6 +58,19 @@ Traditional web apps fetch data on every page load, causing spinners everywhere.
 - DevTools integration for debugging
 - Reset function for logout
 
+**Emoji Pack Data (Parallel State Pattern):**
+- `emojiVocabulary: PackVocabularyItem[] | null` - All 200 emoji words
+- `emojiProgress: Map<string, string> | null` - Workflow status map (senseId -> status: 'raw', 'hollow', 'solid', 'mastered')
+- `emojiSRSLevels: Map<string, string> | null` - SRS mastery levels map (senseId -> mastery_level: 'learning', 'familiar', 'known', 'mastered')
+- `emojiMasteredWords: PackVocabularyItem[] | null` - Pre-filtered mastered words
+- `emojiStats: {...} | null` - Collection statistics
+
+**Note:** `emojiProgress` and `emojiSRSLevels` are parallel states:
+- `emojiProgress` tracks workflow status (used by Mine page, Grid components - backward compatible)
+- `emojiSRSLevels` tracks SRS progression (used by Build/Collection page for visual distinction)
+- Both are updated together during background sync (`downloadService.ts`, `bootstrap.ts`, `mine/page.tsx`)
+- This pattern maintains backward compatibility while enabling SRS-aware features
+
 **Usage:**
 ```typescript
 import { useAppStore, selectBalance } from '@/stores/useAppStore'

@@ -113,6 +113,7 @@ class LearningProgress(Base, BaseModel):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)  # Changed from child_id
+    learner_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # References public.learners.id
     learning_point_id = Column(Text, nullable=False)  # References Neo4j learning_point.id
     learned_at = Column(DateTime, default=func.now(), nullable=False, index=True)
     tier = Column(Integer, nullable=False)
@@ -124,7 +125,9 @@ class LearningProgress(Base, BaseModel):
     points_transactions = relationship("PointsTransaction", back_populates="learning_progress")
     
     __table_args__ = (
-        UniqueConstraint('user_id', 'learning_point_id', 'tier', name='uq_user_learning_point_tier'),
+        # Note: Unique constraints are now handled via partial unique indexes in the database
+        # to support both learner_id-based (new) and user_id-based (legacy) progress tracking.
+        # See migration 016_fix_learning_progress_unique_constraint.sql
     )
 
 

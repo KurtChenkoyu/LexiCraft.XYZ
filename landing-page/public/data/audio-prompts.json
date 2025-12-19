@@ -1,0 +1,144 @@
+{
+  "prompts": {
+    "word_to_emoji": [
+      {
+        "id": "which_emoji_matches",
+        "text": "Which emoji matches this word?",
+        "voice": "echo",
+        "category": "questions"
+      },
+      {
+        "id": "click_on_apple",
+        "text": "Click on the apple",
+        "voice": "nova",
+        "category": "questions"
+      },
+      {
+        "id": "pick_the_cat",
+        "text": "Pick the cat",
+        "voice": "nova",
+        "category": "questions"
+      },
+      {
+        "id": "find_the_dog",
+        "text": "Find the dog",
+        "voice": "echo",
+        "category": "questions"
+      },
+      {
+        "id": "select_the_car",
+        "text": "Select the car",
+        "voice": "nova",
+        "category": "questions"
+      },
+      {
+        "id": "choose_the_house",
+        "text": "Choose the house",
+        "voice": "echo",
+        "category": "questions"
+      },
+      {
+        "id": "tap_the_tree",
+        "text": "Tap the tree",
+        "voice": "nova",
+        "category": "questions"
+      },
+      {
+        "id": "which_one_is_cat",
+        "text": "Which one is the cat?",
+        "voice": "echo",
+        "category": "questions"
+      },
+      {
+        "id": "which_one_is_apple",
+        "text": "Which one is the apple?",
+        "voice": "nova",
+        "category": "questions"
+      },
+      {
+        "id": "pick_the_dress",
+        "text": "Pick the dress",
+        "voice": "echo",
+        "category": "questions"
+      }
+    ],
+    "emoji_to_word": [
+      {
+        "id": "which_word_matches",
+        "text": "Which word matches this emoji?",
+        "voice": "echo",
+        "category": "questions"
+      },
+      {
+        "id": "what_is_this",
+        "text": "What is this?",
+        "voice": "nova",
+        "category": "questions"
+      },
+      {
+        "id": "find_the_word",
+        "text": "Find the word",
+        "voice": "echo",
+        "category": "questions"
+      },
+      {
+        "id": "what_word_is_this",
+        "text": "What word is this?",
+        "voice": "nova",
+        "category": "questions"
+      },
+      {
+        "id": "choose_the_word",
+        "text": "Choose the word",
+        "voice": "echo",
+        "category": "questions"
+      },
+      {
+        "id": "select_the_word",
+        "text": "Select the word",
+        "voice": "nova",
+        "category": "questions"
+      }
+    ],
+    "general": [
+      {
+        "id": "which_one_is_correct",
+        "text": "Which one is correct?",
+        "voice": "echo",
+        "category": "instructions"
+      },
+      {
+        "id": "select_your_answer",
+        "text": "Select your answer",
+        "voice": "nova",
+        "category": "instructions"
+      },
+      {
+        "id": "choose_the_right_one",
+        "text": "Choose the right one",
+        "voice": "echo",
+        "category": "instructions"
+      },
+      {
+        "id": "pick_one",
+        "text": "Pick one",
+        "voice": "nova",
+        "category": "instructions"
+      },
+      {
+        "id": "tap_to_answer",
+        "text": "Tap to answer",
+        "voice": "echo",
+        "category": "instructions"
+      },
+      {
+        "id": "make_your_choice",
+        "text": "Make your choice",
+        "voice": "nova",
+        "category": "instructions"
+      }
+    ]
+  }
+}
+
+

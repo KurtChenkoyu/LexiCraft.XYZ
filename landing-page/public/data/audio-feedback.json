@@ -1,0 +1,160 @@
+{
+  "feedback": {
+    "correct": [
+      {
+        "id": "well_done",
+        "text": "Well done!",
+        "voice": "coral",
+        "category": "correct"
+      },
+      {
+        "id": "great_job",
+        "text": "Great job!",
+        "voice": "shimmer",
+        "category": "correct"
+      },
+      {
+        "id": "correct",
+        "text": "Correct!",
+        "voice": "coral",
+        "category": "correct"
+      },
+      {
+        "id": "youre_on_fire",
+        "text": "You're on fire!",
+        "voice": "shimmer",
+        "category": "correct"
+      },
+      {
+        "id": "amazing",
+        "text": "Amazing!",
+        "voice": "coral",
+        "category": "correct"
+      },
+      {
+        "id": "perfect",
+        "text": "Perfect!",
+        "voice": "shimmer",
+        "category": "correct"
+      },
+      {
+        "id": "lets_keep_going",
+        "text": "Let's keep going!",
+        "voice": "coral",
+        "category": "correct"
+      },
+      {
+        "id": "youre_doing_great",
+        "text": "You're doing great!",
+        "voice": "shimmer",
+        "category": "correct"
+      },
+      {
+        "id": "keep_it_up",
+        "text": "Keep it up!",
+        "voice": "coral",
+        "category": "correct"
+      },
+      {
+        "id": "excellent",
+        "text": "Excellent!",
+        "voice": "shimmer",
+        "category": "correct"
+      },
+      {
+        "id": "fantastic",
+        "text": "Fantastic!",
+        "voice": "coral",
+        "category": "correct"
+      },
+      {
+        "id": "awesome",
+        "text": "Awesome!",
+        "voice": "shimmer",
+        "category": "correct"
+      },
+      {
+        "id": "brilliant",
+        "text": "Brilliant!",
+        "voice": "coral",
+        "category": "correct"
+      },
+      {
+        "id": "super",
+        "text": "Super!",
+        "voice": "shimmer",
+        "category": "correct"
+      },
+      {
+        "id": "wonderful",
+        "text": "Wonderful!",
+        "voice": "coral",
+        "category": "correct"
+      }
+    ],
+    "incorrect": [
+      {
+        "id": "almost_so_close",
+        "text": "Almost, so close!",
+        "voice": "coral",
+        "category": "incorrect"
+      },
+      {
+        "id": "not_quite_try_again",
+        "text": "Not quite, try again!",
+        "voice": "nova",
+        "category": "incorrect"
+      },
+      {
+        "id": "close_but_not_quite",
+        "text": "Close, but not quite",
+        "voice": "coral",
+        "category": "incorrect"
+      },
+      {
+        "id": "good_try",
+        "text": "Good try!",
+        "voice": "nova",
+        "category": "incorrect"
+      },
+      {
+        "id": "almost_there",
+        "text": "Almost there!",
+        "voice": "coral",
+        "category": "incorrect"
+      },
+      {
+        "id": "youll_get_it_next_time",
+        "text": "You'll get it next time!",
+        "voice": "nova",
+        "category": "incorrect"
+      },
+      {
+        "id": "nice_try",
+        "text": "Nice try!",
+        "voice": "coral",
+        "category": "incorrect"
+      },
+      {
+        "id": "try_again",
+        "text": "Try again!",
+        "voice": "nova",
+        "category": "incorrect"
+      },
+      {
+        "id": "keep_trying",
+        "text": "Keep trying!",
+        "voice": "coral",
+        "category": "incorrect"
+      },
+      {
+        "id": "not_this_one",
+        "text": "Not this one",
+        "voice": "nova",
+        "category": "incorrect"
+      }
+    ]
+  }
+}
+
+

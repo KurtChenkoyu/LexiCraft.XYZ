@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { EmojiMCQ, EmojiMCQOption } from '@/lib/pack-types'
 import { audioService } from '@/lib/audio-service'
@@ -33,8 +33,41 @@ export function EmojiMCQCard({
   
   const isCorrect = selectedIndex !== null && selectedIndex === mcq.correct_index
 
+  // Play prompt audio when MCQ loads
+  useEffect(() => {
+    if (mcq && !disabled) {
+      // Map MCQ type to prompt ID
+      let promptId: string
+      if (mcq.type === 'word_to_emoji') {
+        // Use specific prompts if word is mentioned, otherwise generic
+        const word = mcq.question.text?.toLowerCase()
+        if (word === 'apple') {
+          promptId = 'click_on_apple'
+        } else if (word === 'cat') {
+          promptId = 'pick_the_cat'
+        } else {
+          promptId = 'which_emoji_matches'
+        }
+      } else {
+        // emoji_to_word
+        promptId = 'which_word_matches'
+      }
+      
+      // Play prompt audio (English only, offline)
+      audioService.playPrompt(promptId, 'questions').catch(err => {
+        console.warn('Failed to play prompt audio:', err)
+      })
+    }
+  }, [mcq, disabled])
+
   const handleSelect = useCallback((index: number) => {
     if (disabled || showResult) return
+    
+    // Defensive: Only allow selection if user explicitly clicked
+    // This prevents any accidental auto-selection
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🎯 User selected option ${index}`)
+    }
     
     setSelectedIndex(index)
     const correct = index === mcq.correct_index
@@ -42,17 +75,33 @@ export function EmojiMCQCard({
     // Get the word to pronounce (from question.text or correct option's text)
     const wordToPlay = mcq.question.text || mcq.options[mcq.correct_index].text
     
-    // 🔊 Play audio feedback
+    // 🔊 Play audio feedback (English only, offline)
     if (correct) {
+      // Play audio sequence: correct sound → feedback → word pronunciation
+      // Chain them sequentially to avoid overlap
       audioService.playCorrect()
-      // Play the word pronunciation after correct answer
-      if (wordToPlay) {
-        setTimeout(() => {
-          audioService.playWord(wordToPlay, 'emoji')
-        }, 300)
-      }
+        .then(() => {
+          // Wait a bit after the short beep, then play feedback
+          return new Promise(resolve => setTimeout(resolve, 100))
+        })
+        .then(() => audioService.playRandomFeedback('correct'))
+        .then(() => {
+          // After feedback finishes, play word pronunciation
+          if (wordToPlay) {
+            return audioService.playWord(wordToPlay, 'emoji')
+          }
+        })
+        .catch(err => {
+          console.warn('Failed to play audio sequence:', err)
+        })
     } else {
       audioService.playWrong()
+      // Play random encouraging feedback
+      setTimeout(() => {
+        audioService.playRandomFeedback('incorrect').catch(err => {
+          console.warn('Failed to play feedback audio:', err)
+        })
+      }, 200)
     }
     
     if (showFeedback) {

@@ -233,6 +233,11 @@ export default function AppLayout({
             updateStep('verify', 'complete', '使用快取')
             updateStep('rank', 'complete', '使用快取')
             updateStep('pages', 'complete', '使用快取')
+          } finally {
+            // Reset lock only on error (success sets isBootstrapped which prevents re-entry)
+            if (!useAppStore.getState().isBootstrapped) {
+              bootstrapStarted.current = false
+            }
           }
         }
         
@@ -249,19 +254,30 @@ export default function AppLayout({
       // Check vocabulary and bootstrap status
       const checkBootstrapComplete = () => {
         const store = useAppStore.getState()
-        const vocabStatus = vocabularyLoader.getCurrentStatus()
+        // Default to emoji pack if none selected
+        const activePack = store.activePack
+        const isEmojiPackActive = activePack?.id === 'emoji_core' || !activePack
         
-        // Update vocab step
-        if (vocabStatus.state === 'cached' || vocabStatus.state === 'complete') {
-          updateStep('vocab', 'complete', `${(vocabStatus as any).count?.toLocaleString() || ''} 詞彙`)
-        } else if (vocabStatus.state === 'error') {
-          updateStep('vocab', 'complete', '使用快取')
+        // 🎯 MVP Modification:
+        if (isEmojiPackActive) {
+          // Force vocab step to complete instantly without checking loader
+          updateStep('vocab', 'complete', 'Emoji Core')
         } else {
-          updateStep('vocab', 'loading', 
-            vocabStatus.state === 'downloading' ? '下載中...' :
-            vocabStatus.state === 'parsing' ? '解析中...' : 
-            '檢查中...'
-          )
+          // Legacy Logic
+          const vocabStatus = vocabularyLoader.getCurrentStatus()
+          
+          // Update vocab step
+          if (vocabStatus.state === 'cached' || vocabStatus.state === 'complete') {
+            updateStep('vocab', 'complete', `${(vocabStatus as any).count?.toLocaleString() || ''} 詞彙`)
+          } else if (vocabStatus.state === 'error') {
+            updateStep('vocab', 'complete', '使用快取')
+          } else {
+            updateStep('vocab', 'loading', 
+              vocabStatus.state === 'downloading' ? '下載中...' :
+              vocabStatus.state === 'parsing' ? '解析中...' : 
+              '檢查中...'
+            )
+          }
         }
         
         // Only hide loading when FULL BOOTSTRAP is complete (not just vocab)
@@ -270,16 +286,28 @@ export default function AppLayout({
           setLoadingProgress(100)
           setIsLoadingComplete(true)
           setTimeout(() => setShowLoading(false), 300)
-        } else if (vocabStatus.state === 'cached' || vocabStatus.state === 'complete') {
-          // Vocab done but bootstrap still running
+        } else if (isEmojiPackActive) {
+          // Emoji pack: vocab step is already complete, bootstrap still running
           setLoadingProgress(80)
         } else {
-          setLoadingProgress(50)
+          // Legacy: check vocab status for progress
+          const vocabStatus = vocabularyLoader.getCurrentStatus()
+          if (vocabStatus.state === 'cached' || vocabStatus.state === 'complete') {
+            // Vocab done but bootstrap still running
+            setLoadingProgress(80)
+          } else {
+            setLoadingProgress(50)
+          }
         }
       }
       
-      // Start vocab loading if not started
-      vocabularyLoader.startLoading()
+      // Only start legacy vocab loading if we are explicitly using a non-emoji pack
+      const storeState = useAppStore.getState()
+      const isEmoji = storeState.activePack?.id === 'emoji_core' || !storeState.activePack
+      
+      if (!isEmoji) {
+        vocabularyLoader.startLoading()
+      }
       
       // Poll for bootstrap completion (includes vocab + mine + all data)
       const pollInterval = setInterval(() => {

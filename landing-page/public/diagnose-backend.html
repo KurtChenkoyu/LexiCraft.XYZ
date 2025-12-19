@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Backend Diagnostic Tool</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; }
+    .test { margin: 10px 0; padding: 10px; background: #2a2a2a; border-radius: 4px; }
+    .success { border-left: 3px solid #4ade80; }
+    .error { border-left: 3px solid #f87171; }
+    .timeout { border-left: 3px solid #fbbf24; }
+    button { padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #2563eb; }
+    pre { background: #000; padding: 10px; border-radius: 4px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Backend Connection Diagnostic</h1>
+  <button onclick="runDiagnostics()">Run Full Diagnostics</button>
+  <div id="results"></div>
+
+  <script>
+    const API_BASE = 'http://localhost:8000'
+    
+    async function runDiagnostics() {
+      const results = document.getElementById('results')
+      results.innerHTML = '<p>Running diagnostics...</p>'
+      
+      const tests = [
+        { name: 'Health Check (no auth)', url: '/health', needsAuth: false },
+        { name: 'User Profile', url: '/api/users/me', needsAuth: true },
+        { name: 'Children', url: '/api/users/me/children', needsAuth: true },
+        { name: 'Learners', url: '/api/users/me/learners', needsAuth: true },
+        { name: 'Learner Profile', url: '/api/v1/profile/learner', needsAuth: true },
+        { name: 'Achievements', url: '/api/v1/profile/learner/achievements', needsAuth: true },
+        { name: 'Streaks', url: '/api/v1/profile/learner/streaks', needsAuth: true },
+        { name: 'Goals', url: '/api/v1/goals', needsAuth: true },
+        { name: 'Leaderboard', url: '/api/v1/leaderboards/global?period=weekly&limit=50&sort_by=xp', needsAuth: true },
+        { name: 'Due Cards', url: '/api/v1/verification/due?limit=20', needsAuth: true },
+      ]
+      
+      let html = ''
+      
+      for (const test of tests) {
+        const startTime = Date.now()
+        html += `<div class="test">`
+        html += `<strong>${test.name}</strong><br>`
+        html += `URL: ${test.url}<br>`
+        
+        try {
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 6000)
+          
+          const response = await fetch(`${API_BASE}${test.url}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              // Note: This won't have auth token, but will show if endpoint is reachable
+            },
+            signal: controller.signal
+          })
+          
+          clearTimeout(timeoutId)
+          const elapsed = Date.now() - startTime
+          
+          if (response.ok) {
+            const data = await response.json()
+            html += `<span class="success">✅ Success (${elapsed}ms)</span><br>`
+            html += `<pre>${JSON.stringify(data, null, 2).substring(0, 200)}...</pre>`
+          } else if (response.status === 401) {
+            html += `<span class="timeout">⚠️ Auth Required (${elapsed}ms) - Endpoint is reachable</span><br>`
+            html += `<pre>${await response.text()}</pre>`
+          } else {
+            html += `<span class="error">❌ Error ${response.status} (${elapsed}ms)</span><br>`
+            html += `<pre>${await response.text()}</pre>`
+          }
+        } catch (error) {
+          const elapsed = Date.now() - startTime
+          if (error.name === 'AbortError' || error.message.includes('timeout')) {
+            html += `<span class="timeout">⏱️ TIMEOUT after ${elapsed}ms</span><br>`
+            html += `<p style="color: #fbbf24;">Backend is not responding within 6 seconds. This suggests:</p>`
+            html += `<ul style="color: #fbbf24;">`
+            html += `<li>Database query is slow or hanging</li>`
+            html += `<li>Backend is stuck waiting for something</li>`
+            html += `<li>Connection pool might be exhausted</li>`
+            html += `</ul>`
+          } else {
+            html += `<span class="error">❌ Error: ${error.message} (${elapsed}ms)</span><br>`
+          }
+        }
+        
+        html += `</div>`
+      }
+      
+      results.innerHTML = html
+      
+      // Summary
+      const summary = document.createElement('div')
+      summary.className = 'test'
+      summary.style.marginTop = '20px'
+      summary.innerHTML = `
+        <h3>📊 Summary</h3>
+        <p>If you see timeouts on authenticated endpoints, check:</p>
+        <ol>
+          <li><strong>Backend terminal logs</strong> - Look for slow queries or errors</li>
+          <li><strong>Database connection</strong> - Check if PostgreSQL is responsive</li>
+          <li><strong>Connection pool</strong> - Backend might be waiting for available connections</li>
+          <li><strong>Indexes</strong> - Slow queries might need database indexes (migration 015)</li>
+        </ol>
+        <p><strong>Note:</strong> These tests don't include auth tokens, so 401 errors are expected. 
+        The important thing is the response time - if it's > 5 seconds, the backend is slow.</p>
+      `
+      results.appendChild(summary)
+    }
+  </script>
+</body>
+</html>
+
+

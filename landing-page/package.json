@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "backend:start": "cd ../backend && ./start-backend.sh",
+    "backend:stop": "lsof -ti :8000 | xargs kill -9 2>/dev/null || echo 'No backend running'",
+    "backend:check": "curl -s http://localhost:8000/health | python3 -m json.tool || echo 'Backend not responding'"
   },
   "dependencies": {
     "@antv/g6": "^5.0.50",

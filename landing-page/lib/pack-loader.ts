@@ -40,8 +40,40 @@ class PackLoader {
       return this.loadedPacks.get(packId)!
     }
 
-    // Check IndexedDB cache
-    const cached = await localStore.getCache<PackFile>(`pack_${packId}`)
+    // Check IndexedDB cache (try both cache keys for compatibility)
+    // Bootstrap caches as 'emoji_vocabulary' (just vocabulary array)
+    // packLoader caches as 'pack_emoji_core' (full PackFile)
+    let cached: PackFile | null = null
+    
+    if (packId === 'emoji_core') {
+      // Try Bootstrap's cache key first (faster - just vocabulary)
+      const vocabCache = await localStore.getCache<PackVocabularyItem[]>('emoji_vocabulary')
+      if (vocabCache && vocabCache.length > 0) {
+        // Reconstruct PackFile from vocabulary (we don't have full pack metadata, but that's OK)
+        // For emoji_core, we can create a minimal PackFile
+        cached = {
+          pack: {
+            id: 'emoji_core',
+            name: 'Core Emoji',
+            name_zh: '核心表情符號',
+            description: '200 essential emoji words',
+            description_zh: '200個核心表情符號單字',
+            word_count: vocabCache.length,
+            difficulty_range: [1, 5],
+            categories: Array.from(new Set(vocabCache.map(v => v.category))),
+          },
+          vocabulary: vocabCache,
+        } as PackFile
+        this.loadedPacks.set(packId, cached)
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`⚡ Loaded emoji pack from Bootstrap cache (${vocabCache.length} words)`)
+        }
+        return cached
+      }
+    }
+    
+    // Try packLoader's cache key
+    cached = await localStore.getCache<PackFile>(`pack_${packId}`)
     if (cached) {
       this.loadedPacks.set(packId, cached)
       return cached

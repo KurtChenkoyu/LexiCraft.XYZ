@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Lock } from 'lucide-react'
 import { useAppStore, selectActivePack } from '@/stores/useAppStore'
 import { packLoader } from '@/lib/pack-loader'
 import { VocabularyPack } from '@/lib/pack-types'
@@ -129,39 +130,53 @@ export function PackSelector({ onPackChange }: PackSelectorProps) {
               </div>
               
               <div className="max-h-[300px] overflow-y-auto">
-                {packs.map((pack) => (
-                  <button
-                    key={pack.id}
-                    onClick={() => handleSelectPack(pack)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700/50 transition-colors ${
-                      activePack?.id === pack.id ? 'bg-cyan-500/10 border-l-2 border-cyan-400' : ''
-                    }`}
-                  >
-                    <span className="text-2xl">{pack.emoji}</span>
-                    <div className="flex-1 text-left">
-                      <div className="font-medium text-white">{pack.name_zh}</div>
-                      <div className="text-xs text-slate-400">{pack.name}</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-cyan-400">
-                          {pack.word_count.toLocaleString()} 單字
-                        </span>
-                        {pack.id === 'emoji_core' && (
-                          <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] rounded-full">
-                            推薦
+                {packs.map((pack) => {
+                  const isLegacy = pack.id === 'legacy' // MVP: Disable legacy pack
+                  
+                  return (
+                    <button
+                      key={pack.id}
+                      onClick={() => {
+                        // MVP: Prevent legacy pack selection
+                        if (isLegacy) return
+                        handleSelectPack(pack)
+                      }}
+                      disabled={isLegacy}
+                      className={`w-full flex items-center gap-3 px-4 py-3 transition-colors ${
+                        isLegacy
+                          ? 'opacity-50 cursor-not-allowed'
+                          : activePack?.id === pack.id
+                          ? 'bg-cyan-500/10 border-l-2 border-cyan-400'
+                          : 'hover:bg-slate-700/50'
+                      }`}
+                    >
+                      <span className="text-2xl">{pack.emoji}</span>
+                      <div className="flex-1 text-left">
+                        <div className="font-medium text-white">{pack.name_zh}</div>
+                        <div className="text-xs text-slate-400">{pack.name}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-cyan-400">
+                            {pack.word_count.toLocaleString()} 單字
                           </span>
-                        )}
-                        {pack.id === 'legacy' && (
-                          <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] rounded-full">
-                            進階
-                          </span>
-                        )}
+                          {pack.id === 'emoji_core' && (
+                            <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] rounded-full">
+                              推薦
+                            </span>
+                          )}
+                          {isLegacy && (
+                            <span className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-700 text-slate-400 text-[10px] rounded-full border border-slate-600">
+                              <Lock className="w-3 h-3" />
+                              即將推出
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    {activePack?.id === pack.id && (
-                      <span className="text-cyan-400">✓</span>
-                    )}
-                  </button>
-                ))}
+                      {activePack?.id === pack.id && (
+                        <span className="text-cyan-400">✓</span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
               
               <div className="p-3 border-t border-slate-700 bg-slate-800/50">

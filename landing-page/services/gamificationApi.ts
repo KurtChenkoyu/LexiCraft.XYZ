@@ -52,7 +52,7 @@ export interface StreakInfo {
   days_until_risk: number | null
 }
 
-export interface LearnerProfile {
+export interface LearnerGamificationProfile {
   user_id: string
   level: LevelInfo
   vocabulary_size: number
@@ -230,8 +230,8 @@ export const learnerProfileApi = {
   /**
    * Get complete learner profile (gamified view)
    */
-  getProfile: async (): Promise<LearnerProfile> => {
-    return authenticatedGet<LearnerProfile>('/api/v1/profile/learner')
+  getProfile: async (): Promise<LearnerGamificationProfile> => {
+    return authenticatedGet<LearnerGamificationProfile>('/api/v1/profile/learner')
   },
 
   /**

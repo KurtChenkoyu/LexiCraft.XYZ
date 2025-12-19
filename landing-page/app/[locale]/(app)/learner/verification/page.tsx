@@ -3,10 +3,18 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { useAppStore, selectDueCards, selectActivePack, selectMineBlocks } from '@/stores/useAppStore'
+import {
+  useAppStore,
+  selectDueCards,
+  selectActivePack,
+  selectMineBlocks,
+  selectActiveLearner,
+  selectEmojiVocabulary,
+} from '@/stores/useAppStore'
 import { MCQSession } from '@/components/features/mcq'
 import { EmojiMCQSession } from '@/components/features/mcq/EmojiMCQSession'
 import { bundleCacheService } from '@/services/bundleCacheService'
+import type { EmojiMCQ } from '@/lib/pack-types'
 import { downloadService } from '@/services/downloadService'
 
 interface DueCard {
@@ -25,6 +33,7 @@ interface SessionResult {
   correct: number
   accuracy: number
   abilityChange: number
+  verifiedWords: Array<{ senseId: string, isCorrect: boolean }>
 }
 
 export default function VerificationPage() {
@@ -39,84 +48,126 @@ export default function VerificationPage() {
   
   // 📦 Check active pack for emoji mode
   const activePack = useAppStore(selectActivePack)
+  const activeLearner = useAppStore(selectActiveLearner)
   const mineBlocks = useAppStore(selectMineBlocks)
-  const miningQueue = useAppStore((state) => state.miningQueue)
+  const emojiVocabulary = useAppStore(selectEmojiVocabulary)
   const isEmojiPack = activePack?.id === 'emoji_core'
   
-  // Get emoji words to verify (hollow/forged words)
+  // ⚡ CACHE-FIRST: Initialize with Zustand data immediately (prevents "no words" flash)
+  const [dueCards, setDueCards] = useState<DueCard[]>(dueCardsFromStore || [])
+  
+  // Get emoji words to verify (SRS due cards only, filtered to emoji pack)
   const emojiWordsToVerify = useMemo(() => {
     if (!isEmojiPack) return []
-    // Get sense IDs from mining queue (words being forged)
-    return miningQueue.map(item => item.senseId)
-  }, [isEmojiPack, miningQueue])
-  
-  const [dueCards, setDueCards] = useState<DueCard[]>([])
+
+    // Only filter when emojiVocabulary is loaded
+    const shouldFilter = emojiVocabulary && emojiVocabulary.length > 0
+    const validEmojiIds = shouldFilter
+      ? new Set(emojiVocabulary.map((w) => w.sense_id))
+      : new Set<string>()
+
+    // 1) Restrict due cards to emoji pack senseIds
+    const emojiDueCards = dueCards.filter((card) => {
+      if (!card.learning_point_id) return false
+      if (!shouldFilter) return true
+      return validEmojiIds.has(card.learning_point_id)
+    })
+
+    // 2) The verification list is exactly the emoji due-card IDs
+    return emojiDueCards.map((card) => card.learning_point_id)
+  }, [isEmojiPack, emojiVocabulary, dueCards])
   const [isFetching, setIsFetching] = useState(false)
   const [selectedCard, setSelectedCard] = useState<DueCard | null>(null)
   const [isOffline, setIsOffline] = useState(false)
   const [showEmojiSession, setShowEmojiSession] = useState(false)
+  const [preGeneratedMcqs, setPreGeneratedMcqs] = useState<EmojiMCQ[]>([])
 
   const locale = pathname.split('/')[1] || 'zh-TW'
 
-  // ⚡ INSTANT: Use Zustand data if available (from Bootstrap)
+  // Debug: log key verification state for current learner
   useEffect(() => {
-    if (dueCardsFromStore && dueCardsFromStore.length > 0) {
-      console.log('⚡ Verification: Using Bootstrap data (instant!)')
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Verification state', {
+        learnerId: activeLearner?.id,
+        dueCardsCount: dueCards.length,
+        emojiWordsToVerifyCount: emojiWordsToVerify.length,
+      })
+    }
+  }, [
+    activeLearner?.id,
+    dueCards.length,
+    emojiWordsToVerify.length,
+  ])
+
+  // ⚡ CACHE-FIRST: Always use Zustand data immediately (even if empty)
+  // This prevents the "no words" flash
+  // Include activeLearner?.id to ensure sync on learner switches
+  useEffect(() => {
+    if (dueCardsFromStore !== undefined) {
       setDueCards(dueCardsFromStore)
-      setIsFetching(false)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`⚡ Verification: Using Zustand data (${dueCardsFromStore.length} cards) for learner ${activeLearner?.id}`)
+      }
+    }
+  }, [dueCardsFromStore, activeLearner?.id])
+
+  // Background refresh - only if Zustand is empty or learner changed
+  // Uses learner-scoped downloadService + guards to avoid stale updates
+  useEffect(() => {
+    const learnerId = activeLearner?.id
+    if (!user || !session?.access_token || !learnerId) return
+
+    // Skip fetch if we already have data for this learner
+    const shouldFetch = !dueCardsFromStore || dueCardsFromStore.length === 0
+    if (!shouldFetch && dueCards.length > 0) {
+      console.log('⚡ Verification: Skipping fetch - using cached Zustand data')
       return
     }
-    
-    // Fallback to API if no store data
-    if (!user || !session?.access_token) return
+
+    const learnerIdAtStart = learnerId
+    let cancelled = false
 
     const loadDueCards = async () => {
       setIsFetching(true)
-      
       try {
-        // 1. INSTANT: Try loading from IndexedDB cache first
-        const cachedCards = await downloadService.getDueCards()
-        if (cachedCards && cachedCards.length > 0) {
-          setDueCards(cachedCards)
-          setDueCardsInStore(cachedCards) // Also update Zustand
-          setIsFetching(false)
-          setIsOffline(false)
-          console.log('⚡ Loaded due cards from IndexedDB cache:', cachedCards.length)
-        }
-        
-        // 2. BACKGROUND: Fetch fresh data from API (non-blocking)
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-        const response = await fetch(`${apiUrl}/api/v1/verification/due?limit=20`, {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-        })
+        const freshCards = await downloadService.refreshLearnerDueCards(learnerIdAtStart)
+        if (cancelled || !freshCards) return
 
-        if (response.ok) {
-          const cards: DueCard[] = await response.json()
-          setDueCards(cards)
-          setDueCardsInStore(cards) // Update Zustand
-          setIsOffline(false)
-        } else {
-          // If we have cache, offline mode is OK
-          if (!cachedCards || cachedCards.length === 0) {
-            setIsOffline(true)
+        // Guard: only apply if learner is still active
+        const current = useAppStore.getState()
+        if (current.activeLearner?.id !== learnerIdAtStart) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log(
+              '⏭️ Skipping dueCards update for stale learner',
+              learnerIdAtStart,
+              '(current =',
+              current.activeLearner?.id,
+              ')',
+            )
           }
+          return
         }
+
+        setDueCards(freshCards)
+        setDueCardsInStore(freshCards)
+        setIsOffline(false)
       } catch (error) {
-        console.debug('Failed to fetch due cards:', error)
-        // Keep cached data if available
-        const cachedCards = await downloadService.getDueCards()
-        if (!cachedCards || cachedCards.length === 0) {
-          setIsOffline(true)
-        }
+        console.debug('Failed to refresh due cards:', error)
+        setIsOffline(true)
       } finally {
-        setIsFetching(false)
+        if (!cancelled) {
+          setIsFetching(false)
+        }
       }
     }
 
+    // Only fetch in background (non-blocking)
     loadDueCards()
-  }, [user, session, dueCardsFromStore, setDueCardsInStore])
+
+    return () => {
+      cancelled = true
+    }
+  }, [user, session?.access_token, activeLearner?.id, dueCardsFromStore, dueCards.length, setDueCardsInStore])
 
   // Pre-cache verification bundles for all due cards (makes MCQ loads instant)
   useEffect(() => {
@@ -125,29 +176,67 @@ export default function VerificationPage() {
     bundleCacheService.preCacheBundles(senseIds, session.access_token)
   }, [dueCards, session?.access_token])
 
+  // Pre-generate questions in background when emojiWordsToVerify changes
+  // This makes clicking "Start" instant (no delay)
+  useEffect(() => {
+    if (!isEmojiPack || emojiWordsToVerify.length === 0) {
+      setPreGeneratedMcqs([])
+      return
+    }
+    
+    // Generate questions in background (non-blocking)
+    const generateQuestions = async () => {
+      try {
+        const { packLoader } = await import('@/lib/pack-loader')
+        const mcqs = await packLoader.generateMCQBatch('emoji_core', emojiWordsToVerify, 1)
+        // Shuffle (generateMCQBatch already shuffles, but ensure it's done)
+        const shuffled = mcqs.sort(() => Math.random() - 0.5)
+        setPreGeneratedMcqs(shuffled)
+        console.log(`⚡ Pre-generated ${shuffled.length} MCQs in background`)
+      } catch (error) {
+        console.warn('Failed to pre-generate MCQs:', error)
+        setPreGeneratedMcqs([]) // Fallback to on-demand generation
+      }
+    }
+    
+    generateQuestions()
+  }, [isEmojiPack, emojiWordsToVerify])
+
   const handleCardSelect = (card: DueCard) => {
     setSelectedCard(card)
   }
 
   const handleSessionComplete = async (result: SessionResult) => {
     // Refresh due cards in background (don't wait, don't close screen)
-    if (!session?.access_token) return
-    
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    const learnerId = activeLearner?.id
+    if (!session?.access_token || !learnerId) return
+
+    const learnerIdAtStart = learnerId
 
     try {
-      const response = await fetch(`${apiUrl}/api/v1/verification/due?limit=20`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      })
+      const freshCards = await downloadService.refreshLearnerDueCards(learnerIdAtStart)
 
-      if (response.ok) {
-        const cards: DueCard[] = await response.json()
-        setDueCards(cards)
+      const current = useAppStore.getState()
+      if (current.activeLearner?.id !== learnerIdAtStart) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(
+            '⏭️ Skipping dueCards refresh after session for stale learner',
+            learnerIdAtStart,
+            '(current =',
+            current.activeLearner?.id,
+            ')',
+          )
+        }
+        return
+      }
+
+      if (freshCards) {
+        const { setDueCards: setStoreDueCards } = current
+        setDueCards(freshCards)
+        setStoreDueCards(freshCards)
       }
     } catch (err) {
-      console.error('Failed to refresh due cards:', err)
+      console.error('Failed to refresh due cards after session:', err)
     }
 
     // DON'T auto-close - let user click "完成" button to exit
@@ -167,10 +256,20 @@ export default function VerificationPage() {
           <EmojiMCQSession
             senseIds={emojiWordsToVerify}
             packId="emoji_core"
+            preGeneratedMcqs={preGeneratedMcqs}
             onComplete={(result) => {
               console.log('Emoji session complete:', result)
+              
+              // Extract verified words and call completeVerification
+              const verifiedWords = result.verifiedWords.map(v => ({
+                senseId: v.senseId,
+                isCorrect: v.isCorrect
+              }))
+              
+              const { completeVerification } = useAppStore.getState()
+              completeVerification(verifiedWords)
+              
               setShowEmojiSession(false)
-              // TODO: Mark words as solid/verified
             }}
             onExit={() => setShowEmojiSession(false)}
           />
@@ -204,6 +303,20 @@ export default function VerificationPage() {
   const urgentCards = dueCards.filter(c => c.days_overdue > 0)
   const scheduledCards = dueCards.filter(c => c.days_overdue <= 0)
 
+  // Show loading state if refreshing and no cards
+  if (dueCards.length === 0 && isBootstrapped && isFetching) {
+    return (
+      <main className="min-h-screen bg-gray-950 pt-top-nav py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center py-12">
+            <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-400">載入複習清單中...</p>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
   // ALWAYS show UI - never block on loading
   return (
     <main className="min-h-screen bg-gray-950 pt-top-nav py-8 px-4">
@@ -211,6 +324,11 @@ export default function VerificationPage() {
         {/* Header with stats */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-cyan-400 mb-2">複習驗證</h1>
+          {activeLearner && (
+            <p className="text-sm text-slate-400 mb-1">
+              驗證對象: <span className="font-medium text-slate-300">{activeLearner.display_name}</span>
+            </p>
+          )}
           <p className="text-gray-400">
             {isEmojiPack 
               ? '驗證你已鍛造的表情符號單字'
@@ -300,7 +418,7 @@ export default function VerificationPage() {
         )}
 
         {/* Due cards list - empty means all caught up! (Legacy only) */}
-        {!isEmojiPack && dueCards.length === 0 ? (
+        {!isEmojiPack && dueCards.length === 0 && !isFetching ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">🎉</div>
             <h2 className="text-2xl font-bold text-gray-300 mb-2">沒有需要複習的單字</h2>

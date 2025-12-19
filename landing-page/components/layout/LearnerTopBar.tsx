@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAppStore, selectBalance, selectLearnerProfile, selectActivePack, selectIsKidModeActive, selectKidModeChildName } from '@/stores/useAppStore'
 import Link from 'next/link'
 import { PackSelectorDropdown } from '@/components/features/packs/PackSelectorDropdown'
+import { LearnerSwitcher } from './PlayerSwitcher'
 
 /**
  * Learner Top Bar (HUD Layer)
@@ -71,7 +72,7 @@ export function LearnerTopBar() {
           <span className="font-semibold text-white hidden sm:block">LexiCraft</span>
         </Link>
 
-        {/* Center: Pack Indicator (Dropdown) + Streak */}
+        {/* Center: Pack Indicator (Dropdown) + Player Switcher (if emoji) + Streak */}
         <div className="flex items-center gap-2">
           {/* Pack Dropdown */}
           <div className="relative" ref={dropdownRef}>
@@ -92,6 +93,14 @@ export function LearnerTopBar() {
               <PackSelectorDropdown onClose={() => setShowPackDropdown(false)} />
             )}
           </div>
+          
+          {/* Learner Switcher (only for emoji pack) */}
+          {activePack?.id === 'emoji_core' && (
+            <LearnerSwitcher />
+          )}
+          {process.env.NODE_ENV === 'development' && activePack?.id !== 'emoji_core' && (
+            <div className="text-xs text-red-400">Pack: {activePack?.id || 'none'}</div>
+          )}
           
           {/* Streak */}
           <div className="flex items-center gap-2 text-sm bg-orange-500/20 px-3 py-1.5 rounded-lg">

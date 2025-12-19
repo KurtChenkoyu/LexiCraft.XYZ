@@ -17,7 +17,7 @@ export type {
   LevelInfo,
   Achievement,
   StreakInfo,
-  LearnerProfile,
+  LearnerGamificationProfile,
   Goal,
   LeaderboardEntry,
   Notification,

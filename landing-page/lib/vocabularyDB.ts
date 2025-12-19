@@ -49,8 +49,82 @@ export class VocabularyDatabase extends Dexie {
   }
 }
 
-// Singleton instance - main thread owns this
-export const vocabularyDB = new VocabularyDatabase()
+// Singleton instance - lazy initialization to prevent SSR errors
+let _vocabularyDB: VocabularyDatabase | null = null
+
+function getVocabularyDB(): VocabularyDatabase {
+  // Only create on client side
+  if (typeof window === 'undefined') {
+    // Return a dummy object for SSR (Next.js will hydrate on client)
+    // This prevents SSR from trying to access IndexedDB
+    return {
+      senses: {
+        count: async () => 0,
+        get: async () => undefined,
+        bulkGet: async () => [],
+        toArray: async () => [],
+        where: () => ({
+          between: async () => [],
+          startsWith: async () => [],
+        }),
+        toCollection: () => ({
+          primaryKeys: async () => [],
+        }),
+        limit: () => ({
+          toArray: async () => [],
+        }),
+        clear: async () => {},
+      } as any,
+      metadata: {
+        get: async () => undefined,
+        clear: async () => {},
+      } as any,
+    } as any as VocabularyDatabase
+  }
+  
+  if (!_vocabularyDB) {
+    _vocabularyDB = new VocabularyDatabase()
+  }
+  
+  return _vocabularyDB
+}
+
+// Create a dummy object for SSR that matches the VocabularyDatabase interface
+const createDummyDB = (): VocabularyDatabase => ({
+  senses: {
+    count: async () => 0,
+    get: async () => undefined,
+    bulkGet: async () => [],
+    toArray: async () => [],
+    where: () => ({
+      between: async () => [],
+      startsWith: async () => [],
+    }),
+    toCollection: () => ({
+      primaryKeys: async () => [],
+    }),
+    limit: () => ({
+      toArray: async () => [],
+    }),
+    clear: async () => {},
+  } as any,
+  metadata: {
+    get: async () => undefined,
+    clear: async () => {},
+  } as any,
+} as any as VocabularyDatabase)
+
+// Export a proxy that lazily initializes only on client side
+// Use Object.defineProperty to make it non-enumerable and prevent SSR serialization issues
+let _vocabularyDBProxy: VocabularyDatabase | null = null
+
+export const vocabularyDB = (typeof window !== 'undefined' 
+  ? new Proxy({} as VocabularyDatabase, {
+      get(target, prop) {
+        return getVocabularyDB()[prop as keyof VocabularyDatabase]
+      }
+    })
+  : createDummyDB()) as VocabularyDatabase
 
 export const VOCABULARY_VERSION = '6.19-comprehensive-senses'
 export const VERSION_KEY = 'vocabulary_version'
@@ -62,10 +136,16 @@ export const VERSION_KEY = 'vocabulary_version'
  * If version matches but data structure is wrong, we purge and re-download.
  */
 export async function isVocabularyReady(): Promise<boolean> {
+  // Guard against SSR
+  if (typeof window === 'undefined') {
+    return false
+  }
+  
   try {
-    const versionRecord = await vocabularyDB.metadata.get('version')
+    const db = getVocabularyDB()
+    const versionRecord = await db.metadata.get('version')
     const storedVersion = versionRecord?.value
-    const count = await vocabularyDB.senses.count()
+    const count = await db.senses.count()
     
     // Step 1: Check version and count
     if (storedVersion !== VOCABULARY_VERSION || count < 10000) {
@@ -82,7 +162,7 @@ export async function isVocabularyReady(): Promise<boolean> {
     }
     
     // Get a sample sense (pick a common word that should have collocations)
-    const sampleSense = await vocabularyDB.senses.get('theater.n.01')
+    const sampleSense = await db.senses.get('theater.n.01')
     
     if (!sampleSense) {
       if (process.env.NODE_ENV === 'development') {
@@ -123,9 +203,15 @@ export async function isVocabularyReady(): Promise<boolean> {
  * Used when schema validation fails
  */
 async function purgeVocabularyData(): Promise<void> {
+  // Guard against SSR
+  if (typeof window === 'undefined') {
+    return
+  }
+  
   try {
-    await vocabularyDB.senses.clear()
-    await vocabularyDB.metadata.clear()
+    const db = getVocabularyDB()
+    await db.senses.clear()
+    await db.metadata.clear()
     if (process.env.NODE_ENV === 'development') {
       console.log('✅ Vocabulary data purged')
     }
@@ -138,7 +224,13 @@ async function purgeVocabularyData(): Promise<void> {
  * Clear vocabulary cache
  */
 export async function clearVocabularyCache(): Promise<void> {
-  await vocabularyDB.senses.clear()
-  await vocabularyDB.metadata.clear()
+  // Guard against SSR
+  if (typeof window === 'undefined') {
+    return
+  }
+  
+  const db = getVocabularyDB()
+  await db.senses.clear()
+  await db.metadata.clear()
 }
 

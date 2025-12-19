@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Lock } from 'lucide-react'
 import { packLoader } from '@/lib/pack-loader'
 import { VocabularyPack } from '@/lib/pack-types'
 import { useAppStore, selectActivePack } from '@/stores/useAppStore'
@@ -93,13 +94,21 @@ export function PackSelectorModal({ onClose }: PackSelectorModalProps) {
             ) : (
               packs.map((pack) => {
                 const isActive = activePack?.id === pack.id
+                const isLegacy = pack.id === 'legacy' // MVP: Disable legacy pack
                 
                 return (
                   <button
                     key={pack.id}
-                    onClick={() => handleSelectPack(pack)}
+                    onClick={() => {
+                      // MVP: Prevent legacy pack selection
+                      if (isLegacy) return
+                      handleSelectPack(pack)
+                    }}
+                    disabled={isLegacy}
                     className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                      isActive
+                      isLegacy
+                        ? 'opacity-50 cursor-not-allowed bg-slate-800/30 border-slate-700'
+                        : isActive
                         ? 'bg-cyan-500/20 border-cyan-500 shadow-lg shadow-cyan-500/20'
                         : 'bg-slate-800/50 border-slate-700 hover:border-slate-500'
                     }`}
@@ -114,6 +123,12 @@ export function PackSelectorModal({ onClose }: PackSelectorModalProps) {
                           {isActive && (
                             <span className="px-2 py-0.5 text-xs bg-cyan-500 text-white rounded-full">
                               使用中
+                            </span>
+                          )}
+                          {isLegacy && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 text-xs bg-slate-700 text-slate-400 rounded-full border border-slate-600">
+                              <Lock className="w-3 h-3" />
+                              即將推出
                             </span>
                           )}
                         </div>
