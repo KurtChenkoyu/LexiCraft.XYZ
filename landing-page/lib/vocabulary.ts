@@ -92,6 +92,8 @@ export interface VocabularySense {
     connection_bonus?: number
     total_xp?: number
   }
+  base_xp?: number  // Top-level base XP (for compatibility)
+  total_value?: number  // Top-level total value (base_xp + bonuses)
 }
 
 export interface VocabularyWord {
