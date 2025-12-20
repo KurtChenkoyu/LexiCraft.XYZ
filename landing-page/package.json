@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node -e \"const fs = require('fs'); if (!fs.existsSync('public/vocabulary-v6-enriched.json')) { fs.copyFileSync('../backend/data/vocabulary.json', 'public/vocabulary-v6-enriched.json'); console.log('✅ Copied vocabulary.json to public/'); }\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
