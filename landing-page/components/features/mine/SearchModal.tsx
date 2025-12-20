@@ -259,7 +259,7 @@ export function SearchModal({
               phrase_meaning: coll.meaning,
               primary: {
                 sense_id: senseId,
-                pos: sense.pos,
+                pos: sense.pos || undefined,
                 cefr: coll.cefr || sense.cefr,
                 definition_en: coll.meaning,
                 definition_zh: coll.meaning_zh,
