@@ -23,6 +23,7 @@ export interface Block {
   source?: string
   emoji?: string  // For emoji pack vocabulary
   translation?: string  // Optional translation (can be toggled off for immersion)
+  category?: string  // Optional category/classification
 }
 
 export interface OtherSense {
