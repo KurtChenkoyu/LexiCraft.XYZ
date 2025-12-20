@@ -58,9 +58,12 @@ class PackLoader {
             name_zh: '核心表情符號',
             description: '200 essential emoji words',
             description_zh: '200個核心表情符號單字',
+            emoji: '🎯',
+            difficulty: 3,
             word_count: vocabCache.length,
-            difficulty_range: [1, 5],
-            categories: Array.from(new Set(vocabCache.map(v => v.category))),
+            categories: Array.from(new Set(vocabCache.map(v => v.category || ''))),
+            is_free: true,
+            sort_order: 1,
           },
           vocabulary: vocabCache,
         } as PackFile
@@ -73,7 +76,7 @@ class PackLoader {
     }
     
     // Try packLoader's cache key
-    cached = await localStore.getCache<PackFile>(`pack_${packId}`)
+    cached = (await localStore.getCache<PackFile>(`pack_${packId}`)) || null
     if (cached) {
       this.loadedPacks.set(packId, cached)
       return cached

@@ -317,7 +317,6 @@ interface AppState {
   setCurrencies: (currencies: any | null) => void
   setRooms: (rooms: any[]) => void
   setBuildState: (learnerId: string, currencies: any | null, rooms: any[]) => void
-  setBuildState: (learnerId: string, currencies: any | null, rooms: any[]) => void
   setBootstrapped: (value: boolean) => void
   setIsSyncing: (value: boolean) => void
   setBootstrapError: (error: string | null) => void
@@ -865,6 +864,7 @@ export const useAppStore = create<AppState>()(
                     emojiSRSLevels: emptyEmojiSRSLevels,
                     progress: defaultProgress,
                     dueCards: cachedDueCards, // Use loaded due cards (may be empty)
+                    collectedWords: [],
                     currencies: null,
                     rooms: [],
                     timestamp: Date.now(),
@@ -998,6 +998,7 @@ export const useAppStore = create<AppState>()(
                       emojiSRSLevels: emojiSRSMap, // Always a Map (never null) from above
                       progress: progressStats,
                       dueCards: existing?.dueCards ?? s.dueCards ?? [],
+                      collectedWords: existing?.collectedWords ?? s.collectedWords ?? [],
                       currencies: existing?.currencies ?? s.currencies ?? null,
                       rooms: existing?.rooms ?? s.rooms ?? [],
                       timestamp: Date.now(),
@@ -2010,7 +2011,7 @@ export const useAppStore = create<AppState>()(
                 learning_progress_id: scheduleInfo.learning_progress_id,
                 performance_rating: 2, // GOOD rating (default for correct answer in emoji MCQ)
                 response_time_ms: 5000, // Default response time (TODO: Track actual time in EmojiMCQSession)
-              }).catch(err => {
+              }).catch((err: any) => {
                 console.warn(`Failed to sync verification for ${senseId}:`, err)
               })
             })
@@ -2033,7 +2034,7 @@ export const useAppStore = create<AppState>()(
                 status: 'verified' // Backend uses 'verified' for solid state (not 'solid')
               }
             }))
-          }).catch(err => {
+          }).catch((err: any) => {
             console.warn('Failed to sync progress status to backend:', err)
           })
         }

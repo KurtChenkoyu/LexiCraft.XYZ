@@ -570,12 +570,11 @@ class VocabularyStore {
       sense_id: id,
       word: sense.word,
       definition_preview: (sense.definition_en || sense.definition_zh || '').slice(0, 100),
-      rank: sense.rank || sense.tier || 1,  // Use rank (new) or fallback to tier (legacy)
+      rank: sense.rank || sense.frequency_rank || 1,  // Use rank (word complexity) or fallback to frequency_rank
       base_xp: baseXp,
       connection_count: connectionCount,
       total_value: totalValue,
       status: 'raw',
-      rank: sense.frequency_rank ?? undefined,
     }
   }
 
