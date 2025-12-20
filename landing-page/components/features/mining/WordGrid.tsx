@@ -21,7 +21,7 @@ export const WordGrid = memo(function WordGrid({
 }: WordGridProps) {
   // Deduplicate sense IDs to avoid React key warnings
   const uniqueSenseIds = useMemo(() => {
-    return [...new Set(senseIds || [])]
+    return Array.from(new Set(senseIds || []))
   }, [senseIds])
 
   // Debug: log whenever senseIds changes
