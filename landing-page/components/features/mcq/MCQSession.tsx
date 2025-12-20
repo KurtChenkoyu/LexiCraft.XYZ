@@ -271,7 +271,7 @@ const MCQSession: React.FC<MCQSessionProps> = ({
       const isCorrect = selectedIndex === currentMcq.correct_index
       instantResult = {
         is_correct: isCorrect,
-        correct_index: currentMcq.correct_index,
+        correct_index: currentMcq.correct_index ?? 0,
         explanation: '',
         feedback: isCorrect ? '答對了！' : '答錯了',
         ability_before: 0.5,
