@@ -245,7 +245,6 @@ const MCQSession: React.FC<MCQSessionProps> = ({
         setMcqs(mcqData)
         setStatus('active')
       } catch (error) {
-        clearTimeout(loadingTimeout)
         console.error('Failed to load MCQs:', error)
         setErrorMessage(error instanceof Error ? error.message : 'Unknown error')
         setStatus('error')
