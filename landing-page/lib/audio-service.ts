@@ -261,6 +261,8 @@ class AudioServiceClass {
    * Internal: Play audio file
    */
   private async playAudio(path: string, volume: number): Promise<void> {
+    // Silently fail if audio files don't exist (MVP: audio files not yet generated)
+    // This prevents 404 errors from cluttering the console
     if (typeof window === 'undefined') return
     
     try {
@@ -268,7 +270,21 @@ class AudioServiceClass {
       
       if (!audio) {
         audio = new Audio(path)
+        // Handle 404 errors silently (audio files not yet generated for MVP)
+        audio.addEventListener('error', (e) => {
+          // Silently ignore 404 errors for missing audio files
+          if (audio.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+            // File doesn't exist - expected for MVP, fail silently
+            return
+          }
+        })
         audioCache.set(path, audio)
+      }
+      
+      // Check if audio failed to load (404)
+      if (audio.error && audio.error.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+        // File doesn't exist - expected for MVP, fail silently
+        return
       }
       
       // Reset and play
@@ -276,8 +292,11 @@ class AudioServiceClass {
       audio.volume = volume
       
       await audio.play().catch(err => {
-        // Browser might block autoplay - fail silently
-        console.warn('Audio playback blocked:', err.message)
+        // Browser might block autoplay or file doesn't exist - fail silently
+        // Don't log 404 errors for missing audio files (expected in MVP)
+        if (!err.message?.includes('404') && !err.message?.includes('Failed to load')) {
+          console.warn('Audio playback blocked:', err.message)
+        }
       })
       
       // Wait for audio to finish playing
