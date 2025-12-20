@@ -34,13 +34,27 @@ export const DEFAULT_VOICE: Voice = 'nova'
 
 /**
  * Audio file paths by category
+ * 
+ * Supports both local paths (for development) and Supabase Storage URLs (for production)
  */
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+const USE_SUPABASE_STORAGE = !!SUPABASE_URL // Use Supabase Storage if URL is configured
+
+const getAudioBasePath = (category: string) => {
+  if (USE_SUPABASE_STORAGE) {
+    // Use Supabase Storage public URL
+    return `${SUPABASE_URL}/storage/v1/object/public/audio/${category}`
+  }
+  // Fallback to local path
+  return `/audio/${category}`
+}
+
 export const AUDIO_PATHS = {
-  emoji: '/audio/emoji',     // {word}_{voice}.mp3
-  legacy: '/audio/legacy',   // {sense_id}.wav (future)
-  fx: '/audio/fx',           // UI sound effects
-  prompts: '/audio/prompts', // {prompt_id}_{voice}.mp3 (in category subdirs)
-  feedback: '/audio/feedback', // {feedback_id}_{voice}.mp3 (in category subdirs)
+  emoji: getAudioBasePath('emoji'),     // {word}_{voice}.mp3
+  legacy: getAudioBasePath('legacy'),   // {sense_id}.wav (future)
+  fx: getAudioBasePath('fx'),           // UI sound effects
+  prompts: getAudioBasePath('prompts'), // {prompt_id}_{voice}.mp3 (in category subdirs)
+  feedback: getAudioBasePath('feedback'), // {feedback_id}_{voice}.mp3 (in category subdirs)
 } as const
 
 /**
