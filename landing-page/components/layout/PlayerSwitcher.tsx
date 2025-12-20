@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAppStore, selectLearners, selectUser, selectActiveLearner, selectBalance, selectLearnerProfile } from '@/stores/useAppStore'
+import { downloadService } from '@/services/downloadService'
+import { buildLearnerSnapshotFromIndexedDB } from '@/services/bootstrap'
 import Link from 'next/link'
 
 /**
@@ -20,9 +22,13 @@ export function LearnerSwitcher() {
   const learnerProfile = useAppStore(selectLearnerProfile)
   const switchLearner = useAppStore((state) => state.switchLearner)
   const isBootstrapped = useAppStore((state) => state.isBootstrapped)
+  const setLearners = useAppStore((state) => state.setLearners)
   
   const [showDropdown, setShowDropdown] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [refreshFailed, setRefreshFailed] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const hasTriedRefresh = useRef(false)
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -36,6 +42,98 @@ export function LearnerSwitcher() {
     }
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showDropdown])
+  
+  // CRITICAL FIX: Auto-refresh learners if bootstrap completed but learners is empty
+  useEffect(() => {
+    if (isBootstrapped && learners.length === 0 && !hasTriedRefresh.current && user?.id) {
+      hasTriedRefresh.current = true
+      setIsRefreshing(true)
+      setRefreshFailed(false)
+      
+      // Try to refresh learners from API
+      downloadService.refreshLearners()
+        .then(async (freshLearners) => {
+          if (freshLearners && freshLearners.length > 0) {
+            setLearners(freshLearners)
+            
+            // Auto-select parent learner if available
+            const parentLearner = freshLearners.find(l => l.is_parent_profile)
+            if (parentLearner) {
+              const { useAppStore } = await import('@/stores/useAppStore')
+              useAppStore.getState().setActiveLearner(parentLearner)
+            } else if (freshLearners.length > 0) {
+              const { useAppStore } = await import('@/stores/useAppStore')
+              useAppStore.getState().setActiveLearner(freshLearners[0])
+            }
+            
+            // CRITICAL: Rebuild learnerCache snapshots for each learner
+            // This ensures instant learner switching works correctly
+            for (const learner of freshLearners) {
+              await buildLearnerSnapshotFromIndexedDB(learner.id).catch(() => {
+                // Non-critical - continue with other learners
+              })
+            }
+            
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`✅ LearnerSwitcher: Auto-refreshed ${freshLearners.length} learners and rebuilt learnerCache snapshots`)
+            }
+          } else {
+            // Still empty after refresh - mark as failed
+            setRefreshFailed(true)
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('[LearnerSwitcher] Refresh completed but still no learners found')
+            }
+          }
+        })
+        .catch((error) => {
+          setRefreshFailed(true)
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[LearnerSwitcher] Failed to refresh learners:', error)
+          }
+        })
+        .finally(() => {
+          setIsRefreshing(false)
+        })
+    }
+  }, [isBootstrapped, learners.length, user?.id, setLearners])
+  
+  // Manual retry handler
+  const handleRetry = async () => {
+    if (!user?.id) return
+    
+    setIsRefreshing(true)
+    setRefreshFailed(false)
+    hasTriedRefresh.current = false // Allow retry
+    
+    try {
+      const freshLearners = await downloadService.refreshLearners()
+      if (freshLearners && freshLearners.length > 0) {
+        setLearners(freshLearners)
+        const parentLearner = freshLearners.find(l => l.is_parent_profile)
+        if (parentLearner) {
+          const { useAppStore } = await import('@/stores/useAppStore')
+          useAppStore.getState().setActiveLearner(parentLearner)
+        } else if (freshLearners.length > 0) {
+          const { useAppStore } = await import('@/stores/useAppStore')
+          useAppStore.getState().setActiveLearner(freshLearners[0])
+        }
+        
+        // Rebuild learnerCache snapshots after refresh
+        for (const learner of freshLearners) {
+          await buildLearnerSnapshotFromIndexedDB(learner.id).catch(() => {
+            // Non-critical - continue with other learners
+          })
+        }
+      } else {
+        setRefreshFailed(true)
+      }
+    } catch (error) {
+      setRefreshFailed(true)
+      console.error('[LearnerSwitcher] Retry failed:', error)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
   
   // Get current player stats
   const currentXP = learnerProfile?.level?.total_xp ?? 0
@@ -79,8 +177,8 @@ export function LearnerSwitcher() {
     console.warn('[LearnerSwitcher] Parent learner not found. Learners:', learners.map(l => ({ id: l.id, name: l.display_name, is_parent: l.is_parent_profile })))
   }
   
-  // Show loading state if bootstrap hasn't completed yet
-  if (!isBootstrapped && learners.length === 0) {
+  // Show loading state if bootstrap hasn't completed yet OR if we're refreshing
+  if ((!isBootstrapped && learners.length === 0) || isRefreshing) {
     return (
       <div className="flex items-center gap-2 text-sm bg-slate-700/50 px-3 py-1.5 rounded-lg">
         <span className="text-slate-400 text-xs">載入中...</span>
@@ -88,12 +186,23 @@ export function LearnerSwitcher() {
     )
   }
   
-  // Don't render if no learners after bootstrap (shouldn't happen, but graceful fallback)
+  // Show error/retry button if bootstrap completed but learners is empty after refresh attempt
   if (isBootstrapped && learners.length === 0) {
     if (process.env.NODE_ENV === 'development') {
       console.warn('[LearnerSwitcher] Bootstrap completed but no learners found. Check bootstrap step 2c.')
     }
-    return null
+    
+    return (
+      <button 
+        onClick={handleRetry}
+        disabled={isRefreshing}
+        className="flex items-center gap-2 text-sm bg-red-500/20 text-red-300 px-3 py-1.5 rounded-lg border border-red-500/50 hover:bg-red-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        title="重試載入玩家資料"
+      >
+        <span>⚠️</span>
+        <span className="text-xs">{refreshFailed ? '重試載入' : '載入中...'}</span>
+      </button>
+    )
   }
   
   return (

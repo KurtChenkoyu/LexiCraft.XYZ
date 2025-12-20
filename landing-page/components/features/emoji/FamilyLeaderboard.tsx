@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAppStore, selectChildren, selectChildrenSummaries, selectUser } from '@/stores/useAppStore'
+import { useAppStore, selectLearnersSummaries, selectUser } from '@/stores/useAppStore'
 import { downloadService } from '@/services/downloadService'
 
 interface FamilyMember {
@@ -26,64 +26,121 @@ interface FamilyMember {
  */
 export function FamilyLeaderboard() {
   const user = useAppStore(selectUser)
-  const children = useAppStore(selectChildren)
-  const childrenSummaries = useAppStore(selectChildrenSummaries)
+  const learnersSummaries = useAppStore(selectLearnersSummaries)
+  const isBootstrapped = useAppStore((state) => state.isBootstrapped)
   
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([])
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<'weekly' | 'monthly'>('weekly')
   
+  // DEBUG: Log store state
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 FamilyLeaderboard: Component mounted/updated', {
+        isBootstrapped,
+        learnersSummariesLength: learnersSummaries?.length || 0,
+        learnersSummaries: learnersSummaries,
+        user: user?.id
+      })
+    }
+  }, [isBootstrapped, learnersSummaries, user])
+  
   // Load family data
   useEffect(() => {
     const loadFamilyData = async () => {
+      // Don't load until bootstrap is complete
+      if (!isBootstrapped) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔍 FamilyLeaderboard: Waiting for bootstrap to complete...')
+        }
+        return
+      }
+      
       setLoading(true)
       try {
+        // DEBUG: Log what we're receiving
+        console.log('🔍 FamilyLeaderboard: loadFamilyData called', {
+          learnersSummariesLength: learnersSummaries?.length || 0,
+          learnersSummaries: learnersSummaries,
+          isBootstrapped
+        })
+        
         const members: FamilyMember[] = []
         
-        // Add parent
-        if (user) {
-          // Load parent's learner profile
-          const parentProfile = await downloadService.getProfile()
-          // For now, use placeholder data - we'll need to load actual learner profile
-          members.push({
-            id: user.id,
-            name: user.name || 'Parent',
-            type: 'parent',
-            level: 1,
-            total_xp: 0,
-            current_streak: 0,
-            vocabulary_size: 0,
-            words_learned_this_week: 0,
+        // Add all learners from summaries (includes parent + children)
+        if (learnersSummaries && learnersSummaries.length > 0) {
+          console.log(`✅ FamilyLeaderboard: Processing ${learnersSummaries.length} learners`)
+          learnersSummaries.forEach(summary => {
+            console.log('🔍 FamilyLeaderboard: Processing summary:', {
+              learner_id: summary.learner_id,
+              display_name: summary.display_name,
+              total_xp: summary.total_xp,
+              level: summary.level,
+              vocabulary_size: summary.vocabulary_size,
+              current_streak: summary.current_streak
+            })
+            members.push({
+              id: summary.learner_id,
+              name: summary.display_name,
+              type: summary.is_parent_profile ? 'parent' : 'child',
+              level: summary.level,
+              total_xp: summary.total_xp,  // Now learner-scoped (accurate tier-based XP)!
+              current_streak: summary.current_streak,
+              vocabulary_size: summary.vocabulary_size,
+              words_learned_this_week: summary.words_learned_this_week,
+            })
           })
+        } else {
+          console.warn('⚠️ FamilyLeaderboard: learnersSummaries is empty or undefined', {
+            learnersSummaries,
+            isBootstrapped
+          })
+          // Try to manually fetch if store is empty
+          if (isBootstrapped) {
+            console.log('🔄 FamilyLeaderboard: Store is empty, attempting manual fetch...')
+            try {
+              const { downloadService } = await import('@/services/downloadService')
+              const freshSummaries = await downloadService.getLearnersSummaries(true)
+              if (freshSummaries && freshSummaries.length > 0) {
+                const { useAppStore } = await import('@/stores/useAppStore')
+                useAppStore.getState().setLearnersSummaries(freshSummaries)
+                console.log(`✅ FamilyLeaderboard: Manually fetched ${freshSummaries.length} learners summaries`)
+                // Re-process with fresh data
+                freshSummaries.forEach(summary => {
+                  members.push({
+                    id: summary.learner_id,
+                    name: summary.display_name,
+                    type: summary.is_parent_profile ? 'parent' : 'child',
+                    level: summary.level,
+                    total_xp: summary.total_xp,
+                    current_streak: summary.current_streak,
+                    vocabulary_size: summary.vocabulary_size,
+                    words_learned_this_week: summary.words_learned_this_week,
+                  })
+                })
+              }
+            } catch (fetchError) {
+              console.error('❌ FamilyLeaderboard: Failed to manually fetch learners summaries:', fetchError)
+            }
+          }
         }
-        
-        // Add children from summaries
-        childrenSummaries.forEach(summary => {
-          members.push({
-            id: summary.id,
-            name: summary.name || 'Child',
-            type: 'child',
-            level: summary.level,
-            total_xp: summary.total_xp,
-            current_streak: summary.current_streak,
-            vocabulary_size: summary.vocabulary_size,
-            words_learned_this_week: summary.words_learned_this_week,
-          })
-        })
         
         // Sort by total XP (descending)
         members.sort((a, b) => b.total_xp - a.total_xp)
         
+        console.log('🔍 FamilyLeaderboard: Final members array:', members)
+        console.log('🔍 FamilyLeaderboard: Total XP sum:', members.reduce((sum, m) => sum + m.total_xp, 0))
+        
         setFamilyMembers(members)
       } catch (error) {
-        console.error('Failed to load family data:', error)
+        console.error('❌ FamilyLeaderboard: Failed to load family data:', error)
       } finally {
         setLoading(false)
       }
     }
     
     loadFamilyData()
-  }, [user, children, childrenSummaries])
+  }, [user, learnersSummaries, isBootstrapped])
   
   // Calculate aggregate stats
   const totalXP = familyMembers.reduce((sum, m) => sum + m.total_xp, 0)

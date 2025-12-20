@@ -113,6 +113,7 @@ export default function VerificationPage() {
 
   // Background refresh - only if Zustand is empty or learner changed
   // Uses learner-scoped downloadService + guards to avoid stale updates
+  // Follows cache priority: Zustand → IndexedDB → API
   useEffect(() => {
     const learnerId = activeLearner?.id
     if (!user || !session?.access_token || !learnerId) return
@@ -130,8 +131,11 @@ export default function VerificationPage() {
     const loadDueCards = async () => {
       setIsFetching(true)
       try {
-        const freshCards = await downloadService.refreshLearnerDueCards(learnerIdAtStart)
-        if (cancelled || !freshCards) return
+        // CRITICAL FIX: Use getLearnerDueCards() which follows cache priority (IndexedDB → API)
+        // This loads instantly from IndexedDB if available, then syncs from API in background
+        // Only use refreshLearnerDueCards() for explicit refreshes (after session complete)
+        const freshCards = await downloadService.getLearnerDueCards(learnerIdAtStart)
+        if (cancelled) return
 
         // Guard: only apply if learner is still active
         const current = useAppStore.getState()
@@ -148,11 +152,18 @@ export default function VerificationPage() {
           return
         }
 
-        setDueCards(freshCards)
-        setDueCardsInStore(freshCards)
-        setIsOffline(false)
+        // Update state with cached or fresh data (may be empty array - that's valid!)
+        // getLearnerDueCards returns undefined if no cache and API fails, [] if API returns empty
+        if (freshCards !== undefined) {
+          setDueCards(freshCards)
+          setDueCardsInStore(freshCards)
+          setIsOffline(false)
+        } else {
+          // No data from cache or API - mark as offline
+          setIsOffline(true)
+        }
       } catch (error) {
-        console.debug('Failed to refresh due cards:', error)
+        console.debug('Failed to load due cards:', error)
         setIsOffline(true)
       } finally {
         if (!cancelled) {
@@ -303,8 +314,10 @@ export default function VerificationPage() {
   const urgentCards = dueCards.filter(c => c.days_overdue > 0)
   const scheduledCards = dueCards.filter(c => c.days_overdue <= 0)
 
-  // Show loading state if refreshing and no cards
-  if (dueCards.length === 0 && isBootstrapped && isFetching) {
+  // Show loading state ONLY if we have no cached data AND are fetching
+  // Don't show spinner if we have cached data (even if empty - that means "no cards due")
+  // The condition !dueCardsFromStore distinguishes between "empty list" vs "no data yet"
+  if (dueCards.length === 0 && isBootstrapped && isFetching && !dueCardsFromStore) {
     return (
       <main className="min-h-screen bg-gray-950 pt-top-nav py-8 px-4">
         <div className="max-w-4xl mx-auto">
@@ -410,7 +423,8 @@ export default function VerificationPage() {
             離線模式 - 無法載入複習清單
           </div>
         )}
-        {isFetching && (
+        {/* Only show loading indicator if we have no data yet (not if we're just syncing in background) */}
+        {isFetching && dueCards.length === 0 && !dueCardsFromStore && (
           <div className="mb-4 flex items-center gap-2 text-gray-400 text-sm">
             <div className="w-4 h-4 border-2 border-gray-500 border-t-cyan-400 rounded-full animate-spin" />
             載入中...

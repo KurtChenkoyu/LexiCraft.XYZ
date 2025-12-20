@@ -33,6 +33,7 @@ from src.mcq_adaptive import (
     select_options_from_pool,
 )
 from src.database.postgres_crud import mcq_stats
+from src.database.postgres_crud.progress import _get_learner_id_for_user
 from src.database.models import MCQPool, VerificationSchedule
 from src.spaced_repetition import (
     get_algorithm_for_user,
@@ -768,16 +769,21 @@ def _map_mcq_to_performance_rating(
 
 # --- Background Task Wrapper (CRITICAL: Must use fresh DB session) ---
 
-def _save_batch_to_db(user_id: UUID, batch_data: List[Dict], total_xp: int):
+def _save_batch_to_db(user_id: UUID, batch_data: List[Dict], total_xp: int, learner_id: Optional[UUID] = None):
     """
     Background task: Save batch answers to DB.
     Runs AFTER response is sent to user.
     """
     from src.database.models import MCQAttempt
+    from src.database.postgres_crud.progress import _get_learner_id_for_user
     
     conn = PostgresConnection()
     db = conn.get_session()
     try:
+        # Resolve learner_id if not provided
+        if learner_id is None:
+            learner_id = _get_learner_id_for_user(db, user_id)
+        
         # 1. Record all attempts
         for item in batch_data:
             db.add(MCQAttempt(
@@ -799,10 +805,10 @@ def _save_batch_to_db(user_id: UUID, batch_data: List[Dict], total_xp: int):
                     WHERE id = :sid AND user_id = :uid
                 """), {'sid': item['schedule_id'], 'uid': user_id, 'passed': item['is_correct']})
         
-        # 2. Award XP
-        if total_xp > 0:
+        # 2. Award XP (using learner_id)
+        if total_xp > 0 and learner_id:
             level_service = LevelService(db)
-            level_service.add_xp(user_id, total_xp, 'review')
+            level_service.add_xp(learner_id, total_xp, 'review')
         
         # 3. Award currencies for correct answers
         correct_count = sum(1 for item in batch_data if item['is_correct'])
@@ -825,7 +831,7 @@ def _save_batch_to_db(user_id: UUID, batch_data: List[Dict], total_xp: int):
         db.close()
 
 
-def _process_background_tasks(user_id: UUID, retry_count: int = 0):
+def _process_background_tasks(user_id: UUID, learner_id: Optional[UUID] = None, retry_count: int = 0):
     """
     Combined background task: Achievement checking + currency recalculation.
     
@@ -835,11 +841,18 @@ def _process_background_tasks(user_id: UUID, retry_count: int = 0):
     
     Args:
         user_id: User ID to process
+        learner_id: Optional learner ID (resolved if not provided)
         retry_count: Internal retry counter (for transient failures)
     """
+    from src.database.postgres_crud.progress import _get_learner_id_for_user
+    
     MAX_RETRIES = 2
     conn = PostgresConnection()  # Uses global engine singleton - safe to instantiate per task
     db = conn.get_session()
+    
+    # Resolve learner_id if not provided
+    if learner_id is None:
+        learner_id = _get_learner_id_for_user(db, user_id)
     try:
         # 1. Check achievements (the slowest part)
         achievement_service = AchievementService(db)
@@ -863,7 +876,7 @@ def _process_background_tasks(user_id: UUID, retry_count: int = 0):
             time.sleep(1)  # Brief delay before retry
             logger.warning(f"Background task failed (attempt {retry_count + 1}/{MAX_RETRIES}), retrying: {e}")
             db.close()
-            _process_background_tasks(user_id, retry_count + 1)
+            _process_background_tasks(user_id, learner_id, retry_count + 1)
         else:
             logger.error(f"Background task failed after {retry_count + 1} attempts: {e}")
     finally:
@@ -888,6 +901,11 @@ async def submit_answer(
     Achievements are processed in background and available via polling endpoint.
     """
     try:
+        # Resolve learner_id for XP awards (learner-scoped XP)
+        learner_id = _get_learner_id_for_user(db, user_id)
+        if not learner_id:
+            logger.warning(f"No learner profile found for user {user_id}, XP awards will be skipped")
+        
         service = MCQAdaptiveService(db)
         level_service = LevelService(db)
         achievement_service = AchievementService(db)
@@ -1008,19 +1026,22 @@ async def submit_answer(
                     'energy_granted': 0,
                 }
         
-        # Legacy XP awarding (for backwards compatibility)
+        # Legacy XP awarding (for backwards compatibility) - now using learner_id
         xp_result = None
-        if xp_to_award > 0:
+        if xp_to_award > 0 and learner_id:
             try:
-                xp_result = level_service.add_xp(user_id, xp_to_award, 'review')
+                xp_result = level_service.add_xp(learner_id, xp_to_award, 'review')
             except Exception as e:
                 logger.error(f"Failed to award XP: {e}")
                 xp_result = None
         
-        # Get current level info (even if no XP awarded)
+        # Get current level info (even if no XP awarded) - now using learner_id
         if xp_result is None:
             try:
-                level_info = level_service.get_level_info(user_id)
+                if learner_id:
+                    level_info = level_service.get_level_info(learner_id)
+                else:
+                    raise ValueError("No learner_id available")
                 xp_result = {
                     'old_level': level_info['level'],
                     'new_level': level_info['level'],
@@ -1178,7 +1199,8 @@ async def submit_answer(
         # Single combined task runs AFTER the response is sent to the user
         background_tasks.add_task(
             _process_background_tasks,
-            user_id  # Only pass user_id, not db session!
+            user_id,  # Only pass user_id, not db session!
+            learner_id  # Pass learner_id for XP awards in background
         )
         
         # Modify feedback to include speed warning if applicable
@@ -1220,6 +1242,10 @@ async def submit_batch_answers(
     """
     import time
     start_time = time.time()
+    
+    # Resolve learner_id for XP awards (learner-scoped XP)
+    learner_id = _get_learner_id_for_user(db, user_id)
+    
     answers = request.answers
     
     if not answers:
@@ -1351,6 +1377,7 @@ async def submit_batch_answers(
         user_id,
         batch_data,
         total_xp_gained,
+        learner_id,  # Pass learner_id for XP awards
     )
     
     elapsed = time.time() - start_time

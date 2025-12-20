@@ -22,6 +22,7 @@ from src.middleware.auth import get_current_user_id
 from src.database.postgres_crud.progress import (
     create_learning_progress,
     get_learning_progress_by_learning_point,
+    _get_learner_id_for_user,
 )
 from src.database.postgres_crud.verification import create_verification_schedule
 from src.services.levels import LevelService
@@ -139,6 +140,11 @@ async def start_verification(
     algorithm (SM-2+ or FSRS) and scheduled for the first review.
     """
     try:
+        # Resolve learner_id for XP awards (learner-scoped XP)
+        learner_id = _get_learner_id_for_user(db, user_id)
+        if not learner_id:
+            logger.warning(f"No learner profile found for user {user_id}, XP awards will be skipped")
+        
         # Initialize services
         level_service = LevelService(db)
         achievement_service = AchievementService(db)
@@ -275,17 +281,21 @@ async def start_verification(
         # Calculate XP with streak multiplier
         xp_to_award = int(BASE_XP_WORD_LEARNED * xp_multiplier)
         
-        # Award XP
+        # Award XP (using learner_id)
         xp_result = None
-        try:
-            xp_result = level_service.add_xp(user_id, xp_to_award, 'word_learned')
-        except Exception as e:
-            logger.error(f"Failed to award XP: {e}")
+        if learner_id:
+            try:
+                xp_result = level_service.add_xp(learner_id, xp_to_award, 'word_learned')
+            except Exception as e:
+                logger.error(f"Failed to award XP: {e}")
         
-        # Get level info if XP award failed
+        # Get level info if XP award failed (using learner_id)
         if xp_result is None:
             try:
-                level_info = level_service.get_level_info(user_id)
+                if learner_id:
+                    level_info = level_service.get_level_info(learner_id)
+                else:
+                    raise ValueError("No learner_id available")
                 xp_result = {
                     'old_level': level_info['level'],
                     'new_level': level_info['level'],

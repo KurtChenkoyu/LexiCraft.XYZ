@@ -13,6 +13,7 @@ from sqlalchemy import text
 
 from ..database.postgres_connection import PostgresConnection
 from ..middleware.auth import get_current_user_id
+from ..database.postgres_crud.progress import _get_learner_id_for_user
 from ..services.achievements import AchievementService
 from ..services.levels import LevelService
 from ..services.learning_velocity import LearningVelocityService
@@ -96,14 +97,44 @@ async def get_learner_profile(
     Returns exciting, achievement-focused data for learners.
     """
     try:
+        # Resolve learner_id for LevelService (which now uses learner-scoped XP)
+        learner_id = _get_learner_id_for_user(db, user_id)
+        
+        # Fallback: try to find ANY learner for this user (parent profile or child)
+        if not learner_id:
+            result = db.execute(
+                text("""
+                    SELECT id FROM public.learners
+                    WHERE user_id = :user_id OR guardian_id = :user_id
+                    ORDER BY is_parent_profile DESC
+                    LIMIT 1
+                """),
+                {'user_id': user_id}
+            )
+            row = result.fetchone()
+            if row:
+                learner_id = row[0]
+        
+        if not learner_id:
+            raise HTTPException(
+                status_code=404, 
+                detail="No learner profile found for this user. Please complete onboarding first."
+            )
+        
         # Initialize services
         level_service = LevelService(db)
         achievement_service = AchievementService(db)
         velocity_service = LearningVelocityService(db)
         vocab_service = VocabularySizeService(db)
         
-        # Get level info
-        level_info = level_service.get_level_info(user_id)
+        # Get level info (using learner_id)
+        try:
+            level_info = level_service.get_level_info(learner_id)
+        except Exception as level_error:
+            # If level service fails, it might be because learner_id doesn't have XP record yet
+            # Try to initialize it
+            level_service._ensure_learner_xp(learner_id)
+            level_info = level_service.get_level_info(learner_id)
         
         # Get vocabulary stats
         vocab_stats = vocab_service.get_vocabulary_stats(user_id)
@@ -134,9 +165,16 @@ async def get_learner_profile(
             unlocked_achievements=unlocked_achievements
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to get learner profile: {str(e)}")
+        import traceback
+        error_detail = str(e)
+        traceback_str = traceback.format_exc()
+        print(f"Error getting learner profile: {error_detail}")
+        print(f"Traceback: {traceback_str}")
+        raise HTTPException(status_code=500, detail=f"Failed to get learner profile: {error_detail}")
 
 
 @router.get("/achievements", response_model=List[AchievementInfo])
@@ -195,14 +233,52 @@ async def get_level_info(
     Returns current level, XP progress, and progress to next level.
     """
     try:
+        # Resolve learner_id for LevelService (which now uses learner-scoped XP)
+        learner_id = _get_learner_id_for_user(db, user_id)
+        
+        # Fallback: try to find ANY learner for this user
+        if not learner_id:
+            result = db.execute(
+                text("""
+                    SELECT id FROM public.learners
+                    WHERE user_id = :user_id OR guardian_id = :user_id
+                    ORDER BY is_parent_profile DESC
+                    LIMIT 1
+                """),
+                {'user_id': user_id}
+            )
+            row = result.fetchone()
+            if row:
+                learner_id = row[0]
+        
+        if not learner_id:
+            raise HTTPException(
+                status_code=404, 
+                detail="No learner profile found for this user. Please complete onboarding first."
+            )
+        
         level_service = LevelService(db)
-        level_info = level_service.get_level_info(user_id)
+        
+        # Try to get level info, initialize if needed
+        try:
+            level_info = level_service.get_level_info(learner_id)
+        except Exception as level_error:
+            # If level service fails, try to initialize XP record
+            level_service._ensure_learner_xp(learner_id)
+            level_info = level_service.get_level_info(learner_id)
         
         return LevelInfo(**level_info)
         
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to get level info: {str(e)}")
+        import traceback
+        error_detail = str(e)
+        traceback_str = traceback.format_exc()
+        print(f"Error getting level info: {error_detail}")
+        print(f"Traceback: {traceback_str}")
+        raise HTTPException(status_code=500, detail=f"Failed to get level info: {error_detail}")
 
 
 @router.get("/streaks", response_model=StreakInfo)

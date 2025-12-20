@@ -72,7 +72,7 @@ interface BootstrapResult {
  * This keeps ALL learners \"alive\" in memory while only projecting one learner
  * into the active view at a time.
  */
-async function buildLearnerSnapshotFromIndexedDB(learnerId: string) {
+export async function buildLearnerSnapshotFromIndexedDB(learnerId: string) {
   if (!learnerId) return
 
   const storeState = useAppStore.getState()
@@ -385,6 +385,39 @@ export async function bootstrapApp(
       }
     }
 
+      // Step 2c: Load Learners Summaries (NEW - learner-scoped XP)
+      // CRITICAL: This must run for ALL users (not just those with children) because it includes the parent's own profile
+      try {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('📊 Bootstrap: Loading learners summaries (learner-scoped)...')
+        }
+        // Force refresh on bootstrap to ensure we get fresh data
+        const learnersSummaries = await downloadService.getLearnersSummaries(true)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📊 Bootstrap: Got ${learnersSummaries?.length || 0} learners summaries from service`)
+      }
+      
+      if (learnersSummaries && learnersSummaries.length > 0) {
+        store.setLearnersSummaries(learnersSummaries)
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✅ Bootstrap: Loaded ${learnersSummaries.length} learners summaries`)
+          // Verify it was set
+          const verify = useAppStore.getState().learnersSummaries
+          console.log(`✅ Bootstrap: Store now has ${verify.length} learners summaries`)
+        }
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ Bootstrap: Learners summaries returned empty array')
+        }
+        store.setLearnersSummaries([])
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Bootstrap: Failed to load learners summaries:', error)
+      }
+      store.setLearnersSummaries([])
+    }
+
     // ============================================
     // Step 2c: Load Learners (Multi-Profile System - NEW)
     // ============================================
@@ -397,7 +430,7 @@ export async function bootstrapApp(
       learners = await Promise.race([
         downloadService.getLearners(),
         new Promise<undefined>((_, reject) =>
-          setTimeout(() => reject(new Error('getLearners timeout')), 10000)
+          setTimeout(() => reject(new Error('getLearners timeout')), 20000)
         )
       ])
     } catch (error) {
@@ -523,7 +556,7 @@ export async function bootstrapApp(
           allLearners.map(learner => 
             Promise.race([
               downloadService.syncProgress(learner.id),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
             ])
             .then(() => {
               // After sync completes, rebuild snapshot from fresh IndexedDB data
@@ -879,7 +912,7 @@ export async function bootstrapApp(
           try {
             const progressData = await Promise.race([
                     progressApi.getUserProgress(currentLearnerId),
-              new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+              new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
             ]) as UserProgressResponse | null
             
             if (progressData?.progress) {
@@ -1294,7 +1327,7 @@ export async function bootstrapApp(
           try {
             const progressData = await Promise.race([
               progressApi.getUserProgress(activeLearnerId),
-              new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+              new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
             ]) as UserProgressResponse | null
             
             if (progressData?.progress) {

@@ -519,6 +519,22 @@ class ChildSummary(BaseModel):
     last_active_date: Optional[str]
 
 
+class LearnerSummary(BaseModel):
+    """Lightweight learner summary with learner-scoped XP and words in progress."""
+    learner_id: str
+    display_name: str
+    avatar_emoji: str
+    is_parent_profile: bool
+    # Summary stats (learner-scoped)
+    level: int
+    total_xp: int
+    current_streak: int
+    vocabulary_size: int
+    words_in_progress: int  # Words with status 'hollow', 'learning', 'pending'
+    words_learned_this_week: int
+    last_active_date: Optional[str]
+
+
 @router.get("/me/children/summary", response_model=List[ChildSummary])
 async def get_children_summary(
     user_id: UUID = Depends(get_current_user_id),
@@ -616,6 +632,167 @@ async def get_children_summary(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to get children summary: {str(e)}")
+    finally:
+        db.close()
+
+
+@router.get("/me/learners/summary", response_model=List[LearnerSummary])
+async def get_learners_summary(
+    user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db_session)
+):
+    """
+    Get lightweight summary of all learners (parent + children) with learner-scoped XP.
+    
+    Returns learner-scoped data including:
+    - Level and XP (learner-scoped, accurate tier-based values)
+    - Words mastered and words in progress
+    - Activity stats (streak, words learned this week)
+    
+    This replaces /me/children/summary for the new multi-profile system.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        logger.info(f"📊 Getting learners summary for user {user_id}")
+        
+        # Get all learners managed by this user (parent + children)
+        result = db.execute(
+            text("""
+                SELECT 
+                    l.id,
+                    l.user_id,
+                    l.guardian_id,
+                    l.display_name,
+                    l.avatar_emoji,
+                    l.is_parent_profile
+                FROM public.learners l
+                WHERE l.guardian_id = :guardian_id
+                ORDER BY l.is_parent_profile DESC, l.display_name ASC
+            """),
+            {"guardian_id": user_id}
+        )
+        
+        learners = []
+        for row in result:
+            learners.append({
+                'id': row.id,
+                'user_id': str(row.user_id) if row.user_id else None,
+                'display_name': row.display_name,
+                'avatar_emoji': row.avatar_emoji or '🦄',
+                'is_parent_profile': row.is_parent_profile,
+            })
+        
+        logger.info(f"📊 Found {len(learners)} learners for guardian {user_id}")
+        if len(learners) == 0:
+            logger.warning(f"⚠️ No learners found for guardian {user_id} - this might indicate a data issue")
+        summaries = []
+        
+        # Import services
+        from ..services.levels import LevelService
+        from ..services.learning_velocity import LearningVelocityService
+        from ..database.postgres_crud.progress import _get_learner_id_for_user
+        
+        for learner in learners:
+            learner_id = learner['id']
+            logger.info(f"📊 Processing learner {learner_id} ({learner['display_name']})")
+            
+            try:
+                # Get level info (learner-scoped)
+                level_service = LevelService(db)
+                level_info = level_service.get_level_info(learner_id)
+                logger.info(f"  ✅ Level: {level_info}")
+                
+                # Get activity summary (need to resolve user_id for legacy service)
+                # Try to get user_id from learner record
+                learner_user_id = None
+                if learner.get('user_id'):
+                    learner_user_id = UUID(learner['user_id'])
+                else:
+                    # For children without user accounts, try to find via guardian relationship
+                    # This is a fallback - ideally all learners should have user_id
+                    logger.warning(f"  ⚠️ Learner {learner_id} has no user_id, skipping activity summary")
+                
+                activity = {
+                    'activity_streak_days': 0,
+                    'words_learned_this_week': 0,
+                    'last_active_date': None
+                }
+                
+                if learner_user_id:
+                    try:
+                        velocity_service = LearningVelocityService(db)
+                        activity = velocity_service.get_activity_summary(learner_user_id)
+                        logger.info(f"  ✅ Activity: {activity}")
+                    except Exception as activity_error:
+                        logger.warning(f"  ⚠️ Failed to get activity for learner {learner_id}: {activity_error}")
+                
+                # Get vocabulary stats (learner-scoped - query directly)
+                vocab_result = db.execute(
+                    text("""
+                        SELECT 
+                            COUNT(CASE WHEN status = 'verified' THEN 1 END) as vocabulary_size,
+                            COUNT(CASE WHEN status IN ('hollow', 'learning', 'pending') THEN 1 END) as words_in_progress
+                        FROM learning_progress
+                        WHERE learner_id = :learner_id
+                    """),
+                    {'learner_id': learner_id}
+                )
+                vocab_row = vocab_result.fetchone()
+                vocabulary_size = vocab_row[0] or 0 if vocab_row else 0
+                words_in_progress = vocab_row[1] or 0 if vocab_row else 0
+                
+                logger.info(f"  ✅ Vocab: size={vocabulary_size}, in_progress={words_in_progress}")
+                
+                summaries.append(LearnerSummary(
+                    learner_id=str(learner_id),
+                    display_name=learner['display_name'],
+                    avatar_emoji=learner['avatar_emoji'],
+                    is_parent_profile=learner['is_parent_profile'],
+                    level=level_info['level'],
+                    total_xp=level_info['total_xp'],
+                    current_streak=activity.get('activity_streak_days', 0),
+                    vocabulary_size=vocabulary_size,
+                    words_in_progress=words_in_progress,
+                    words_learned_this_week=activity.get('words_learned_this_week', 0),
+                    last_active_date=activity.get('last_active_date')
+                ))
+                logger.info(f"  ✅ Added summary for {learner['display_name']}")
+            except Exception as learner_error:
+                logger.error(f"  ❌ Failed to get stats for learner {learner_id}: {learner_error}")
+                import traceback
+                traceback.print_exc()
+                # Rollback the transaction to recover
+                db.rollback()
+                # Add learner with default values (Level 1, no progress)
+                summaries.append(LearnerSummary(
+                    learner_id=str(learner_id),
+                    display_name=learner['display_name'],
+                    avatar_emoji=learner['avatar_emoji'],
+                    is_parent_profile=learner['is_parent_profile'],
+                    level=1,
+                    total_xp=0,
+                    current_streak=0,
+                    vocabulary_size=0,
+                    words_in_progress=0,
+                    words_learned_this_week=0,
+                    last_active_date=None
+                ))
+                logger.info(f"  ⚠️ Added default summary for {learner['display_name']} (new learner with no progress yet)")
+        
+        logger.info(f"✅ Returning {len(summaries)} learner summaries")
+        if len(summaries) > 0:
+            for summary in summaries[:3]:  # Log first 3 for debugging
+                logger.info(f"  📊 {summary.display_name}: Level {summary.level}, {summary.total_xp} XP, {summary.vocabulary_size} words")
+        return summaries
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Learners summary failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to get learners summary: {str(e)}")
     finally:
         db.close()
 

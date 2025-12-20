@@ -155,19 +155,25 @@ class LeaderboardService:
                         ORDER BY score DESC
                         LIMIT :limit
                     """
-                else:  # all_time
+                else:  # all_time - now using learner-scoped XP
                     xp_query = """
                         SELECT 
-                            ux.user_id,
+                            l.id as learner_id,
                             COALESCE(ux.total_xp, 0) as score,
+                            COUNT(CASE WHEN lp.status = 'verified' THEN 1 END) as words_mastered,
+                            COUNT(CASE WHEN lp.status IN ('hollow', 'learning', 'pending') THEN 1 END) as words_in_progress,
                             0 as longest_streak,
                             0 as current_streak,
-                            u.name,
+                            l.display_name as name,
                             u.email
-                        FROM user_xp ux
-                        JOIN auth.users u ON ux.user_id = u.id
-                        WHERE ux.total_xp > 0
-                        ORDER BY ux.total_xp DESC
+                        FROM public.learners l
+                        LEFT JOIN user_xp ux ON ux.learner_id = l.id
+                        LEFT JOIN learning_progress lp ON lp.learner_id = l.id
+                        JOIN auth.users u ON l.user_id = u.id OR l.guardian_id = u.id
+                        WHERE l.id IS NOT NULL
+                        GROUP BY l.id, ux.total_xp, l.display_name, u.email
+                        HAVING COALESCE(ux.total_xp, 0) > 0 OR COUNT(CASE WHEN lp.status = 'verified' THEN 1 END) > 0
+                        ORDER BY score DESC
                         LIMIT :limit
                     """
                 
@@ -181,20 +187,26 @@ class LeaderboardService:
                     except Exception as e:
                         # Query failed (maybe table structure issue), try simpler query
                         if has_user_xp and period == 'all_time':
-                            # Simple fallback for all_time XP
+                            # Simple fallback for all_time XP - now using learner-scoped XP
                             result = self.db.execute(
                                 text("""
                                     SELECT 
-                                        ux.user_id,
+                                        l.id as learner_id,
                                         COALESCE(ux.total_xp, 0) as score,
+                                        COUNT(CASE WHEN lp.status = 'verified' THEN 1 END) as words_mastered,
+                                        COUNT(CASE WHEN lp.status IN ('hollow', 'learning', 'pending') THEN 1 END) as words_in_progress,
                                         0 as longest_streak,
                                         0 as current_streak,
-                                        u.name,
+                                        l.display_name as name,
                                         u.email
-                                    FROM user_xp ux
-                                    JOIN auth.users u ON ux.user_id = u.id
-                                    WHERE ux.total_xp > 0
-                                    ORDER BY ux.total_xp DESC
+                                    FROM public.learners l
+                                    LEFT JOIN user_xp ux ON ux.learner_id = l.id
+                                    LEFT JOIN learning_progress lp ON lp.learner_id = l.id
+                                    JOIN auth.users u ON l.user_id = u.id OR l.guardian_id = u.id
+                                    WHERE l.id IS NOT NULL
+                                    GROUP BY l.id, ux.total_xp, l.display_name, u.email
+                                    HAVING COALESCE(ux.total_xp, 0) > 0 OR COUNT(CASE WHEN lp.status = 'verified' THEN 1 END) > 0
+                                    ORDER BY score DESC
                                     LIMIT :limit
                                 """),
                                 {'limit': limit}
@@ -266,25 +278,49 @@ class LeaderboardService:
         rank = 1
         
         for row in rows:
-            # All queries now return: user_id, score, longest_streak, current_streak, name, email
-            user_id = str(row[0])
-            score = row[1]
-            longest_streak = row[2] if len(row) > 2 else 0
-            current_streak = row[3] if len(row) > 3 else 0
-            
-            # Name and email are in columns 4 and 5 (if present)
-            if len(row) >= 6:
-                name = row[4] or 'Anonymous'
-                email = row[5] if row[5] else None
-            else:
-                # Fallback: fetch user info separately (for XP queries that don't join users)
-                user_result = self.db.execute(
-                    text("SELECT name, email FROM auth.users WHERE id = :user_id"),
-                    {'user_id': user_id}
+            # XP queries (all_time) now return: learner_id, score, words_mastered, words_in_progress, longest_streak, current_streak, name, email
+            # Other queries still return: user_id, score, longest_streak, current_streak, name, email
+            # Check if first column is learner_id (UUID) or user_id by checking row length
+            if len(row) >= 8:
+                # New learner-scoped XP query format
+                learner_id = str(row[0])
+                score = row[1]
+                words_mastered = row[2] if len(row) > 2 else 0
+                words_in_progress = row[3] if len(row) > 3 else 0
+                longest_streak = row[4] if len(row) > 4 else 0
+                current_streak = row[5] if len(row) > 5 else 0
+                name = row[6] or 'Anonymous'  # learner.display_name
+                email = row[7] if len(row) > 7 and row[7] else None
+                
+                # Get user_id from learner for backward compatibility
+                learner_result = self.db.execute(
+                    text("SELECT COALESCE(user_id, guardian_id) FROM public.learners WHERE id = :learner_id"),
+                    {'learner_id': learner_id}
                 )
-                user_row = user_result.fetchone()
-                name = user_row[0] if user_row and user_row[0] else 'Anonymous'
-                email = user_row[1] if user_row and user_row[1] else None
+                user_id_row = learner_result.fetchone()
+                user_id = str(user_id_row[0]) if user_id_row and user_id_row[0] else learner_id
+            else:
+                # Legacy query format (words, streak, or old XP queries)
+                user_id = str(row[0])
+                score = row[1]
+                longest_streak = row[2] if len(row) > 2 else 0
+                current_streak = row[3] if len(row) > 3 else 0
+                words_mastered = 0
+                words_in_progress = 0
+                
+                # Name and email are in columns 4 and 5 (if present)
+                if len(row) >= 6:
+                    name = row[4] or 'Anonymous'
+                    email = row[5] if row[5] else None
+                else:
+                    # Fallback: fetch user info separately
+                    user_result = self.db.execute(
+                        text("SELECT name, email FROM auth.users WHERE id = :user_id"),
+                        {'user_id': user_id}
+                    )
+                    user_row = user_result.fetchone()
+                    name = user_row[0] if user_row and user_row[0] else 'Anonymous'
+                    email = user_row[1] if user_row and user_row[1] else None
             
             leaderboard.append({
                 'rank': rank,
@@ -293,7 +329,9 @@ class LeaderboardService:
                 'email': email,
                 'score': score,
                 'longest_streak': longest_streak,
-                'current_streak': current_streak
+                'current_streak': current_streak,
+                'words_mastered': words_mastered,  # New field for learner-scoped queries
+                'words_in_progress': words_in_progress  # New field for learner-scoped queries
             })
             rank += 1
         

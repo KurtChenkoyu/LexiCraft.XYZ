@@ -49,16 +49,16 @@ class LevelService:
     
     def add_xp(
         self,
-        user_id: UUID,
+        learner_id: UUID,  # CHANGED: was user_id
         amount: int,
         source: str,
         source_id: Optional[UUID] = None
     ) -> Dict:
         """
-        Award XP to a user and check for level-up.
+        Award XP to a learner and check for level-up.
         
         Args:
-            user_id: User ID
+            learner_id: Learner ID (from public.learners)
             amount: XP amount to award
             source: Source of XP ('word_learned', 'streak', 'achievement', etc.)
             source_id: Optional ID of the source (achievement_id, goal_id, etc.)
@@ -66,18 +66,18 @@ class LevelService:
         Returns:
             Dictionary with level info and whether level-up occurred
         """
-        # Initialize user XP if not exists
-        self._ensure_user_xp(user_id)
+        # Initialize learner XP if not exists
+        self._ensure_learner_xp(learner_id)
         
-        # Get current XP
+        # Get current XP (query by learner_id)
         result = self.db.execute(
-            text("SELECT total_xp, current_level FROM user_xp WHERE user_id = :user_id"),
-            {'user_id': user_id}
+            text("SELECT total_xp, current_level FROM user_xp WHERE learner_id = :learner_id"),
+            {'learner_id': learner_id}
         )
         row = result.fetchone()
         
         if not row:
-            raise ValueError(f"User XP record not found for user {user_id}")
+            raise ValueError(f"Learner XP record not found for learner {learner_id}")
         
         old_total_xp = row[0] or 0
         old_level = row[1] or 1
@@ -91,7 +91,7 @@ class LevelService:
         xp_to_next = level_info['xp_to_next']
         xp_in_level = level_info['xp_in_level']
         
-        # Update user_xp
+        # Update user_xp (using learner_id)
         self.db.execute(
             text("""
                 UPDATE user_xp
@@ -100,10 +100,10 @@ class LevelService:
                     xp_to_next_level = :xp_to_next,
                     xp_in_current_level = :xp_in_level,
                     updated_at = NOW()
-                WHERE user_id = :user_id
+                WHERE learner_id = :learner_id
             """),
             {
-                'user_id': user_id,
+                'learner_id': learner_id,
                 'total_xp': new_total_xp,
                 'level': new_level,
                 'xp_to_next': xp_to_next,
@@ -111,25 +111,35 @@ class LevelService:
             }
         )
         
-        # Record in XP history
+        # Record in XP history (using learner_id)
         self.db.execute(
             text("""
-                INSERT INTO xp_history (user_id, xp_amount, source, source_id)
-                VALUES (:user_id, :amount, :source, :source_id)
+                INSERT INTO xp_history (learner_id, xp_amount, source, source_id, earned_at)
+                VALUES (:learner_id, :amount, :source, :source_id, NOW())
             """),
             {
-                'user_id': user_id,
+                'learner_id': learner_id,
                 'amount': amount,
                 'source': source,
                 'source_id': source_id
             }
         )
         
-        # Update leaderboard
-        self.db.execute(
-            text("SELECT update_leaderboard_entry(:user_id)"),
-            {'user_id': user_id}
+        # Update leaderboard (get user_id from learner for backward compatibility)
+        learner_result = self.db.execute(
+            text("""
+                SELECT COALESCE(user_id, guardian_id) 
+                FROM public.learners 
+                WHERE id = :learner_id
+            """),
+            {'learner_id': learner_id}
         )
+        user_id_row = learner_result.fetchone()
+        if user_id_row and user_id_row[0]:
+            self.db.execute(
+                text("SELECT update_leaderboard_entry(:user_id)"),
+                {'user_id': user_id_row[0]}
+            )
         
         self.db.commit()
         
@@ -158,30 +168,50 @@ class LevelService:
             'new_unlocks': new_unlocks  # List of features unlocked by this level up
         }
     
-    def get_level_info(self, user_id: UUID) -> Dict:
+    def get_level_info(self, learner_id: UUID) -> Dict:  # CHANGED: was user_id
         """
-        Get current level information for a user.
+        Get current level information for a learner.
         
         Args:
-            user_id: User ID
+            learner_id: Learner ID
             
         Returns:
             Dictionary with level, XP, and progress info
         """
-        self._ensure_user_xp(user_id)
+        self._ensure_learner_xp(learner_id)
         
         result = self.db.execute(
             text("""
                 SELECT total_xp, current_level, xp_to_next_level, xp_in_current_level
                 FROM user_xp
-                WHERE user_id = :user_id
+                WHERE learner_id = :learner_id
             """),
-            {'user_id': user_id}
+            {'learner_id': learner_id}
         )
         
         row = result.fetchone()
         if not row:
-            raise ValueError(f"User XP record not found for user {user_id}")
+            # If record still doesn't exist after _ensure_learner_xp, something went wrong
+            # Try to create it again and fetch
+            self._ensure_learner_xp(learner_id)
+            result = self.db.execute(
+                text("""
+                    SELECT total_xp, current_level, xp_to_next_level, xp_in_current_level
+                    FROM user_xp
+                    WHERE learner_id = :learner_id
+                """),
+                {'learner_id': learner_id}
+            )
+            row = result.fetchone()
+            if not row:
+                # Still no record - return default values instead of crashing
+                return {
+                    'level': 1,
+                    'total_xp': 0,
+                    'xp_to_next_level': 100,
+                    'xp_in_current_level': 0,
+                    'progress_percentage': 0
+                }
         
         total_xp = row[0] or 0
         level = row[1] or 1
@@ -242,12 +272,12 @@ class LevelService:
             'xp_in_level': remaining_xp
         }
     
-    def get_xp_history(self, user_id: UUID, days: int = 30) -> List[Dict]:
+    def get_xp_history(self, learner_id: UUID, days: int = 30) -> List[Dict]:  # CHANGED: was user_id
         """
         Get XP earning history.
         
         Args:
-            user_id: User ID
+            learner_id: Learner ID
             days: Number of days to look back
             
         Returns:
@@ -257,11 +287,11 @@ class LevelService:
             text("""
                 SELECT xp_amount, source, source_id, earned_at
                 FROM xp_history
-                WHERE user_id = :user_id
+                WHERE learner_id = :learner_id
                 AND earned_at >= NOW() - INTERVAL ':days days'
                 ORDER BY earned_at DESC
             """),
-            {'user_id': user_id, 'days': days}
+            {'learner_id': learner_id, 'days': days}
         )
         
         history = []
@@ -275,12 +305,12 @@ class LevelService:
         
         return history
     
-    def get_xp_summary(self, user_id: UUID, days: int = 30) -> Dict:
+    def get_xp_summary(self, learner_id: UUID, days: int = 30) -> Dict:  # CHANGED: was user_id
         """
         Get XP summary for a period.
         
         Args:
-            user_id: User ID
+            learner_id: Learner ID
             days: Number of days to analyze
             
         Returns:
@@ -294,11 +324,11 @@ class LevelService:
                     source,
                     SUM(xp_amount) FILTER (WHERE source = :source) as source_xp
                 FROM xp_history
-                WHERE user_id = :user_id
+                WHERE learner_id = :learner_id
                 AND earned_at >= NOW() - INTERVAL ':days days'
                 GROUP BY source
             """),
-            {'user_id': user_id, 'days': days, 'source': 'word_learned'}
+            {'learner_id': learner_id, 'days': days, 'source': 'word_learned'}
         )
         
         total_xp = 0
@@ -323,28 +353,94 @@ class LevelService:
         }
     
     def _ensure_user_xp(self, user_id: UUID):
-        """Ensure user has an XP record."""
+        """DEPRECATED: Ensure user has an XP record. Use _ensure_learner_xp instead."""
+        # This method is kept for backward compatibility but should not be used
+        # after migration to learner-scoped XP
         self.db.execute(
             text("SELECT initialize_user_xp(:user_id)"),
             {'user_id': user_id}
         )
         self.db.commit()
+    
+    def _ensure_learner_xp(self, learner_id: UUID):
+        """Ensure learner has an XP record."""
+        # First check if record exists with this learner_id
+        result = self.db.execute(
+            text("SELECT learner_id FROM user_xp WHERE learner_id = :learner_id"),
+            {'learner_id': learner_id}
+        )
+        if result.fetchone():
+            # Record already exists
+            return
+        
+        # Get user_id from learners table (required for user_xp table)
+        learner_result = self.db.execute(
+            text("""
+                SELECT COALESCE(user_id, guardian_id) as user_id
+                FROM public.learners
+                WHERE id = :learner_id
+            """),
+            {'learner_id': learner_id}
+        )
+        learner_row = learner_result.fetchone()
+        if not learner_row or not learner_row[0]:
+            # Can't create XP record without user_id
+            raise ValueError(f"Cannot create XP record for learner {learner_id}: no user_id or guardian_id found")
+        
+        user_id = learner_row[0]
+        
+        # During migration (Part 1 complete, Part 3 not yet run), learner_id is nullable
+        # and primary key is still on user_id. So we can safely insert.
+        # After Part 3, primary key will be on learner_id, so ON CONFLICT will work.
+        try:
+            # Try insert with ON CONFLICT (works after Part 3 migration)
+            self.db.execute(
+                text("""
+                    INSERT INTO user_xp (learner_id, user_id, total_xp, current_level, xp_to_next_level, xp_in_current_level, updated_at)
+                    VALUES (:learner_id, :user_id, 0, 1, 100, 0, NOW())
+                    ON CONFLICT (learner_id) DO NOTHING
+                """),
+                {'learner_id': learner_id, 'user_id': user_id}
+            )
+            self.db.commit()
+        except Exception as e:
+            # If ON CONFLICT fails (before Part 3), try simple insert
+            # This will fail if record already exists, which is fine
+            self.db.rollback()
+            try:
+                self.db.execute(
+                    text("""
+                        INSERT INTO user_xp (learner_id, user_id, total_xp, current_level, xp_to_next_level, xp_in_current_level, updated_at)
+                        VALUES (:learner_id, :user_id, 0, 1, 100, 0, NOW())
+                    """),
+                    {'learner_id': learner_id, 'user_id': user_id}
+                )
+                self.db.commit()
+            except Exception as e2:
+                # Record might already exist, which is fine
+                # But log the error for debugging
+                if "duplicate key" not in str(e2).lower() and "unique constraint" not in str(e2).lower():
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Failed to create XP record for learner {learner_id}: {e2}")
+                self.db.rollback()
+                pass
 
     # ============================================
     # LEVEL UNLOCK METHODS
     # ============================================
     
-    def get_unlocked_features(self, user_id: UUID) -> List[Dict]:
+    def get_unlocked_features(self, learner_id: UUID) -> List[Dict]:  # CHANGED: was user_id
         """
-        Get all features unlocked by user's current level.
+        Get all features unlocked by learner's current level.
         
         Args:
-            user_id: User ID
+            learner_id: Learner ID
             
         Returns:
             List of unlocked features with their details
         """
-        level_info = self.get_level_info(user_id)
+        level_info = self.get_level_info(learner_id)
         user_level = level_info['level']
         
         result = self.db.execute(
@@ -373,20 +469,33 @@ class LevelService:
         
         return unlocks
     
-    def has_unlock(self, user_id: UUID, unlock_code: str) -> bool:
+    def has_unlock(self, learner_id: UUID, unlock_code: str) -> bool:  # CHANGED: was user_id
         """
-        Check if user has unlocked a specific feature.
+        Check if learner has unlocked a specific feature.
         
         Args:
-            user_id: User ID
+            learner_id: Learner ID
             unlock_code: The unlock code to check (e.g., 'tier_3_blocks', 'friend_list')
             
         Returns:
             True if unlocked, False otherwise
         """
+        # Get user_id from learner_id for backward compatibility with database function
+        learner_result = self.db.execute(
+            text("""
+                SELECT COALESCE(user_id, guardian_id) 
+                FROM public.learners 
+                WHERE id = :learner_id
+            """),
+            {'learner_id': learner_id}
+        )
+        user_id_row = learner_result.fetchone()
+        if not user_id_row or not user_id_row[0]:
+            return False
+        
         result = self.db.execute(
             text("SELECT has_unlock(:user_id, :unlock_code)"),
-            {'user_id': user_id, 'unlock_code': unlock_code}
+            {'user_id': user_id_row[0], 'unlock_code': unlock_code}
         )
         return result.scalar() or False
     
@@ -425,17 +534,17 @@ class LevelService:
         
         return unlocks
     
-    def get_next_unlock(self, user_id: UUID) -> Optional[Dict]:
+    def get_next_unlock(self, learner_id: UUID) -> Optional[Dict]:  # CHANGED: was user_id
         """
         Get the next feature that will be unlocked.
         
         Args:
-            user_id: User ID
+            learner_id: Learner ID
             
         Returns:
             Next unlock info or None if all unlocked
         """
-        level_info = self.get_level_info(user_id)
+        level_info = self.get_level_info(learner_id)
         user_level = level_info['level']
         
         result = self.db.execute(
@@ -465,17 +574,17 @@ class LevelService:
             'level': row[7]
         }
     
-    def get_tier_access(self, user_id: UUID) -> List[int]:
+    def get_tier_access(self, learner_id: UUID) -> List[int]:  # CHANGED: was user_id
         """
-        Get list of block tiers accessible to user based on level.
+        Get list of block tiers accessible to learner based on level.
         
         Args:
-            user_id: User ID
+            learner_id: Learner ID
             
         Returns:
             List of accessible tier numbers
         """
-        level_info = self.get_level_info(user_id)
+        level_info = self.get_level_info(learner_id)
         user_level = level_info['level']
         
         # Tier access based on level
@@ -494,16 +603,37 @@ class LevelService:
     # PRESTIGE METHODS
     # ============================================
     
-    def get_prestige_info(self, user_id: UUID) -> Dict:
+    def get_prestige_info(self, learner_id: UUID) -> Dict:  # CHANGED: was user_id
         """
-        Get user's prestige information.
+        Get learner's prestige information.
         
         Args:
-            user_id: User ID
+            learner_id: Learner ID
             
         Returns:
             Prestige level and bonus info
         """
+        # Get user_id from learner_id for backward compatibility
+        learner_result = self.db.execute(
+            text("""
+                SELECT COALESCE(user_id, guardian_id) 
+                FROM public.learners 
+                WHERE id = :learner_id
+            """),
+            {'learner_id': learner_id}
+        )
+        user_id_row = learner_result.fetchone()
+        if not user_id_row or not user_id_row[0]:
+            return {
+                'prestige_level': 0,
+                'total_xp_lifetime': 0,
+                'last_prestige_at': None,
+                'xp_bonus_multiplier': 1.0,
+                'can_prestige': False
+            }
+        
+        user_id = user_id_row[0]
+        
         # Ensure prestige record exists
         self.db.execute(
             text("SELECT initialize_user_prestige(:user_id)"),
@@ -530,7 +660,7 @@ class LevelService:
                 'can_prestige': False
             }
         
-        level_info = self.get_level_info(user_id)
+        level_info = self.get_level_info(learner_id)
         can_prestige = level_info['level'] >= 60 and row[0] < 10
         
         return {
@@ -541,22 +671,22 @@ class LevelService:
             'can_prestige': can_prestige
         }
     
-    def prestige(self, user_id: UUID) -> Dict:
+    def prestige(self, learner_id: UUID) -> Dict:  # CHANGED: was user_id
         """
-        Perform prestige reset for user.
+        Perform prestige reset for learner.
         
         Requirements:
-        - User must be level 60+
+        - Learner must be level 60+
         - Prestige level must be < 10
         
         Args:
-            user_id: User ID
+            learner_id: Learner ID
             
         Returns:
             New prestige info and rewards
         """
-        level_info = self.get_level_info(user_id)
-        prestige_info = self.get_prestige_info(user_id)
+        level_info = self.get_level_info(learner_id)
+        prestige_info = self.get_prestige_info(learner_id)
         
         if level_info['level'] < 60:
             raise ValueError("Must be level 60 or higher to prestige")
@@ -564,10 +694,25 @@ class LevelService:
         if prestige_info['prestige_level'] >= 10:
             raise ValueError("Maximum prestige level (10) reached")
         
+        # Get user_id from learner_id for backward compatibility
+        learner_result = self.db.execute(
+            text("""
+                SELECT COALESCE(user_id, guardian_id) 
+                FROM public.learners 
+                WHERE id = :learner_id
+            """),
+            {'learner_id': learner_id}
+        )
+        user_id_row = learner_result.fetchone()
+        if not user_id_row or not user_id_row[0]:
+            raise ValueError(f"No user_id found for learner {learner_id}")
+        
+        user_id = user_id_row[0]
+        
         new_prestige = prestige_info['prestige_level'] + 1
         new_multiplier = 1.0 + (new_prestige * 0.05)  # +5% per prestige
         
-        # Update prestige
+        # Update prestige (still uses user_id)
         self.db.execute(
             text("""
                 UPDATE user_prestige
@@ -586,7 +731,7 @@ class LevelService:
             }
         )
         
-        # Reset XP to 0 (level 1)
+        # Reset XP to 0 (level 1) - now using learner_id
         self.db.execute(
             text("""
                 UPDATE user_xp
@@ -595,9 +740,9 @@ class LevelService:
                     xp_to_next_level = 100,
                     xp_in_current_level = 0,
                     updated_at = NOW()
-                WHERE user_id = :user_id
+                WHERE learner_id = :learner_id
             """),
-            {'user_id': user_id}
+            {'learner_id': learner_id}
         )
         
         # Award prestige crystals (100 per prestige level)
@@ -630,17 +775,17 @@ class LevelService:
             'total_xp_lifetime': prestige_info['total_xp_lifetime'] + level_info['total_xp']
         }
     
-    def get_xp_multiplier(self, user_id: UUID) -> float:
+    def get_xp_multiplier(self, learner_id: UUID) -> float:  # CHANGED: was user_id
         """
-        Get user's total XP multiplier (from prestige).
+        Get learner's total XP multiplier (from prestige).
         
         Args:
-            user_id: User ID
+            learner_id: Learner ID
             
         Returns:
             XP multiplier (1.0 = no bonus)
         """
-        prestige_info = self.get_prestige_info(user_id)
+        prestige_info = self.get_prestige_info(learner_id)
         return prestige_info.get('xp_bonus_multiplier', 1.0)
 
 

@@ -136,6 +136,21 @@ export interface ChildSummary {
   last_active_date: string | null
 }
 
+export interface LearnerSummary {
+  learner_id: string
+  display_name: string
+  avatar_emoji: string
+  is_parent_profile: boolean
+  // Summary stats (learner-scoped)
+  level: number
+  total_xp: number
+  current_streak: number
+  vocabulary_size: number
+  words_in_progress: number  // Words with status 'hollow', 'learning', 'pending'
+  words_learned_this_week: number
+  last_active_date: string | null
+}
+
 interface Balance {
   total_earned: number
   available_points: number
@@ -192,6 +207,7 @@ interface AppState {
   user: UserProfile | null
   children: Child[]
   childrenSummaries: ChildSummary[]
+  learnersSummaries: LearnerSummary[]  // NEW: Learner-scoped summaries (replaces childrenSummaries for leaderboard)
   selectedChildId: string | null
   
   // Learners (Multi-Profile System - NEW)
@@ -282,6 +298,7 @@ interface AppState {
   setUser: (user: UserProfile | null) => void
   setChildren: (children: Child[]) => void
   setChildrenSummaries: (summaries: ChildSummary[]) => void
+  setLearnersSummaries: (summaries: LearnerSummary[]) => void
   setSelectedChild: (childId: string | null) => void
   
   // Learners Actions (Multi-Profile System)
@@ -391,6 +408,7 @@ export const useAppStore = create<AppState>()(
       user: null,
       children: [],
       childrenSummaries: [],
+      learnersSummaries: [],
       selectedChildId: null,
       learners: [],
       activeLearner: null,
@@ -434,6 +452,8 @@ export const useAppStore = create<AppState>()(
       setChildren: (children) => set({ children }, false, 'setChildren'),
       
       setChildrenSummaries: (summaries) => set({ childrenSummaries: summaries }, false, 'setChildrenSummaries'),
+      
+      setLearnersSummaries: (summaries) => set({ learnersSummaries: summaries }, false, 'setLearnersSummaries'),
       
       setSelectedChild: (childId) => set({ selectedChildId: childId }, false, 'setSelectedChild'),
       
@@ -2027,6 +2047,7 @@ export const useAppStore = create<AppState>()(
             user: null,
             children: [],
             childrenSummaries: [],
+            learnersSummaries: [],
             selectedChildId: null,
             learners: [],
             activeLearner: null,
@@ -2081,6 +2102,7 @@ export const useAppStore = create<AppState>()(
 export const selectUser = (state: AppState) => state.user
 export const selectChildren = (state: AppState) => state.children
 export const selectChildrenSummaries = (state: AppState) => state.childrenSummaries
+export const selectLearnersSummaries = (state: AppState) => state.learnersSummaries
 export const selectSelectedChild = (state: AppState) => 
   state.children.find(c => c.id === state.selectedChildId)
 export const selectBalance = (state: AppState) => state.balance

@@ -45,6 +45,7 @@ const CACHE_KEYS = {
   CHILDREN: 'children',
   CHILDREN_SUMMARIES: 'children_summaries',
   LEARNERS: 'learners',  // Multi-profile system
+  LEARNERS_SUMMARIES: 'learners_summaries',  // Learner-scoped summaries
   BALANCE: 'balance',
   PROGRESS: 'learning_progress',
   LEADERBOARD: 'leaderboard',
@@ -115,6 +116,21 @@ interface ChildSummary {
   last_active_date: string | null
 }
 
+interface LearnerSummary {
+  learner_id: string
+  display_name: string
+  avatar_emoji: string
+  is_parent_profile: boolean
+  // Summary stats (learner-scoped)
+  level: number
+  total_xp: number
+  current_streak: number
+  vocabulary_size: number
+  words_in_progress: number  // Words with status 'hollow', 'learning', 'pending'
+  words_learned_this_week: number
+  last_active_date: string | null
+}
+
 interface Balance {
   total_earned: number
   available_points: number
@@ -174,7 +190,9 @@ class DownloadService {
     const errors: string[] = []
     const tasks = [
       'profile',
+      'learners',
       'children',
+      'learnersSummaries',  // NEW: Learner-scoped summaries
       'learnerProfile',
       'achievements',
       'streaks',
@@ -202,13 +220,13 @@ class DownloadService {
       onProgress?.(progress)
     }
 
-    console.log('📥 Starting background download of all user data...')
+    console.log('📥 Starting background download of all user data (sequential)...')
 
     // Helper: Timeout wrapper for background syncs (5s timeout)
     const downloadWithTimeout = async <T>(
       taskName: string,
       downloadFn: () => Promise<T>,
-      timeoutMs: number = 5000 // 5 seconds for background sync
+      timeoutMs: number = 15000 // 15 seconds for background sync
     ): Promise<T | null> => {
       try {
         const result = await Promise.race([
@@ -228,139 +246,189 @@ class DownloadService {
       }
     }
 
-    // Run all downloads in parallel with error handling and timeouts
-    const downloadTasks = [
-      // 1. User Profile
-      downloadWithTimeout('Profile', () => this.downloadWithCache(
+    // Execute downloads sequentially with priority ordering
+    // Critical data first, then secondary data, then optional data
+    try {
+      // ============================================
+      // TIER 1: Critical Data (Required for app to function)
+      // ============================================
+      
+      // 1. User Profile (required for auth/role detection)
+      await downloadWithTimeout('Profile', () => this.downloadWithCache(
         CACHE_KEYS.PROFILE,
         () => authenticatedGet<UserProfile>('/api/users/me'),
         CACHE_TTL.MEDIUM
-      )).then(() => updateProgress('profile'))
-        .catch(e => updateProgress('profile', `Profile: ${e.message}`)),
+      ))
+      updateProgress('profile')
 
-      // 2. Children
-      downloadWithTimeout('Children', () => this.downloadWithCache(
-        CACHE_KEYS.CHILDREN,
-        () => authenticatedGet<Child[]>('/api/users/me/children').catch(() => []),
-        CACHE_TTL.MEDIUM
-      )).then(() => updateProgress('children'))
-        .catch(e => updateProgress('children', `Children: ${e.message}`)),
-
-      // 2b. Learners (Multi-Profile System - NEW)
-      downloadWithTimeout('Learners', () => this.downloadWithCache(
+      // 2. Learners (Multi-Profile System - required for learner context)
+      await downloadWithTimeout('Learners', () => this.downloadWithCache(
         CACHE_KEYS.LEARNERS,
         () => authenticatedGet<LearnerProfile[]>('/api/users/me/learners').catch(() => []),
         CACHE_TTL.MEDIUM
-      )).then(() => updateProgress('learners'))
-        .catch(e => updateProgress('learners', `Learners: ${e.message}`)),
+      ))
+      updateProgress('learners')
 
-      // 3. Learner Profile (gamification)
-      downloadWithTimeout('Learner Profile', () => this.downloadWithCache(
+      // 3. Children (legacy support, but still needed)
+      await downloadWithTimeout('Children', () => this.downloadWithCache(
+        CACHE_KEYS.CHILDREN,
+        () => authenticatedGet<Child[]>('/api/users/me/children').catch(() => []),
+        CACHE_TTL.MEDIUM
+      ))
+      updateProgress('children')
+
+      // 3b. Learners Summaries (NEW - Learner-scoped XP for leaderboard)
+      await downloadWithTimeout('Learners Summaries', async () => {
+        // Force refresh during background sync to ensure we get latest data
+        const summaries = await this.getLearnersSummaries(true)
+        // Update Zustand store if summaries were fetched (even if empty, to clear stale data)
+        const { useAppStore } = await import('@/stores/useAppStore')
+        if (summaries) {
+          useAppStore.getState().setLearnersSummaries(summaries)
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`✅ Background sync: Updated ${summaries.length} learners summaries in store`)
+            if (summaries.length > 0) {
+              console.log('📊 Background sync: Sample summary:', {
+                learner_id: summaries[0].learner_id,
+                display_name: summaries[0].display_name,
+                total_xp: summaries[0].total_xp,
+                level: summaries[0].level
+              })
+            } else {
+              console.warn('⚠️ Background sync: Received empty learners summaries array')
+            }
+          }
+        } else {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('⚠️ Background sync: getLearnersSummaries returned null/undefined')
+          }
+          useAppStore.getState().setLearnersSummaries([])  // Clear store if API failed
+        }
+        return summaries
+      })
+      updateProgress('learnersSummaries')  // CRITICAL: Must call updateProgress to log completion
+
+      // ============================================
+      // TIER 2: Learner-Specific Data (Required for learner experience)
+      // ============================================
+      
+      // 4. Learner Profile (gamification)
+      await downloadWithTimeout('Learner Profile', () => this.downloadWithCache(
         CACHE_KEYS.LEARNER_PROFILE,
         () => learnerProfileApi.getProfile(),
         CACHE_TTL.SHORT
-      )).then(() => updateProgress('learnerProfile'))
-        .catch(e => updateProgress('learnerProfile', `Learner Profile: ${e.message}`)),
+      ))
+      updateProgress('learnerProfile')
 
-      // 4. Achievements
-      downloadWithTimeout('Achievements', () => this.downloadWithCache(
+      // 5. Learning Progress (critical for Mine page)
+      // CRITICAL: Download progress for multiple learners SEQUENTIALLY (not parallel)
+      // This prevents request storm and database lock issues
+      try {
+        // Try to get learners from cache first (should be available from step 2)
+        const learners = await this.getCached<LearnerProfile[]>(CACHE_KEYS.LEARNERS)
+        
+        if (learners && learners.length > 0) {
+          // Download progress for all learners sequentially (prevents request storm)
+          for (const learner of learners) {
+            await downloadWithTimeout(`Progress-${learner.id}`, () => 
+              this.downloadProgress(learner.id), 
+              30000 // 30s timeout for progress (larger dataset)
+            )
+          }
+          
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`📥 Background sync: Downloaded progress for ${learners.length} learners sequentially`)
+          }
+        } else {
+          // Fallback: Try to get active learner from store
+          try {
+            const { useAppStore } = await import('@/stores/useAppStore')
+            const activeLearner = useAppStore.getState().activeLearner
+            if (activeLearner?.id) {
+              await downloadWithTimeout(`Progress-${activeLearner.id}`, () => 
+                this.downloadProgress(activeLearner.id), 
+                30000
+              )
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`📥 Background sync: Downloaded progress for active learner ${activeLearner.id}`)
+              }
+            }
+          } catch (storeErr) {
+            // Store not available - silently skip
+            if (process.env.NODE_ENV === 'development') {
+              console.debug('Background sync: Could not access store for active learner')
+            }
+          }
+        }
+      } catch (error) {
+        // Don't throw - progress download is non-critical for background sync
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('Background sync: Progress download failed (non-critical):', error)
+        }
+      }
+      updateProgress('progress')
+
+      // ============================================
+      // TIER 3: Secondary Data (Enhances experience but not critical)
+      // ============================================
+      
+      // 6. Achievements
+      await downloadWithTimeout('Achievements', () => this.downloadWithCache(
         CACHE_KEYS.ACHIEVEMENTS,
         () => learnerProfileApi.getAchievements(),
         CACHE_TTL.MEDIUM
-      )).then(() => updateProgress('achievements'))
-        .catch(e => updateProgress('achievements', `Achievements: ${e.message}`)),
+      ))
+      updateProgress('achievements')
 
-      // 5. Streaks
-      downloadWithTimeout('Streaks', () => this.downloadWithCache(
+      // 7. Streaks
+      await downloadWithTimeout('Streaks', () => this.downloadWithCache(
         CACHE_KEYS.STREAKS,
         () => learnerProfileApi.getStreaks(),
         CACHE_TTL.SHORT
-      )).then(() => updateProgress('streaks'))
-        .catch(e => updateProgress('streaks', `Streaks: ${e.message}`)),
+      ))
+      updateProgress('streaks')
 
-      // 6. Goals
-      downloadWithTimeout('Goals', () => this.downloadWithCache(
+      // 8. Goals
+      await downloadWithTimeout('Goals', () => this.downloadWithCache(
         CACHE_KEYS.GOALS,
         () => goalsApi.getGoals().catch(() => []),
         CACHE_TTL.MEDIUM
-      )).then(() => updateProgress('goals'))
-        .catch(e => updateProgress('goals', `Goals: ${e.message}`)),
+      ))
+      updateProgress('goals')
 
-      // 7. Notifications
-      downloadWithTimeout('Notifications', () => this.downloadWithCache(
+      // 9. Notifications
+      await downloadWithTimeout('Notifications', () => this.downloadWithCache(
         CACHE_KEYS.NOTIFICATIONS,
         () => notificationsApi.getNotifications(false, 50).catch(() => []),
         CACHE_TTL.SHORT
-      )).then(() => updateProgress('notifications'))
-        .catch(e => updateProgress('notifications', `Notifications: ${e.message}`)),
+      ))
+      updateProgress('notifications')
 
-      // 8. Learning Progress
-      // Download progress for all learners (fallback if Bootstrap failed)
-      downloadWithTimeout('Progress', async () => {
-        try {
-          // Try to get learners from cache first (should be available from step 2b)
-          const learners = await this.getCached<LearnerProfile[]>(CACHE_KEYS.LEARNERS)
-          
-          if (learners && learners.length > 0) {
-            // Download progress for all learners in parallel (with individual timeouts)
-            const progressPromises = learners.map(learner => 
-              downloadWithTimeout(`Progress-${learner.id}`, () => this.downloadProgress(learner.id), 10000) // Increased from 3000ms to allow slower API responses
-            )
-            
-            await Promise.allSettled(progressPromises)
-            
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`📥 Background sync: Attempted progress download for ${learners.length} learners`)
-            }
-          } else {
-            // Fallback: Try to get active learner from store (if available)
-            // This is a last resort if learners cache is empty
-            try {
-              const { useAppStore } = await import('@/stores/useAppStore')
-              const activeLearner = useAppStore.getState().activeLearner
-              if (activeLearner?.id) {
-                await this.downloadProgress(activeLearner.id)
-                if (process.env.NODE_ENV === 'development') {
-                  console.log(`📥 Background sync: Downloaded progress for active learner ${activeLearner.id}`)
-                }
-              }
-            } catch (storeErr) {
-              // Store not available - silently skip
-              if (process.env.NODE_ENV === 'development') {
-                console.debug('Background sync: Could not access store for active learner')
-              }
-            }
-          }
-          
-          return true
-        } catch (error) {
-          // Don't throw - progress download is non-critical for background sync
-          if (process.env.NODE_ENV === 'development') {
-            console.debug('Background sync: Progress download failed (non-critical):', error)
-          }
-          return true
-        }
-      }).then(() => updateProgress('progress'))
-        .catch(e => updateProgress('progress', `Progress: ${e.message}`)),
-
-      // 9. Leaderboard (weekly XP - default view)
-      downloadWithTimeout('Leaderboard', () => this.downloadWithCache(
+      // ============================================
+      // TIER 4: Optional Data (Nice to have, can fail silently)
+      // ============================================
+      
+      // 10. Leaderboard (weekly XP - default view)
+      await downloadWithTimeout('Leaderboard', () => this.downloadWithCache(
         CACHE_KEYS.LEADERBOARD,
         () => leaderboardsApi.getGlobal('weekly', 50, 'xp').catch(() => []),
         CACHE_TTL.SHORT
-      )).then(() => updateProgress('leaderboard'))
-        .catch(e => updateProgress('leaderboard', `Leaderboard: ${e.message}`)),
+      ))
+      updateProgress('leaderboard')
 
-      // 10. Due Cards for verification
-      downloadWithTimeout('Due Cards', () => this.downloadWithCache(
+      // 11. Due Cards for verification
+      await downloadWithTimeout('Due Cards', () => this.downloadWithCache(
         CACHE_KEYS.DUE_CARDS,
         () => authenticatedGet<DueCard[]>('/api/v1/verification/due?limit=50').catch(() => []),
         CACHE_TTL.SHORT
-      )).then(() => updateProgress('dueCards'))
-        .catch(e => updateProgress('dueCards', `Due Cards: ${e.message}`)),
-    ]
+      ))
+      updateProgress('dueCards')
 
-    await Promise.allSettled(downloadTasks)
+    } catch (error: any) {
+      // If a critical task fails, log but continue with remaining tasks
+      console.error('❌ Critical download task failed:', error)
+      errors.push(`Critical error: ${error.message}`)
+    }
 
     this.isDownloading = false
     this.lastSyncTime = Date.now()
@@ -528,7 +596,9 @@ class DownloadService {
                 // Update learnerCache snapshot
                 const currentCache = freshState.learnerCache[learnerId]
                 if (currentCache) {
-                  store.setState((s) => ({
+                  // ✅ FIX: Call setState on the hook itself, not the state object
+                  // store is from getState() which doesn't have setState
+                  useAppStore.setState((s) => ({
                     learnerCache: {
                       ...s.learnerCache,
                       [learnerId]: {
@@ -653,7 +723,7 @@ class DownloadService {
       const learners = await Promise.race([
         authenticatedGet<LearnerProfile[]>('/api/users/me/learners'),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('timeout of 10000ms exceeded')), 10000)
+          setTimeout(() => reject(new Error('timeout of 20000ms exceeded')), 20000)
         )
       ])
       
@@ -1033,6 +1103,55 @@ class DownloadService {
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         console.error('❌ Failed to fetch children summaries:', error)
+      }
+      return []
+    }
+  }
+
+  /**
+   * Get learners summaries (learner-scoped XP) from cache, with API fallback
+   * 
+   * This replaces getChildrenSummaries() for the new multi-profile system.
+   * Returns learner-scoped data including accurate tier-based XP and words_in_progress.
+   */
+  async getLearnersSummaries(forceRefresh: boolean = false): Promise<LearnerSummary[] | undefined> {
+    // Try cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = await this.getCached<LearnerSummary[]>(CACHE_KEYS.LEARNERS_SUMMARIES)
+      if (cached && cached.length > 0) {
+        console.log(`⚡ Loaded ${cached.length} learners summaries from cache`)
+        return cached
+      }
+    } else {
+      console.log('🔄 Force refresh: Skipping cache for learners summaries')
+    }
+    
+    // Cache miss or empty or force refresh - fetch from API
+    console.log('📡 Learners summaries not in cache (or force refresh), fetching from API...')
+    try {
+      const summaries = await authenticatedGet<LearnerSummary[]>('/api/users/me/learners/summary')
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📡 API Response:', summaries)
+      }
+      if (summaries) {
+        await localStore.setCache(CACHE_KEYS.LEARNERS_SUMMARIES, summaries, CACHE_TTL.SHORT)
+        console.log(`✅ Learners summaries fetched and cached (${summaries.length} learners)`)
+        if (summaries.length > 0 && process.env.NODE_ENV === 'development') {
+          console.log('📊 Sample summary:', {
+            learner_id: summaries[0].learner_id,
+            display_name: summaries[0].display_name,
+            total_xp: summaries[0].total_xp,
+            level: summaries[0].level
+          })
+        }
+      } else {
+        console.warn('⚠️ API returned null/undefined for learners summaries')
+      }
+      return summaries
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ Failed to fetch learners summaries:', error)
+        console.error('❌ Error details:', error)
       }
       return []
     }

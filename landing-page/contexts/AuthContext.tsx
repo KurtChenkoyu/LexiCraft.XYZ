@@ -65,6 +65,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     // Clear API client cache to ensure fresh tokens on next login
     clearClientCache()
+    
+    // CRITICAL: Reset Zustand state (clears isBootstrapped flag AND learnerCache)
+    try {
+      const { useAppStore } = await import('@/stores/useAppStore')
+      const store = useAppStore.getState()
+      store.reset() // Sets isBootstrapped: false, clears learnerCache: {}, and all other state
+      
+      // Also clear IndexedDB (Tier 1 cache)
+      const { downloadService } = await import('@/services/downloadService')
+      await downloadService.clearAll()
+    } catch (error) {
+      console.error('Failed to reset app state on logout:', error)
+      // Continue with logout even if reset fails
+    }
+    
     await supabase.auth.signOut()
     router.push('/')
   }
