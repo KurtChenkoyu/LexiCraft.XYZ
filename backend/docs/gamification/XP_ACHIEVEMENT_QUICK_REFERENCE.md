@@ -9,25 +9,55 @@
 - XP history tracking
 - Goal completion XP (50 XP)
 
+### ✅ What's Working
+- Verification step XP (10 XP per correct answer)
+- Tier-based mastery XP (when words are verified)
+- Achievement & goal XP
+
+### ⏳ Partial Implementation
+- Word learned XP (15 XP) - May overlap with verification step XP
+- Tier values need updating (Tier 4 currently 1000 XP, should be 300 XP)
+
 ### ❌ Critical Gaps
-- **NO automatic XP** for word learning (should be 10 XP)
-- **NO automatic XP** for reviews (should be 15 XP)
-- **NO automatic XP** for streaks (should be 5 XP/day)
+- **NO XP for words in progress** (should be 5 XP)
+- **NO automatic XP for streaks** (should be 5 XP/day)
 - **NO automatic achievement checking** after actions
 - **NO immediate feedback** when XP is earned
 
 ---
 
-## XP Rewards (Defined but Not Auto-Triggered)
+## XP Rewards (Dual System: Effort + Mastery)
+
+### Effort-Based XP (Participation Rewards)
 
 | Source | XP Amount | Status |
 |--------|-----------|--------|
-| Word Learned | 10 XP | ❌ Not triggered |
-| Streak Day | 5 XP | ❌ Not triggered |
-| Review Completed | 15 XP | ❌ Not triggered |
-| Daily Review | 20 XP | ❌ Not triggered |
+| Correct answer in verification | 10 XP | ✅ Implemented |
+| Word enters "in progress" | 5 XP | ⏳ To Implement |
+| Streak Day | 5 XP | ⏳ To Implement |
+| Review session started | 5 XP | ⏳ Future |
+
+### Mastery-Based XP (Tier-Based Rewards)
+
+| Tier | Type | Base XP | Status |
+|------|------|--------|--------|
+| 1 | Basic Block | 100 XP | ✅ Implemented |
+| 2 | Multi-Block | 120 XP | 🔄 Needs Update |
+| 3 | Phrase Block | 200 XP | 🔄 Needs Update |
+| 4 | Idiom Block | 300 XP | 🔄 Needs Update (currently 1000) |
+| 5 | Pattern Block | 150 XP | 🔄 Needs Update |
+| 6 | Register Block | 200 XP | 🔄 Needs Update |
+| 7 | Context Block | 250 XP | 🔄 Needs Update |
+
+### Activity-Based XP
+
+| Source | XP Amount | Status |
+|--------|-----------|--------|
+| Daily Review Completed | 20 XP | ⏳ To Implement |
 | Achievement Unlocked | 25-500 XP | ✅ Working |
 | Goal Completed | 50 XP | ✅ Working |
+
+**See:** `XP_SYSTEM_DESIGN.md` for complete specification
 
 ---
 
@@ -147,6 +177,6 @@
 
 ---
 
-**Last Updated**: January 2025  
+**Last Updated**: December 20th, 2025  
 **Full Analysis**: See `XP_ACHIEVEMENT_SYSTEM_ANALYSIS.md`
 

@@ -24,15 +24,16 @@ class LevelService:
         'daily_review': 20
     }
     
-    # Tier-based base XP values
+    # Tier-based base XP values (Frequency-Aligned Design)
+    # Logic: Flattened curve. Idioms are advanced (3x), not legendary (10x).
     TIER_BASE_XP = {
-        1: 100,   # Basic Block
-        2: 250,   # Multi-Block
-        3: 500,   # Phrase Block
-        4: 1000,  # Idiom Block
-        5: 300,   # Pattern Block
-        6: 400,   # Register Block
-        7: 750,   # Context Block
+        1: 100,   # Basic Block (High Freq - Baseline)
+        2: 120,   # Multi-Block (High Freq - Variant)
+        3: 200,   # Phrase Block (Mid Freq - Combinatorial)
+        4: 300,   # Idiom Block (Low Freq - Abstract)
+        5: 150,   # Pattern Block (Mid Freq - Structural)
+        6: 200,   # Register Block (Mid Freq - Social)
+        7: 250,   # Context Block (Low Freq - Nuance)
     }
     
     # Connection bonus XP per connection type

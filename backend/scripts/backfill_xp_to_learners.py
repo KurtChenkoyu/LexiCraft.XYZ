@@ -29,8 +29,9 @@ def backfill_xp_to_learners():
     Strategy:
         1. Wipe existing XP data (it's "polluted" with shared XP)
         2. For each learner with progress:
-            - Query all verified/mastered words
-            - Calculate XP using LevelService.TIER_BASE_XP
+            - Query ALL words (in progress + verified)
+            - Award 5 XP for words in progress (effort reward)
+            - Award tier-based XP for verified words (mastery reward)
             - Insert into xp_history with learner_id
             - Update user_xp for that learner_id
     """
@@ -80,7 +81,10 @@ def backfill_xp_to_learners():
             
             user_id = learner_info[0]
             
-            # Get all verified/mastered words for this learner
+            # Constants (per design documentation)
+            BASE_XP_WORD_IN_PROGRESS = 5  # Effort reward for words in progress
+            
+            # Get ALL words for this learner (in progress + verified)
             progress_result = db.execute(
                 text("""
                     SELECT 
@@ -91,7 +95,6 @@ def backfill_xp_to_learners():
                         lp.user_id
                     FROM learning_progress lp
                     WHERE lp.learner_id = :learner_id
-                    AND lp.status IN ('verified', 'mastered', 'solid')
                     ORDER BY lp.learned_at ASC
                 """),
                 {'learner_id': learner_id}
@@ -99,6 +102,8 @@ def backfill_xp_to_learners():
             
             total_xp = 0
             xp_entries = []
+            words_in_progress_count = 0
+            words_verified_count = 0
             
             for row in progress_result.fetchall():
                 sense_id = row[0]
@@ -107,20 +112,33 @@ def backfill_xp_to_learners():
                 learned_at = row[3]
                 progress_user_id = row[4] or user_id  # Use progress user_id if available, fallback to learner's user_id
                 
-                # Calculate XP using LevelService constants (single source of truth)
-                base_xp = level_service.TIER_BASE_XP.get(tier, 100)  # Default to 100 if tier unknown
+                # Determine XP amount based on status (dual XP system: effort vs mastery)
+                if status in ('pending', 'hollow', 'learning'):
+                    # Effort-based XP: Reward engagement, not just mastery
+                    xp_amount = BASE_XP_WORD_IN_PROGRESS
+                    source = 'word_in_progress'
+                    words_in_progress_count += 1
+                elif status in ('verified', 'mastered', 'solid'):
+                    # Mastery-based XP: Tier-based reward for verified words
+                    base_xp = level_service.TIER_BASE_XP.get(tier, 100)  # Default to 100 if tier unknown
+                    xp_amount = base_xp
+                    source = 'word_learned'
+                    words_verified_count += 1
+                else:
+                    # Unknown status - skip or log warning
+                    logger.warning(f"  ⚠️ Unknown status '{status}' for word {sense_id}, skipping")
+                    continue
                 
-                # For now, use base XP (can add connection bonuses later if needed)
-                xp_amount = base_xp
                 total_xp += xp_amount
                 
                 # Record in xp_history (include user_id for NOT NULL constraint)
+                # Note: source_id is UUID type, but learning_point_id is a string, so we set it to NULL
                 xp_entries.append({
                     'learner_id': learner_id,
                     'user_id': progress_user_id,  # Required for NOT NULL constraint
                     'xp_amount': xp_amount,
-                    'source': 'word_learned',
-                    'source_id': None,  # Could store sense_id if needed
+                    'source': source,
+                    'source_id': None,  # learning_point_id is not a UUID, so we can't store it here
                     'earned_at': learned_at
                 })
             
@@ -183,7 +201,7 @@ def backfill_xp_to_learners():
                         }
                     )
                 
-                logger.info(f"  ✅ Learner {learner_id}: {len(xp_entries)} words, {total_xp} XP, Level {level_info['level']}")
+                logger.info(f"  ✅ Learner {learner_id}: {len(xp_entries)} words ({words_in_progress_count} in progress, {words_verified_count} verified), {total_xp} XP, Level {level_info['level']}")
             
             db.commit()
         

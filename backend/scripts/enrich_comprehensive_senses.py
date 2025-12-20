@@ -374,8 +374,8 @@ class ComprehensiveEnricher:
         sense['enriched'] = True
         
         # Recalculate value (connections may have changed)
-        # Import the calculation function inline
-        TIER_BASE_XP = {1: 100, 2: 250, 3: 500, 4: 1000, 5: 300, 6: 400, 7: 750}
+        # Import the calculation function inline (Frequency-Aligned Design)
+        TIER_BASE_XP = {1: 100, 2: 120, 3: 200, 4: 300, 5: 150, 6: 200, 7: 250}
         CONNECTION_BONUSES = {
             'related': 10, 'opposite': 10, 'phrases': 20, 'idioms': 30, 'morphological': 10,
             'synonyms': 10, 'antonyms': 10, 'similar_words': 10,

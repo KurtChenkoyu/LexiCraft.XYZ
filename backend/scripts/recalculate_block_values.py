@@ -27,15 +27,15 @@ from typing import Dict, List, Tuple
 from datetime import datetime
 from collections import defaultdict
 
-# Tier-based base XP (from LevelService)
+# Tier-based base XP (from LevelService - Frequency-Aligned Design)
 TIER_BASE_XP = {
-    1: 100,   # Basic Block
-    2: 250,   # Multi-Block
-    3: 500,   # Phrase Block
-    4: 1000,  # Idiom Block
-    5: 300,   # Pattern Block
-    6: 400,   # Register Block
-    7: 750,   # Context Block
+    1: 100,   # Basic Block (High Freq - Baseline)
+    2: 120,   # Multi-Block (High Freq - Variant)
+    3: 200,   # Phrase Block (Mid Freq - Combinatorial)
+    4: 300,   # Idiom Block (Low Freq - Abstract)
+    5: 150,   # Pattern Block (Mid Freq - Structural)
+    6: 200,   # Register Block (Mid Freq - Social)
+    7: 250,   # Context Block (Low Freq - Nuance)
 }
 
 # Connection bonuses by type

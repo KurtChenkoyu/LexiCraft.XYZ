@@ -37,15 +37,15 @@ MOE_FILE = Path(__file__).parent.parent.parent / "data" / "source" / "moe_7000.c
 VOCAB_FILE = Path(__file__).parent.parent / "data" / "vocabulary.json"
 OUTPUT_FILE = Path(__file__).parent.parent / "data" / "vocabulary_comprehensive.json"
 
-# Tier-based base XP (from recalculate_block_values.py)
+# Tier-based base XP (from recalculate_block_values.py - Frequency-Aligned Design)
 TIER_BASE_XP = {
-    1: 100,   # Basic Block
-    2: 250,   # Multi-Block
-    3: 500,   # Phrase Block
-    4: 1000,  # Idiom Block
-    5: 300,   # Pattern Block
-    6: 400,   # Register Block
-    7: 750,   # Context Block
+    1: 100,   # Basic Block (High Freq - Baseline)
+    2: 120,   # Multi-Block (High Freq - Variant)
+    3: 200,   # Phrase Block (Mid Freq - Combinatorial)
+    4: 300,   # Idiom Block (Low Freq - Abstract)
+    5: 150,   # Pattern Block (Mid Freq - Structural)
+    6: 200,   # Register Block (Mid Freq - Social)
+    7: 250,   # Context Block (Low Freq - Nuance)
 }
 
 # Connection bonuses by type
