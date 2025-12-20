@@ -421,7 +421,7 @@ export function EmojiMCQSession({
               </h2>
               {/* Speaker button */}
               <button
-                onClick={() => audioService.playWord(currentMCQ.question.text, 'emoji')}
+                onClick={() => audioService.playWord(currentMCQ.question.text || '', 'emoji')}
                 className="p-2 rounded-full bg-slate-700 hover:bg-slate-600 text-cyan-400 transition-colors"
                 aria-label="Play pronunciation"
               >
