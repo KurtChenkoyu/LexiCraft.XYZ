@@ -530,7 +530,7 @@ export default function MinePage() {
           // Convert Map to BlockProgress array format
           // Note: getAllProgress returns Map<senseId, status>, we need to get full details
           const progressData: BlockProgress[] = []
-          for (const [senseId, status] of localProgressMap.entries()) {
+          for (const [senseId, status] of Array.from(localProgressMap.entries())) {
             // Try to get full progress details if available
             const fullProgress = activeLearner?.id 
               ? await localStore.getProgress(activeLearner.id, senseId)
