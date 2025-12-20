@@ -262,6 +262,7 @@ interface AppState {
     id: string           // 'emoji_core'
     name: string         // 'Core Emoji'
     word_count: number
+    emoji?: string       // Pack icon: '🎯'
   } | null
   
   // Emoji Pack Data (preloaded for instant rendering)
@@ -358,7 +359,7 @@ interface AppState {
   
   // Leaderboard Page Actions
   setLeaderboardData: (data: { entries: any[], userRank: any | null, period: string, metric: string }) => void
-  setActivePack: (pack: { id: string, name: string, word_count: number } | null) => void
+  setActivePack: (pack: { id: string, name: string, word_count: number, emoji?: string } | null) => void
 
   // Emoji Pack Data Actions
   setEmojiVocabulary: (vocab: PackVocabularyItem[]) => void

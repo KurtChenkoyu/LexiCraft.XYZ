@@ -539,11 +539,10 @@ class VocabularyStore {
       sense_id: senseId,
       word: sense.word,
       pos: sense.pos || undefined,
-      tier: 1,
       base_xp: 100,
       connection_count: connections.length,
       total_value: 100 + connections.length * 10,
-      rank: sense.frequency_rank ?? undefined,
+      rank: sense.frequency_rank ?? 4,  // Default to rank 4 if not set (word complexity 1-7)
       definition_en: sense.definition_en || '',
       definition_zh: definitionZh,
       example_en: sense.example_en || '',

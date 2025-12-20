@@ -59,7 +59,8 @@ export function PackSelector({ onPackChange }: PackSelectorProps) {
           setActivePack({
             id: emojiPack.id,
             name: emojiPack.name,
-            word_count: emojiPack.word_count
+            word_count: emojiPack.word_count,
+            emoji: emojiPack.emoji
           })
           // Trigger the pack change callback to load emoji vocab
           onPackChange?.(emojiPack.id)
@@ -73,6 +74,7 @@ export function PackSelector({ onPackChange }: PackSelectorProps) {
     setActivePack({
       id: pack.id,
       name: pack.name,
+      emoji: pack.emoji,
       word_count: pack.word_count
     })
     setIsOpen(false)

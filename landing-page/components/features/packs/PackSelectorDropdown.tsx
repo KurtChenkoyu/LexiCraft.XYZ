@@ -93,7 +93,8 @@ export function PackSelectorDropdown({ onClose }: PackSelectorDropdownProps) {
     setActivePack({
       id: pack.id,
       name: pack.name_zh || pack.name,
-      word_count: pack.word_count
+      word_count: pack.word_count,
+      emoji: pack.emoji
     })
     
     // 5. Mark mine data as not loaded (forces reload)

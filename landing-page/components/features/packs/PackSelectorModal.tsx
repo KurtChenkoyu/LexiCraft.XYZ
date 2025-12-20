@@ -60,7 +60,12 @@ export function PackSelectorModal({ onClose }: PackSelectorModalProps) {
   }, [])
   
   const handleSelectPack = (pack: VocabularyPack) => {
-    setActivePack(pack)
+    setActivePack({
+      id: pack.id,
+      name: pack.name_zh || pack.name,
+      word_count: pack.word_count,
+      emoji: pack.emoji
+    })
     setMineDataLoaded(false)
     onClose()
   }

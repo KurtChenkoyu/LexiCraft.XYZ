@@ -61,13 +61,12 @@ async function loadOrGenerateStarterPack(skipCheck = false, backendProgress?: an
           sense_id: detail.sense_id,
           word: detail.word,
           definition_preview: (detail.definition_en || '').slice(0, 100),
-          rank: detail.rank || detail.tier,  // Use rank (new) or fallback to tier (legacy)
+          rank: detail.rank,  // Use rank (word complexity 1-7)
           base_xp: detail.base_xp,
           connection_count: detail.connection_count,
           total_value: detail.total_value,
           status: p.status === 'verified' || p.status === 'mastered' ? 'solid' : 
                   p.status === 'pending' || p.status === 'learning' ? 'hollow' : 'raw',
-          rank: detail.rank,
         })
         addedSenseIds.add(p.sense_id)
       }
@@ -111,12 +110,11 @@ async function loadOrGenerateStarterPack(skipCheck = false, backendProgress?: an
             sense_id: detail.sense_id,
             word: detail.word,
             definition_preview: (detail.definition_en || '').slice(0, 100),
-            rank: detail.rank || detail.tier,  // Use rank (new) or fallback to tier (legacy)
+            rank: detail.rank,  // Use rank (word complexity 1-7)
             base_xp: detail.base_xp,
             connection_count: detail.connection_count,
             total_value: detail.total_value,
             status: 'raw',
-            rank: detail.rank,
           })
         }
       }
@@ -233,7 +231,6 @@ export default function MinePage() {
             connection_count: 0,
             total_value: 100,
             status: 'raw' as const,
-            rank: item.difficulty,
             emoji: item.emoji,
           }))
           setLocalBlocks(emojiBlocks)
@@ -384,7 +381,7 @@ export default function MinePage() {
               status = 'hollow'
             }
             await localStore.saveProgress(p.sense_id, status, {
-              rank: p.rank || p.tier,  // Use rank (new) or fallback to tier (legacy)
+              tier: p.tier,  // BlockProgress uses tier (backend API)
               startedAt: p.started_at,
               masteryLevel: p.mastery_level,
             })
@@ -409,7 +406,7 @@ export default function MinePage() {
               backendProgress.push({
                 sense_id: senseId,
                 status: status as 'raw' | 'hollow' | 'solid' | 'mastered',
-                rank: fullProgress?.rank || fullProgress?.tier,  // Use rank (new) or fallback to tier (legacy)
+                tier: fullProgress?.tier,  // Local store uses tier
                 started_at: fullProgress?.startedAt?.toString(),
                 mastery_level: fullProgress?.masteryLevel,
               })
