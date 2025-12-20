@@ -277,7 +277,7 @@ export function SearchModal({
         }
       }
       
-      groupedResults.push(...phraseResults.values())
+      groupedResults.push(...Array.from(phraseResults.values()))
     }
 
     return groupedResults
