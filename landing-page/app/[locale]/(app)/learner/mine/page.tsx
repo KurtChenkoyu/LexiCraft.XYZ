@@ -373,19 +373,21 @@ export default function MinePage() {
           if (isDev) console.log('🔄 Fetched backend progress:', backendProgress.length, 'items')
           
           // Save progress to IndexedDB in background (don't block)
-          Promise.all(backendProgress.map(async (p: any) => {
-            let status: 'raw' | 'hollow' | 'solid' = 'raw'
-            if (p.status === 'verified' || p.status === 'mastered' || p.status === 'solid') {
-              status = 'solid'
-            } else if (p.status === 'pending' || p.status === 'learning' || p.status === 'hollow') {
-              status = 'hollow'
-            }
-            await localStore.saveProgress(p.sense_id, status, {
-              tier: p.tier,  // BlockProgress uses tier (backend API)
-              startedAt: p.started_at,
-              masteryLevel: p.mastery_level,
-            })
-          })).catch(err => console.warn('Failed to save progress:', err))
+          if (activeLearner?.id) {
+            Promise.all(backendProgress.map(async (p: any) => {
+              let status: 'raw' | 'hollow' | 'solid' = 'raw'
+              if (p.status === 'verified' || p.status === 'mastered' || p.status === 'solid') {
+                status = 'solid'
+              } else if (p.status === 'pending' || p.status === 'learning' || p.status === 'hollow') {
+                status = 'hollow'
+              }
+              await localStore.saveProgress(activeLearner.id, p.sense_id, status, {
+                tier: p.tier,  // BlockProgress uses tier (backend API)
+                startedAt: p.started_at,
+                masteryLevel: p.mastery_level,
+              })
+            })).catch(err => console.warn('Failed to save progress:', err))
+          }
         }
       } catch (err) {
         if (isDev) console.warn('⚠️ Could not fetch backend progress (timeout or error):', err)
