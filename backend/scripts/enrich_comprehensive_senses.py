@@ -375,14 +375,15 @@ class ComprehensiveEnricher:
         
         # Recalculate value (connections may have changed)
         # Import the calculation function inline (Frequency-Aligned Design)
-        TIER_BASE_XP = {1: 100, 2: 120, 3: 200, 4: 300, 5: 150, 6: 200, 7: 250}
+        # Note: "Rank" = Word complexity (1-7), distinct from cache "Tiers"
+        RANK_BASE_XP = {1: 100, 2: 120, 3: 200, 4: 300, 5: 150, 6: 200, 7: 250}
         CONNECTION_BONUSES = {
             'related': 10, 'opposite': 10, 'phrases': 20, 'idioms': 30, 'morphological': 10,
             'synonyms': 10, 'antonyms': 10, 'similar_words': 10,
         }
         
         tier = sense.get('tier', 1)
-        base_xp = TIER_BASE_XP.get(tier, 100)
+        base_xp = RANK_BASE_XP.get(tier, 100)  # Using RANK_BASE_XP, variable name is tier
         connections = sense.get('connections', {})
         
         connection_bonus = 0

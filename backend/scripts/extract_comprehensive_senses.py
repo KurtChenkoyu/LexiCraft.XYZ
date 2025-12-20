@@ -37,8 +37,9 @@ MOE_FILE = Path(__file__).parent.parent.parent / "data" / "source" / "moe_7000.c
 VOCAB_FILE = Path(__file__).parent.parent / "data" / "vocabulary.json"
 OUTPUT_FILE = Path(__file__).parent.parent / "data" / "vocabulary_comprehensive.json"
 
-# Tier-based base XP (from recalculate_block_values.py - Frequency-Aligned Design)
-TIER_BASE_XP = {
+# Rank-based base XP (from recalculate_block_values.py - Frequency-Aligned Design)
+# Note: "Rank" = Word complexity (1-7), distinct from cache "Tiers"
+RANK_BASE_XP = {
     1: 100,   # Basic Block (High Freq - Baseline)
     2: 120,   # Multi-Block (High Freq - Variant)
     3: 200,   # Phrase Block (Mid Freq - Combinatorial)
@@ -127,7 +128,7 @@ def calculate_tier_for_new_sense(
 
 def calculate_value_for_sense(tier: int, connections: Dict) -> Dict[str, int]:
     """Calculate value using existing formula from recalculate_block_values.py"""
-    base_xp = TIER_BASE_XP.get(tier, 100)
+    base_xp = RANK_BASE_XP.get(tier, 100)
     
     # Count connections (handle both old and new formats)
     connection_bonus = 0

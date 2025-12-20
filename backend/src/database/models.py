@@ -116,7 +116,7 @@ class LearningProgress(Base, BaseModel):
     learner_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # References public.learners.id
     learning_point_id = Column(Text, nullable=False)  # References Neo4j learning_point.id
     learned_at = Column(DateTime, default=func.now(), nullable=False, index=True)
-    tier = Column(Integer, nullable=False)
+    rank = Column(Integer, nullable=False)  # Renamed from tier to rank (word complexity 1-7)
     status = Column(Text, default='learning', nullable=False, index=True)  # 'learning', 'pending', 'verified', 'failed'
     
     # Relationships
@@ -202,7 +202,7 @@ class PointsTransaction(Base, BaseModel):
     transaction_type = Column(Text, nullable=False, index=True)  # 'earned', 'unlocked', 'withdrawn', 'deficit', 'bonus'
     bonus_type = Column(Text)  # 'relationship_discovery', 'pattern_recognition', etc.
     points = Column(Integer, nullable=False)
-    tier = Column(Integer)
+    rank = Column(Integer)  # Renamed from tier to rank (word complexity 1-7)
     description = Column(Text)
     created_at = Column(DateTime, default=func.now(), nullable=False, index=True)
     

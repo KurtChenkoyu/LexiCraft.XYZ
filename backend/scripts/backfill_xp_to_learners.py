@@ -31,7 +31,7 @@ def backfill_xp_to_learners():
         2. For each learner with progress:
             - Query ALL words (in progress + verified)
             - Award 5 XP for words in progress (effort reward)
-            - Award tier-based XP for verified words (mastery reward)
+            - Award rank-based XP for verified words (mastery reward)
             - Insert into xp_history with learner_id
             - Update user_xp for that learner_id
     """
@@ -89,7 +89,7 @@ def backfill_xp_to_learners():
                 text("""
                     SELECT 
                         lp.learning_point_id,
-                        lp.tier,
+                        lp.rank,
                         lp.status,
                         lp.learned_at,
                         lp.user_id
@@ -107,7 +107,7 @@ def backfill_xp_to_learners():
             
             for row in progress_result.fetchall():
                 sense_id = row[0]
-                tier = row[1]
+                rank = row[1]  # Changed from tier to rank
                 status = row[2]
                 learned_at = row[3]
                 progress_user_id = row[4] or user_id  # Use progress user_id if available, fallback to learner's user_id
@@ -119,8 +119,8 @@ def backfill_xp_to_learners():
                     source = 'word_in_progress'
                     words_in_progress_count += 1
                 elif status in ('verified', 'mastered', 'solid'):
-                    # Mastery-based XP: Tier-based reward for verified words
-                    base_xp = level_service.TIER_BASE_XP.get(tier, 100)  # Default to 100 if tier unknown
+                    # Mastery-based XP: Rank-based reward for verified words
+                    base_xp = level_service.RANK_BASE_XP.get(rank, 100)  # Default to 100 if rank unknown
                     xp_amount = base_xp
                     source = 'word_learned'
                     words_verified_count += 1

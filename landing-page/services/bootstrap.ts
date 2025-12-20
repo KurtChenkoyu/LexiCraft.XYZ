@@ -826,7 +826,7 @@ export async function bootstrapApp(
           sense_id: item.sense_id,
           word: item.word,
           definition_preview: item.definition_zh,
-          tier: item.difficulty,
+          rank: item.difficulty,  // Changed from tier to rank
           base_xp: 10 * item.difficulty,
           connection_count: 0,
           total_value: 100,
@@ -865,7 +865,7 @@ export async function bootstrapApp(
                   sense_id: item.sense_id,
                   word: item.word,
                   definition_preview: item.definition_zh,
-                  tier: item.difficulty,
+                  rank: item.difficulty,  // Changed from tier to rank
                   base_xp: 10 * item.difficulty,
                   connection_count: 0,
                   total_value: 100,
@@ -993,7 +993,7 @@ export async function bootstrapApp(
                 sense_id: detail.sense_id,
                 word: detail.word,
                 definition_preview: (detail.definition_en || '').slice(0, 100),
-                tier: detail.tier,
+                rank: detail.rank || detail.tier,  // Use rank (new) or fallback to tier (legacy API)
                 base_xp: detail.base_xp,
                 connection_count: detail.connection_count,
                 total_value: detail.total_value,
@@ -1037,7 +1037,7 @@ export async function bootstrapApp(
                 sense_id: detail.sense_id,
                 word: detail.word,
                 definition_preview: (detail.definition_en || '').slice(0, 100),
-                tier: detail.tier,
+                rank: detail.rank || detail.tier,  // Use rank (new) or fallback to tier (legacy API)
                 base_xp: detail.base_xp,
                 connection_count: detail.connection_count,
                 total_value: detail.total_value,
@@ -1241,7 +1241,7 @@ export async function bootstrapApp(
                 sense_id: item.sense_id,
                 word: item.word,
                 definition_preview: item.definition_zh,
-                tier: item.difficulty,
+                rank: item.difficulty,  // Changed from tier to rank
                 base_xp: 10 * item.difficulty,
                 connection_count: 0,
                 total_value: 100,
@@ -1280,7 +1280,7 @@ export async function bootstrapApp(
               sense_id: item.sense_id,
               word: item.word,
               definition_preview: item.definition_zh,
-              tier: item.difficulty,
+              rank: item.difficulty,  // Changed from tier to rank
               base_xp: 10 * item.difficulty,
               connection_count: 0,
               total_value: 100,
@@ -1408,7 +1408,7 @@ export async function bootstrapApp(
                 sense_id: detail.sense_id,
                 word: detail.word,
                 definition_preview: (detail.definition_en || '').slice(0, 100),
-                tier: detail.tier,
+                rank: detail.rank || detail.tier,  // Use rank (new) or fallback to tier (legacy API)
                 base_xp: detail.base_xp,
                 connection_count: detail.connection_count,
                 total_value: detail.total_value,
@@ -1452,7 +1452,7 @@ export async function bootstrapApp(
                 sense_id: detail.sense_id,
                 word: detail.word,
                 definition_preview: (detail.definition_en || '').slice(0, 100),
-                tier: detail.tier,
+                rank: detail.rank || detail.tier,  // Use rank (new) or fallback to tier (legacy API)
                 base_xp: detail.base_xp,
                 connection_count: detail.connection_count,
                 total_value: detail.total_value,

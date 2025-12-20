@@ -15,12 +15,11 @@ export interface Block {
   sense_id: string
   word: string
   definition_preview: string
-  tier: number
+  rank: number  // Renamed from tier to rank (word complexity 1-7)
   base_xp: number
   connection_count: number
   total_value: number
   status: 'raw' | 'hollow' | 'solid'
-  rank?: number
   source?: string
   emoji?: string  // For emoji pack vocabulary
 }
@@ -36,11 +35,10 @@ export interface BlockDetail {
   sense_id: string
   word: string
   pos?: string  // Part of speech (n, v, adj, adv, etc.)
-  tier: number
+  rank: number  // Renamed from tier to rank (word complexity 1-7)
   base_xp: number
   connection_count: number
   total_value: number
-  rank?: number
   definition_en?: string
   definition_zh?: string
   example_en?: string
@@ -49,7 +47,7 @@ export interface BlockDetail {
   other_senses?: OtherSense[]  // Other meanings of the same word
   user_progress?: {
     status?: string
-    tier?: number
+    rank?: number  // Renamed from tier to rank
     started_at?: string
     mastery_level?: string
   }

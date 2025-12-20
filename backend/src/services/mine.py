@@ -161,7 +161,7 @@ class MineService:
                             COALESCE(s.definition_en, s.definition, '') as definition_preview,
                             COALESCE(s.definition_zh_translation, s.definition_zh, '') as definition_zh,
                             w.frequency_rank as rank,
-                            1 as tier,
+                            1 as rank,  # Changed from tier to rank
                             'gap' as source
                         LIMIT $limit
                     """
@@ -195,7 +195,7 @@ class MineService:
                             COALESCE(related_sense.definition_en, related_sense.definition, '') as definition_preview,
                             COALESCE(related_sense.definition_zh_translation, related_sense.definition_zh, '') as definition_zh,
                             related_word.frequency_rank as rank,
-                            1 as tier,
+                            1 as rank,  # Changed from tier to rank
                             'prerequisite' as source
                         LIMIT $remaining
                     """
@@ -232,7 +232,7 @@ class MineService:
                             COALESCE(connected_sense.definition_en, connected_sense.definition, '') as definition_preview,
                             COALESCE(connected_sense.definition_zh_translation, connected_sense.definition_zh, '') as definition_zh,
                             connected_word.frequency_rank as rank,
-                            1 as tier,
+                            1 as rank,  # Changed from tier to rank
                             type(r) as source
                         LIMIT $remaining
                     """
@@ -346,19 +346,19 @@ class MineService:
             traceback.print_exc()
             raise ValueError(f"Failed to get block detail: {str(e)}")
     
-    def calculate_block_value(self, sense_id: str, tier: int, connection_count: int) -> int:
+    def calculate_block_value(self, sense_id: str, tier: int, connection_count: int) -> int:  # Parameter name kept as tier for backward compatibility
         """
         Calculate dynamic block value (base XP + connection bonus).
         
         Args:
             sense_id: Neo4j Sense.id (for future connection querying)
-            tier: Block tier (1-7)
+            tier: Block rank (1-7) - parameter name kept as tier for backward compatibility
             connection_count: Number of connections
             
         Returns:
             Total XP value
         """
-        base_xp = self.level_service.TIER_BASE_XP.get(tier, 100)
+        base_xp = self.level_service.RANK_BASE_XP.get(tier, 100)  # Using RANK_BASE_XP, parameter name is tier
         
         # Connection bonus (average 10 XP per connection)
         connection_bonus = connection_count * 10
@@ -520,8 +520,8 @@ class MineService:
             # Note: connection_count not calculated yet for list views (performance)
             # Will be calculated when viewing block detail
             connection_count = block.get('connection_count', 0)
-            tier = block.get('tier', 1)
-            base_xp = self.level_service.TIER_BASE_XP.get(tier, 100)
+            rank = block.get('rank', block.get('tier', 1))  # Support both rank (new) and tier (legacy)
+            base_xp = self.level_service.RANK_BASE_XP.get(rank, 100)
             block['base_xp'] = base_xp
             block['connection_count'] = connection_count
             # For now, use base_xp as total_value (connection bonus calculated on detail view)
@@ -543,7 +543,7 @@ class MineService:
         Args:
             user_id: User ID
             sense_ids: List of sense IDs that were mined
-            tier: Tier for all blocks (default 1)
+            tier: Rank for all blocks (default 1) - parameter name kept as tier for backward compatibility
             
         Returns:
             Dictionary with:

@@ -34,7 +34,7 @@ export interface VocabularySense {
   enriched?: boolean
   frequency_rank?: number | null
   cefr?: string
-  tier?: number
+  rank?: number  // Renamed from tier to rank (word complexity 1-7)
   validated?: boolean
   connections?: {
     // OLD (kept from WordNet)
@@ -569,7 +569,7 @@ class VocabularyStore {
       sense_id: id,
       word: sense.word,
       definition_preview: (sense.definition_en || sense.definition_zh || '').slice(0, 100),
-      tier: sense.tier || 1,
+      rank: sense.rank || sense.tier || 1,  // Use rank (new) or fallback to tier (legacy)
       base_xp: baseXp,
       connection_count: connectionCount,
       total_value: totalValue,

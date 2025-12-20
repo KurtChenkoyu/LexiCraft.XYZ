@@ -24,9 +24,10 @@ class LevelService:
         'daily_review': 20
     }
     
-    # Tier-based base XP values (Frequency-Aligned Design)
+    # Rank-based base XP values (Frequency-Aligned Design)
     # Logic: Flattened curve. Idioms are advanced (3x), not legendary (10x).
-    TIER_BASE_XP = {
+    # Note: "Rank" = Word complexity (1-7), distinct from cache "Tiers" (Tier 1-3)
+    RANK_BASE_XP = {
         1: 100,   # Basic Block (High Freq - Baseline)
         2: 120,   # Multi-Block (High Freq - Variant)
         3: 200,   # Phrase Block (Mid Freq - Combinatorial)
@@ -575,30 +576,30 @@ class LevelService:
             'level': row[7]
         }
     
-    def get_tier_access(self, learner_id: UUID) -> List[int]:  # CHANGED: was user_id
+    def get_rank_access(self, learner_id: UUID) -> List[int]:  # CHANGED: was user_id, renamed from get_tier_access
         """
-        Get list of block tiers accessible to learner based on level.
+        Get list of word ranks accessible to learner based on level.
         
         Args:
             learner_id: Learner ID
             
         Returns:
-            List of accessible tier numbers
+            List of accessible rank numbers (1-7)
         """
         level_info = self.get_level_info(learner_id)
         user_level = level_info['level']
         
-        # Tier access based on level
-        accessible_tiers = [1, 2]  # Always accessible
+        # Rank access based on level
+        accessible_ranks = [1, 2]  # Always accessible
         
         if user_level >= 5:
-            accessible_tiers.append(3)  # Phrases
+            accessible_ranks.append(3)  # Phrases
         if user_level >= 10:
-            accessible_tiers.append(4)  # Idioms
+            accessible_ranks.append(4)  # Idioms
         if user_level >= 15:
-            accessible_tiers.extend([5, 6, 7])  # Patterns, Register, Context
+            accessible_ranks.extend([5, 6, 7])  # Patterns, Register, Context
         
-        return accessible_tiers
+        return accessible_ranks
     
     # ============================================
     # PRESTIGE METHODS

@@ -94,7 +94,7 @@ class DueCardResponse(BaseModel):
     word: Optional[str] = None
     scheduled_date: str
     days_overdue: int
-    mastery_level: str = "learning"  # Derived from learning_progress.status or tier
+    mastery_level: str = "learning"  # Derived from learning_progress.status or rank
     retention_predicted: Optional[float] = None  # Not available without FSRS columns
 
 
@@ -318,7 +318,7 @@ async def get_due_cards(
                         lp.learning_point_id,
                         vs.scheduled_date,
                         lp.status,
-                        lp.tier
+                        lp.rank
                     FROM verification_schedule vs
                     JOIN learning_progress lp ON lp.id = vs.learning_progress_id
                     WHERE lp.learner_id = :learner_id
@@ -339,7 +339,7 @@ async def get_due_cards(
                         lp.learning_point_id,
                         vs.scheduled_date,
                         lp.status,
-                        lp.tier
+                        lp.rank
                     FROM verification_schedule vs
                     JOIN learning_progress lp ON lp.id = vs.learning_progress_id
                     WHERE vs.user_id = :user_id
@@ -356,14 +356,14 @@ async def get_due_cards(
             scheduled = row[3]
             days_overdue = (today - scheduled).days if scheduled else 0
             
-            # Derive mastery_level from status or tier
+            # Derive mastery_level from status or rank
             status = row[4] or 'learning'
-            tier = row[5] or 0
-            if status == 'mastered' or tier >= 5:
+            rank = row[5] or 0  # Changed from tier to rank
+            if status == 'mastered' or rank >= 5:
                 mastery = 'mastered'
-            elif status == 'known' or tier >= 3:
+            elif status == 'known' or rank >= 3:
                 mastery = 'known'
-            elif tier >= 1:
+            elif rank >= 1:
                 mastery = 'familiar'
             else:
                 mastery = 'learning'

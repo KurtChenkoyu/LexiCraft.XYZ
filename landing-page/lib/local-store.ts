@@ -563,7 +563,7 @@ export const localStore = {
         learnerId,
         senseId: item.sense_id,
         status,
-        tier: item.tier,
+        rank: item.rank || item.tier,  // Use rank (new) or fallback to tier (legacy)
         masteryLevel: item.mastery_level,
         startedAt,
         updatedAt,

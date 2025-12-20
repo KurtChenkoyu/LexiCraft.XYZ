@@ -148,7 +148,7 @@ export const EmojiWordCard = memo(function EmojiWordCard({ block, onClick }: Emo
   const addToQueue = useAppStore((state) => state.addToQueue)
   const removeFromQueue = useAppStore((state) => state.removeFromQueue)
 
-  const bgColor = difficultyColors[block.tier] || 'bg-slate-100 hover:bg-slate-200'
+  const bgColor = difficultyColors[block.rank] || 'bg-slate-100 hover:bg-slate-200'  // Changed from tier to rank
   const xpValue = block.total_value || 100
 
   const handleQueueToggle = (e: React.MouseEvent) => {

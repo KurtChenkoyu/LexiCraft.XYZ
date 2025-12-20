@@ -184,7 +184,7 @@ interface VocabularyWord {
   sense_id: string
   word: string
   definition: string
-  tier: number
+  rank: number  // Renamed from tier to rank (word complexity 1-7)
   status?: 'raw' | 'hollow' | 'solid'
 }
 

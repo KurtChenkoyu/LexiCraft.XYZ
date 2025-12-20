@@ -43,7 +43,7 @@ export class VocabularyDatabase extends Dexie {
     
     // Version 1: Fresh start with metadata table for version tracking
     this.version(1).stores({
-      senses: 'id, word, frequency_rank, cefr, tier, [word+pos]',
+      senses: 'id, word, frequency_rank, cefr, rank, [word+pos]',  // Changed from tier to rank
       metadata: 'key'
     })
   }

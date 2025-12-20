@@ -7,7 +7,7 @@ Verifies and recalculates all block values in vocabulary.json based on:
 - Connection counts (with type-specific bonuses)
 
 Formula:
-  base_xp = TIER_BASE_XP[tier]
+  base_xp = RANK_BASE_XP[tier]
   connection_bonus = (related * 10) + (opposite * 10) + (phrases * 20) + (idioms * 30) + (morphological * 10)
   total_xp = base_xp + connection_bonus
 
@@ -27,8 +27,9 @@ from typing import Dict, List, Tuple
 from datetime import datetime
 from collections import defaultdict
 
-# Tier-based base XP (from LevelService - Frequency-Aligned Design)
-TIER_BASE_XP = {
+# Rank-based base XP (from LevelService - Frequency-Aligned Design)
+# Note: "Rank" = Word complexity (1-7), distinct from cache "Tiers"
+RANK_BASE_XP = {
     1: 100,   # Basic Block (High Freq - Baseline)
     2: 120,   # Multi-Block (High Freq - Variant)
     3: 200,   # Phrase Block (Mid Freq - Combinatorial)
@@ -63,7 +64,7 @@ def calculate_block_value(
         Tuple of (base_xp, connection_bonus, total_xp)
     """
     # Get base XP from tier
-    base_xp = TIER_BASE_XP.get(tier, 100)
+    base_xp = RANK_BASE_XP.get(tier, 100)
     
     # Calculate connection bonus
     connection_bonus = 0

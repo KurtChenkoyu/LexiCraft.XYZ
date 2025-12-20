@@ -69,7 +69,7 @@ export interface StartVerificationResponse {
 
 export interface StartVerificationRequest {
   learning_point_id: string
-  tier: number
+  tier: number  // Parameter name kept as tier for API compatibility, but represents word rank
   initial_difficulty?: number
 }
 

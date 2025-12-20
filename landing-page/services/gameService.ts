@@ -32,12 +32,12 @@ interface MineBatchResponse {
  * If it fails, we show a toast but don't revert the UI (eventual consistency).
  * 
  * @param senseIds - Array of sense IDs to mine
- * @param tier - Tier level (default 1)
+ * @param tier - Rank level (default 1) - parameter name kept as tier for API compatibility
  * @returns Promise with mining result
  */
 export async function mineBatch(
   senseIds: string[],
-  tier: number = 1
+  tier: number = 1  // Parameter name kept as tier for API compatibility, but represents word rank
 ): Promise<MineBatchResponse> {
   try {
     const response = await authenticatedPost<MineBatchResponse>(

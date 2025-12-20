@@ -32,7 +32,7 @@ export function BlockCard({ block, onClick }: BlockCardProps) {
   }
 
   const getTierBadge = () => {
-    const stars = '⭐'.repeat(Math.min(block.tier, 4))
+    const stars = '⭐'.repeat(Math.min(block.rank, 4))  // Changed from tier to rank
     return stars
   }
 

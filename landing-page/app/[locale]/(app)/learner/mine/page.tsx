@@ -61,7 +61,7 @@ async function loadOrGenerateStarterPack(skipCheck = false, backendProgress?: an
           sense_id: detail.sense_id,
           word: detail.word,
           definition_preview: (detail.definition_en || '').slice(0, 100),
-          tier: detail.tier,
+          rank: detail.rank || detail.tier,  // Use rank (new) or fallback to tier (legacy)
           base_xp: detail.base_xp,
           connection_count: detail.connection_count,
           total_value: detail.total_value,
@@ -111,7 +111,7 @@ async function loadOrGenerateStarterPack(skipCheck = false, backendProgress?: an
             sense_id: detail.sense_id,
             word: detail.word,
             definition_preview: (detail.definition_en || '').slice(0, 100),
-            tier: detail.tier,
+            rank: detail.rank || detail.tier,  // Use rank (new) or fallback to tier (legacy)
             base_xp: detail.base_xp,
             connection_count: detail.connection_count,
             total_value: detail.total_value,
@@ -228,7 +228,7 @@ export default function MinePage() {
             sense_id: item.sense_id,
             word: item.word,
             definition_preview: item.definition_zh,
-            tier: item.difficulty,
+            rank: item.difficulty,  // Changed from tier to rank
             base_xp: 10 * item.difficulty,
             connection_count: 0,
             total_value: 100,
@@ -384,7 +384,7 @@ export default function MinePage() {
               status = 'hollow'
             }
             await localStore.saveProgress(p.sense_id, status, {
-              tier: p.tier,
+              rank: p.rank || p.tier,  // Use rank (new) or fallback to tier (legacy)
               startedAt: p.started_at,
               masteryLevel: p.mastery_level,
             })
@@ -409,7 +409,7 @@ export default function MinePage() {
               backendProgress.push({
                 sense_id: senseId,
                 status: status as 'raw' | 'hollow' | 'solid' | 'mastered',
-                tier: fullProgress?.tier,
+                rank: fullProgress?.rank || fullProgress?.tier,  // Use rank (new) or fallback to tier (legacy)
                 started_at: fullProgress?.startedAt?.toString(),
                 mastery_level: fullProgress?.masteryLevel,
               })
@@ -840,7 +840,7 @@ export default function MinePage() {
       sense_id: selectedEmojiWord.sense_id,
       word: selectedEmojiWord.word,
       definition_preview: selectedEmojiWord.definition_zh,
-      tier: selectedEmojiWord.difficulty,
+      tier: selectedEmojiWord.difficulty,  // Parameter name kept as tier for API compatibility
       base_xp: 10 * selectedEmojiWord.difficulty,
       connection_count: 0,
       total_value: 100,

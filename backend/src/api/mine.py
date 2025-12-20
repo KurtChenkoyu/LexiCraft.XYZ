@@ -221,7 +221,7 @@ async def get_user_progress(
                     SELECT 
                         lp.learning_point_id as sense_id,
                         lp.status,
-                        lp.tier,
+                        lp.rank,
                         lp.learned_at as started_at,
                         COALESCE(vs.mastery_level, 'learning') as mastery_level
                     FROM learning_progress lp
@@ -242,7 +242,7 @@ async def get_user_progress(
                         SELECT 
                             lp.learning_point_id as sense_id,
                             lp.status,
-                            lp.tier,
+                            lp.rank,
                             lp.learned_at as started_at,
                             COALESCE(vs.mastery_level, 'learning') as mastery_level
                         FROM learning_progress lp
@@ -270,7 +270,7 @@ async def get_user_progress(
                     SELECT 
                         lp.learning_point_id as sense_id,
                         lp.status,
-                        lp.tier,
+                        lp.rank,
                         lp.learned_at as started_at,
                         COALESCE(vs.mastery_level, 'learning') as mastery_level
                     FROM learning_progress lp
@@ -299,7 +299,7 @@ async def get_user_progress(
             progress.append(BlockProgress(
                 sense_id=row[0],
                 status=status,
-                tier=row[2],
+                rank=row[2],  # Changed from tier to rank
                 started_at=row[3].isoformat() if row[3] else None,
                 mastery_level=mastery_level,  # Real SRS mastery level
             ))
@@ -653,7 +653,7 @@ async def start_forging(
                 FROM learning_progress
                 WHERE learner_id = :learner_id
                   AND learning_point_id = :sense_id
-                  AND tier = 1
+                  AND rank = 1
                 """
             ),
             {
@@ -688,7 +688,7 @@ async def start_forging(
                 session=db,
                 user_id=user_id,
                 learning_point_id=sense_id,
-                tier=1,
+                rank=1,  # Changed from tier to rank
                 status="pending",
                 learner_id=effective_learner_id,
             )
@@ -875,7 +875,7 @@ async def mine_batch(
         result = mine_service.process_mining_batch(
             user_id=user_id,
             sense_ids=request.sense_ids,
-            tier=request.tier
+            rank=request.tier  # Parameter name kept as tier for backward compatibility, but column is rank
         )
         
         return result

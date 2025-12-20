@@ -58,19 +58,19 @@ function getXpValue(sense: VocabularySense): number {
     return sense.value.total_xp
   }
   
-  // Fallback: calculate from tier
-  const tier = sense.tier || 1
-  const tierBaseXp: Record<number, number> = {
+  // Fallback: calculate from rank (word complexity)
+  const rank = sense.rank || sense.tier || 1  // Use rank (new) or fallback to tier (legacy)
+  const rankBaseXp: Record<number, number> = {
     1: 100,
-    2: 250,
-    3: 500,
-    4: 1000,
-    5: 300,
-    6: 400,
-    7: 750,
+    2: 120,  // Updated to frequency-aligned values
+    3: 200,
+    4: 300,
+    5: 150,
+    6: 200,
+    7: 250,
   }
   
-  const baseXp = tierBaseXp[tier] || 100
+  const baseXp = rankBaseXp[rank] || 100
   const connectionCount = getConnectionCount(sense)
   const connectionBonus = connectionCount * 10 // Simplified: 10 XP per connection
   

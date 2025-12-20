@@ -49,7 +49,7 @@ def create_learning_progress(
         user_id=user_id,
         learner_id=learner_id,  # Now always set
         learning_point_id=learning_point_id,
-        tier=tier,
+        rank=tier,  # Parameter name kept as tier for backward compatibility, but column is rank
         status=status
     )
     session.add(progress)
@@ -74,7 +74,7 @@ def create_learning_progress(
                 and_(
                     LearningProgress.learner_id == learner_id,
                     LearningProgress.learning_point_id == learning_point_id,
-                    LearningProgress.tier == tier
+                    LearningProgress.rank == tier  # Column is rank, parameter is tier
                 )
             ).first()
             if existing:
@@ -104,7 +104,7 @@ def get_learning_progress_by_learning_point(
     session: Session,
     user_id: UUID,
     learning_point_id: str,
-    tier: Optional[int] = None
+    tier: Optional[int] = None  # Parameter name kept as tier for backward compatibility
 ) -> Optional[LearningProgress]:
     """Get learning progress for a specific learning point."""
     query = session.query(LearningProgress).filter(
@@ -114,7 +114,7 @@ def get_learning_progress_by_learning_point(
         )
     )
     if tier is not None:
-        query = query.filter(LearningProgress.tier == tier)
+        query = query.filter(LearningProgress.rank == tier)  # Column is rank
     return query.first()
 
 
