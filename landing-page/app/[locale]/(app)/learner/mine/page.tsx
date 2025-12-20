@@ -401,7 +401,7 @@ export default function MinePage() {
             // Convert Map to array format expected by loadOrGenerateStarterPack
             // Note: getAllProgress returns Map<senseId, status>, we need to get full details
             backendProgress = []
-            for (const [senseId, status] of localProgressMap.entries()) {
+            for (const [senseId, status] of Array.from(localProgressMap.entries())) {
               const fullProgress = activeLearner?.id 
                 ? await localStore.getProgress(activeLearner.id, senseId)
                 : undefined
