@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from ..database.postgres_connection import PostgresConnection
 from ..middleware.auth import get_current_user_id
@@ -24,6 +25,7 @@ class LeaderboardEntry(BaseModel):
     rank: int
     user_id: str
     name: str
+    avatar: Optional[str] = '🦄'  # Avatar emoji, default to unicorn
     email: Optional[str] = None
     score: int
     longest_streak: int
@@ -70,20 +72,49 @@ async def get_global_leaderboard(
     - streak: Longest streak
     """
     try:
+        print(f"🔍 [LEADERBOARD API] Starting get_global_leaderboard: period={period}, limit={limit}, metric={metric}")
         leaderboard_service = LeaderboardService(db)
+        print(f"🔍 [LEADERBOARD API] Created LeaderboardService, calling get_global_leaderboard...")
         entries = leaderboard_service.get_global_leaderboard(period, limit, metric)
+        print(f"🔍 [LEADERBOARD API] Got {len(entries)} entries from service")
         
-        # Mark user's own entry
+        # Get my learner IDs to identify "is_me"
+        # Note: entry['user_id'] actually holds learner_id now
+        my_learners_result = db.execute(
+            text("SELECT id FROM public.learners WHERE user_id = :user_id OR guardian_id = :user_id"),
+            {'user_id': user_id}
+        )
+        my_learner_ids = {str(row[0]) for row in my_learners_result.fetchall()}
+        
+        # Mark entries
         for entry in entries:
-            if entry['user_id'] == str(user_id):
+            if entry['user_id'] in my_learner_ids:
                 entry['is_me'] = True
         
-        return [LeaderboardEntry(**entry) for entry in entries]
+        # Debug: Print first entry structure
+        if entries:
+            print(f"🔍 First leaderboard entry: {entries[0]}")
+        
+        # Convert to LeaderboardEntry models
+        try:
+            result = [LeaderboardEntry(**entry) for entry in entries]
+            print(f"✅ Successfully created {len(result)} LeaderboardEntry objects")
+            return result
+        except Exception as model_err:
+            print(f"❌ Failed to create LeaderboardEntry: {model_err}")
+            print(f"❌ Entry structure: {entries[0] if entries else 'No entries'}")
+            import traceback
+            traceback.print_exc()
+            raise
         
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get leaderboard: {str(e)}")
+        import traceback
+        error_detail = str(e)
+        traceback.print_exc()
+        print(f"❌ Leaderboard API error: {error_detail}")
+        raise HTTPException(status_code=500, detail=f"Failed to get leaderboard: {error_detail}")
     finally:
         db.close()
 

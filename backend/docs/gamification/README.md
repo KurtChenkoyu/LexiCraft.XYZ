@@ -1,6 +1,6 @@
 # Gamification System Documentation
 
-**Last Updated:** December 20th, 2025
+**Last Updated:** January 2025
 
 ---
 
@@ -66,6 +66,11 @@ This directory contains comprehensive documentation for LexiCraft's gamification
 - Level progression (formula: `100 + (N-1) × 50`)
 - Verification step XP (10 XP per correct answer)
 - Achievement & goal XP
+- **Leaderboard system (learner-scoped)** - Migrated from user-scoped to learner-scoped (January 2025)
+  - Global leaderboard uses `xp_history` and `learning_progress` tables with `learner_id`
+  - Includes `avatar_emoji` from `learners` table
+  - Supports weekly, monthly, and all-time periods
+  - Metrics: XP, words learned, streak
 
 ### 🔄 Needs Update
 - **Tier Base XP values** - Tier 4 (Idiom) currently 1000 XP, should be 300 XP
@@ -105,6 +110,10 @@ This directory contains comprehensive documentation for LexiCraft's gamification
 
 ## Version History
 
+- **v2.1** (January 2025) - Leaderboard migration to learner-scoped queries
+  - Fixed 500 errors by disabling deprecated `leaderboard_entries` table path
+  - All queries now use `learner_id` from `xp_history` and `learning_progress`
+  - Added `avatar_emoji` field to all leaderboard responses
 - **v2.0** (December 2025) - Frequency-aligned dual XP system
 - **v1.0** (Previous) - Initial tier system with 10x idiom multiplier
 
