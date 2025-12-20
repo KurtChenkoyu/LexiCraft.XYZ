@@ -273,7 +273,7 @@ class AudioServiceClass {
         // Handle 404 errors silently (audio files not yet generated for MVP)
         audio.addEventListener('error', (e) => {
           // Silently ignore 404 errors for missing audio files
-          if (audio.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+          if (audio?.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
             // File doesn't exist - expected for MVP, fail silently
             return
           }
