@@ -67,7 +67,7 @@ export function LearnerTopBar() {
         {/* Left: App Title/Logo */}
         <Link href="/learner/home" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
-            <span className="text-sm font-bold text-white">單</span>
+            <span className="text-sm font-bold text-white">塊</span>
           </div>
           <span className="font-semibold text-white hidden sm:block">LexiCraft</span>
         </Link>

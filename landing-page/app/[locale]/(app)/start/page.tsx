@@ -267,7 +267,7 @@ export default function StartPage() {
         <div className="mb-8 relative">
           <div className="absolute inset-0 w-24 h-24 mx-auto bg-cyan-500/30 blur-2xl rounded-full" />
           <div className={`relative w-24 h-24 mx-auto bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-cyan-500/30 ${isComplete ? 'animate-bounce' : ''}`}>
-            <span className="text-4xl font-bold text-white">單</span>
+            <span className="text-4xl font-bold text-white">塊</span>
           </div>
         </div>
 
