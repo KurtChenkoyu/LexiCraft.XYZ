@@ -211,7 +211,7 @@ return <LegacyVersionComponent />
 **File:** `components/features/emoji/EmojiCollectionGrid.tsx`
 
 - 200 emoji grid with status indicators
-- Status: 📦 new → 🔥 learning → ✨ reviewing → 💎 mastered
+- Status: 🪨 new → 🔥 learning → ⚒️ reviewing → 💎 mastered
 - Tap to quiz functionality
 - Category filters
 - Progress bar

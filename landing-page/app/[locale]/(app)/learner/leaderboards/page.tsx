@@ -17,9 +17,9 @@ const periodLabels: Record<Period, string> = {
 }
 
 const metricLabels: Record<Metric, { label: string; icon: string }> = {
-  xp: { label: '經驗值', icon: '⚡' },
+  xp: { label: '經驗值', icon: '⭐' },
   words: { label: '單字數', icon: '📚' },
-  streak: { label: '連勝', icon: '🔥' },
+  streak: { label: '連勝', icon: '⚡' },
 }
 
 // In-memory cache for leaderboard data (persists during session)
@@ -310,7 +310,7 @@ function LeaderboardRow({
         </div>
         {entry.current_streak > 0 && (
           <div className="text-white/40 text-sm flex items-center gap-1">
-            🔥 {entry.current_streak} 天連勝
+            ⚡ {entry.current_streak} 天連勝
           </div>
         )}
       </div>

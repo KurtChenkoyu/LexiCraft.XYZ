@@ -1,14 +1,17 @@
 /**
  * Upload Audio Files to Supabase Storage
  * 
- * This script uploads emoji audio files from local filesystem to Supabase Storage.
+ * This script uploads all audio files (emoji, feedback, prompts, fx) from local filesystem to Supabase Storage.
  * 
  * Usage:
  *   node scripts/upload-audio-to-supabase.js
  * 
  * Prerequisites:
- *   - NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local
- *   - Audio files exist in landing-page/public/audio/emoji/
+ *   - NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY) in .env.local
+ *   - Audio files exist in landing-page/public/audio/ (all categories)
+ * 
+ * Note: Uses SECRET_KEY (not publishable/anon key) for upload permissions.
+ * The new "Secret Key" (sb_secret_...) replaces the legacy "Service Role Key".
  */
 
 require('dotenv').config({ path: '.env.local' })
@@ -17,17 +20,24 @@ const fs = require('fs')
 const path = require('path')
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// Support both new (sb_secret_...) and legacy (service_role) key names
+const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) {
   console.error('❌ Missing Supabase environment variables')
-  console.error('   Make sure .env.local has NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  console.error('   Make sure .env.local has:')
+  console.error('   - NEXT_PUBLIC_SUPABASE_URL')
+  console.error('   - SUPABASE_SECRET_KEY (new: sb_secret_...) OR SUPABASE_SERVICE_ROLE_KEY (legacy)')
+  console.error('   Get it from: Project Settings → API → Secret Key')
+  console.error('   Note: Use Secret Key (not Publishable Key) for uploads')
   process.exit(1)
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+// Use SECRET_KEY for upload permissions (publishable/anon key cannot upload to Storage)
+// The new "Secret Key" (sb_secret_...) replaces the legacy "Service Role Key"
+const supabase = createClient(SUPABASE_URL, SUPABASE_SECRET_KEY)
 const BUCKET_NAME = 'audio'
-const AUDIO_DIR = path.join(__dirname, '../public/audio/emoji')
+const AUDIO_BASE_DIR = path.join(__dirname, '../public/audio')
 
 async function createBucketIfNotExists() {
   console.log('📦 Checking for audio bucket...')
@@ -73,24 +83,46 @@ async function createBucketIfNotExists() {
 
 async function uploadFile(filePath, relativePath) {
   const fileContent = fs.readFileSync(filePath)
-  const fileName = path.basename(relativePath)
-  const storagePath = `emoji/${fileName}`
+  // Preserve directory structure (e.g., "feedback/correct/well_done_coral.mp3")
+  const storagePath = relativePath.replace(/\\/g, '/') // Normalize path separators
   
-  console.log(`  📤 Uploading ${fileName}...`)
+  // Check if file already exists (skip if exists to save time on re-runs)
+  try {
+    const { data: existingFile } = await supabase.storage
+      .from(BUCKET_NAME)
+      .list(path.dirname(storagePath) || undefined, {
+        limit: 1000,
+        search: path.basename(storagePath)
+      })
+    
+    if (existingFile && existingFile.some(f => f.name === path.basename(storagePath))) {
+      console.log(`  ⏭️  Skipping ${storagePath} (already exists)`)
+      return true
+    }
+  } catch (err) {
+    // If check fails, proceed with upload (might be first run or bucket doesn't exist yet)
+  }
+  
+  console.log(`  📤 Uploading ${storagePath}...`)
   
   const { data, error } = await supabase.storage
     .from(BUCKET_NAME)
     .upload(storagePath, fileContent, {
-      contentType: 'audio/mpeg',
-      upsert: true, // Overwrite if exists
+      contentType: 'audio/mpeg', // MIME type for MP3 files (ensures browsers play, not download)
+      upsert: true, // Overwrite if exists (backup safety)
     })
   
   if (error) {
-    console.error(`  ❌ Error uploading ${fileName}:`, error.message)
+    // If file already exists, that's okay (upsert should handle it, but check error code)
+    if (error.message && error.message.includes('already exists')) {
+      console.log(`  ⏭️  Skipping ${storagePath} (already exists)`)
+      return true
+    }
+    console.error(`  ❌ Error uploading ${storagePath}:`, error.message)
     return false
   }
   
-  console.log(`  ✅ Uploaded ${fileName}`)
+  console.log(`  ✅ Uploaded ${storagePath}`)
   return true
 }
 
@@ -125,16 +157,14 @@ async function main() {
     // Step 1: Create bucket if it doesn't exist
     await createBucketIfNotExists()
     
-    // Step 2: Find all audio files
-    console.log(`\n📁 Scanning for audio files in ${AUDIO_DIR}...`)
-    const audioFiles = getAllAudioFiles(AUDIO_DIR)
+    // Step 2: Find all audio files (scan all categories: emoji, feedback, prompts, fx)
+    console.log(`\n📁 Scanning for audio files in ${AUDIO_BASE_DIR}...`)
+    const audioFiles = getAllAudioFiles(AUDIO_BASE_DIR)
     
     if (audioFiles.length === 0) {
       console.warn('⚠️  No audio files found!')
-      console.warn(`   Expected location: ${AUDIO_DIR}`)
+      console.warn(`   Expected location: ${AUDIO_BASE_DIR}`)
       console.warn('   Make sure audio files exist before running this script.')
-      console.warn('\n💡 Tip: Audio files need to be generated first using OpenAI TTS.')
-      console.warn('   See: backend/docs/AUDIO_HANDOFF.md for generation instructions.')
       process.exit(0)
     }
     
@@ -146,7 +176,8 @@ async function main() {
     let failCount = 0
     
     for (const filePath of audioFiles) {
-      const relativePath = path.relative(AUDIO_DIR, filePath)
+      // Preserve directory structure relative to audio base directory
+      const relativePath = path.relative(AUDIO_BASE_DIR, filePath)
       const success = await uploadFile(filePath, relativePath)
       
       if (success) {
@@ -171,8 +202,9 @@ async function main() {
     
     console.log('\n✅ All audio files uploaded successfully!')
     console.log(`\n🔗 Files are now available at:`)
-    console.log(`   ${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/emoji/`)
-    console.log(`\n📝 Next step: Update audio-service.ts to use Supabase Storage URLs`)
+    console.log(`   ${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/`)
+    console.log(`\n📝 Audio service already configured to use Supabase Storage URLs automatically!`)
+    console.log(`   (When NEXT_PUBLIC_SUPABASE_URL is set, audio-service.ts uses Supabase URLs)`)
     
   } catch (error) {
     console.error('\n❌ Upload failed:', error.message)

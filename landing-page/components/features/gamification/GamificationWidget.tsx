@@ -92,7 +92,7 @@ export function GamificationWidget() {
         {/* Quick Stats */}
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-white/10 rounded-lg p-3 text-center">
-            <div className="text-xl font-bold">🔥 {activity.activity_streak_days}</div>
+            <div className="text-xl font-bold">⚡ {activity.activity_streak_days}</div>
             <div className="text-xs text-white/80">連勝</div>
           </div>
           <div className="bg-white/10 rounded-lg p-3 text-center">
@@ -172,7 +172,7 @@ export function GamificationWidgetCompact() {
         <div className="text-xs text-white/60 mt-0.5">{gamification.total_xp} XP</div>
       </div>
       <div className="flex items-center gap-2 text-sm">
-        <span>🔥 {activity.activity_streak_days}</span>
+        <span>⚡ {activity.activity_streak_days}</span>
       </div>
     </Link>
   )

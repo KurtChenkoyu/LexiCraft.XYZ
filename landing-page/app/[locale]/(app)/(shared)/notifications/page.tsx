@@ -7,7 +7,7 @@ import { notificationsApi, Notification } from '@/services/gamificationApi'
 
 const notificationTypeConfig: Record<string, { icon: string; color: string; bgColor: string }> = {
   achievement: { icon: '🏆', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10' },
-  streak_risk: { icon: '🔥', color: 'text-orange-400', bgColor: 'bg-orange-500/10' },
+  streak_risk: { icon: '⚡', color: 'text-orange-400', bgColor: 'bg-orange-500/10' },
   goal_progress: { icon: '🎯', color: 'text-cyan-400', bgColor: 'bg-cyan-500/10' },
   milestone: { icon: '⭐', color: 'text-purple-400', bgColor: 'bg-purple-500/10' },
   level_up: { icon: '🎉', color: 'text-green-400', bgColor: 'bg-green-500/10' },

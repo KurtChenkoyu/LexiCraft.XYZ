@@ -15,6 +15,12 @@ const nextConfig = {
   async rewrites() {
     return {
       beforeFiles: [
+        // Serve icon.svg as favicon.ico
+        {
+          source: '/favicon.ico',
+          destination: '/icon.svg',
+          locale: false,
+        },
         // Allow /workers/* to be accessed without locale prefix
         {
           source: '/workers/:path*',

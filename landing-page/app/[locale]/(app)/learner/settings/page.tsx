@@ -43,7 +43,7 @@ export default function LearnerSettingsPage() {
             </div>
             <div>
               <span className="text-slate-400 text-sm">Current Streak:</span>
-              <p className="text-white font-semibold">🔥 {learnerProfile?.current_streak || 0} days</p>
+              <p className="text-white font-semibold">⚡ {learnerProfile?.current_streak || 0} days</p>
             </div>
           </div>
         </div>

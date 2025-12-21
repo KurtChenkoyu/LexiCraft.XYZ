@@ -373,7 +373,7 @@ const MCQCard: React.FC<MCQCardProps> = ({
           {/* Streak Banner */}
           {gamification?.streak_extended && (
             <div className="bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/30 rounded-lg px-3 py-2 flex items-center gap-2 text-sm">
-              <span className="text-xl">🔥</span>
+              <span className="text-xl">⚡</span>
               <span className="text-orange-400 font-medium">連勝 +1! 目前 {gamification.streak_days} 天</span>
             </div>
           )}

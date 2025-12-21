@@ -71,8 +71,8 @@ export function EmojiWordDetail({ block, isOpen, onClose, onAddToSmelting, onSta
   const getStatusLabel = () => {
     switch (block.status) {
       case 'solid': return '💎 已掌握'
-      case 'hollow': return '✨ 學習中'
-      default: return '📦 新單字'
+      case 'hollow': return '🔥 學習中'
+      default: return '🪨 新單字'
     }
   }
   
@@ -198,7 +198,7 @@ export function EmojiWordDetail({ block, isOpen, onClose, onAddToSmelting, onSta
                 onClick={() => onStartQuiz(block.sense_id)}
                 className="w-full mt-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl"
               >
-                ✨ 開始驗證
+                ⚒️ 開始驗證
               </motion.button>
             )}
             

@@ -9,9 +9,9 @@
  * Audio file locations:
  * - /audio/emoji/{word}_{voice}.mp3 - Emoji pack word pronunciations
  *   Voices: alloy, ash, coral, echo, fable, nova, onyx, sage, shimmer
- * - /audio/fx/correct.mp3 - Correct answer sound
- * - /audio/fx/wrong.mp3 - Wrong answer sound
- * - /audio/fx/celebrate.mp3 - Celebration sound
+ * - /audio/fx/{effect}_001.mp3 through {effect}_005.mp3 - Sound effects (5 variants each)
+ *   Effects: correct, wrong, click, levelup, celebrate, unlock
+ *   Randomly selects one variant (001-005) for variety
  */
 
 // Audio cache to prevent reloading
@@ -157,22 +157,37 @@ class AudioServiceClass {
   }
   
   /**
+   * Get all variant paths for a sound effect
+   * Returns array of 5 variant paths (001-005)
+   */
+  private getSfxVariantPaths(effect: SoundEffect): string[] {
+    const variants: string[] = []
+    for (let i = 1; i <= 5; i++) {
+      const variantNumber = i.toString().padStart(3, '0') // 001, 002, 003, 004, 005
+      variants.push(`${AUDIO_PATHS.fx}/${effect}_${variantNumber}.mp3`)
+    }
+    return variants
+  }
+
+  /**
    * Play sound effect
-   * Uses generated Web Audio since we don't have SFX files yet
+   * Randomly selects from 5 variants (001-005) for variety
+   * Falls back to generated Web Audio if file doesn't exist
    */
   async playSfx(effect: SoundEffect): Promise<void> {
     if (!this.enabled) return
     
-    // For now, always use generated sound (no files in /audio/fx/)
-    // TODO: Once we have real SFX files, uncomment file-based playback
-    // const path = `${AUDIO_PATHS.fx}/${effect}.mp3`
-    // try {
-    //   await this.playAudio(path, masterVolume * sfxVolume)
-    // } catch {
-    //   return this.playGeneratedSfx(effect)
-    // }
+    // Randomly select variant (1-5)
+    const variantNumber = Math.floor(Math.random() * 5) + 1
+    const variantString = variantNumber.toString().padStart(3, '0') // 001, 002, etc.
+    const path = `${AUDIO_PATHS.fx}/${effect}_${variantString}.mp3`
     
-    return this.playGeneratedSfx(effect)
+    try {
+      await this.playAudio(path, masterVolume * sfxVolume)
+    } catch {
+      // Fall back to generated sound if file doesn't exist
+      return this.playGeneratedSfx(effect)
+    }
   }
   
   /**
@@ -334,16 +349,19 @@ class AudioServiceClass {
   
   /**
    * Preload audio files for instant playback
+   * Preloads all 5 variants (001-005) for each effect
    */
   async preloadSfx(effects: SoundEffect[]): Promise<void> {
     if (typeof window === 'undefined') return
     
     for (const effect of effects) {
-      const path = `${AUDIO_PATHS.fx}/${effect}.mp3`
-      const audio = new Audio()
-      audio.preload = 'auto'
-      audio.src = path
-      audioCache.set(path, audio)
+      const variantPaths = this.getSfxVariantPaths(effect)
+      for (const path of variantPaths) {
+        const audio = new Audio()
+        audio.preload = 'auto'
+        audio.src = path
+        audioCache.set(path, audio)
+      }
     }
   }
   

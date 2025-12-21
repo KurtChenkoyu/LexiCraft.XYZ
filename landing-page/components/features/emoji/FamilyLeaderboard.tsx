@@ -270,7 +270,7 @@ export function FamilyLeaderboard() {
                 <div className="flex items-center gap-4 text-sm text-slate-400">
                   <span>⭐ {member.total_xp.toLocaleString()} XP</span>
                   <span>📚 {member.vocabulary_size} 字</span>
-                  <span>🔥 {member.current_streak} 天</span>
+                  <span>⚡ {member.current_streak} 天</span>
                 </div>
               </div>
               

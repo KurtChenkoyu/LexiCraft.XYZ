@@ -17,13 +17,37 @@ landing-page/public/audio/
 │   ├── banana.wav
 │   ├── dog.wav
 │   └── ... (200 words)
-├── fx/              # Sound effects
-│   ├── correct.mp3
-│   ├── wrong.mp3
-│   ├── celebrate.mp3
-│   ├── click.mp3
-│   ├── unlock.mp3
-│   └── levelup.mp3
+├── fx/              # Sound effects (5 variants each)
+│   ├── correct_001.mp3
+│   ├── correct_002.mp3
+│   ├── correct_003.mp3
+│   ├── correct_004.mp3
+│   ├── correct_005.mp3
+│   ├── wrong_001.mp3
+│   ├── wrong_002.mp3
+│   ├── wrong_003.mp3
+│   ├── wrong_004.mp3
+│   ├── wrong_005.mp3
+│   ├── click_001.mp3
+│   ├── click_002.mp3
+│   ├── click_003.mp3
+│   ├── click_004.mp3
+│   ├── click_005.mp3
+│   ├── levelup_001.mp3
+│   ├── levelup_002.mp3
+│   ├── levelup_003.mp3
+│   ├── levelup_004.mp3
+│   ├── levelup_005.mp3
+│   ├── celebrate_001.mp3
+│   ├── celebrate_002.mp3
+│   ├── celebrate_003.mp3
+│   ├── celebrate_004.mp3
+│   ├── celebrate_005.mp3
+│   ├── unlock_001.mp3
+│   ├── unlock_002.mp3
+│   ├── unlock_003.mp3
+│   ├── unlock_004.mp3
+│   └── unlock_005.mp3
 └── legacy/          # Future: word pronunciations for legacy pack
     └── {sense_id}.wav
 ```
@@ -32,20 +56,30 @@ landing-page/public/audio/
 
 ### 1. Sound Effects (`/audio/fx/`)
 
-| File | Description | Duration | Mood |
-|------|-------------|----------|------|
-| `correct.mp3` | Success ding | 0.3-0.5s | Positive, bright |
-| `wrong.mp3` | Error buzz | 0.3s | Gentle negative |
-| `celebrate.mp3` | Big celebration | 1-2s | Triumphant |
-| `click.mp3` | Button click | 0.1s | Subtle |
-| `unlock.mp3` | Achievement unlocked | 1s | Exciting |
-| `levelup.mp3` | Level up fanfare | 1.5s | Epic |
+Each sound effect has **5 variants** (numbered 001-005) for variety. The audio service randomly selects one variant each time a sound is played, preventing audio fatigue.
+
+| Effect Type | Variants | Description | Duration | Mood | Notes |
+|-------------|----------|-------------|----------|------|-------|
+| `correct_001.mp3` through `correct_005.mp3` | 5 | Success ding | 0.3-0.5s | Positive, bright | Random selection |
+| `wrong_001.mp3` through `wrong_005.mp3` | 5 | Error buzz | 0.3s | Gentle negative | Random selection |
+| `celebrate_001.mp3` through `celebrate_005.mp3` | 5 | Big celebration | 1-2s | Triumphant | **Make distinct** - different instruments/styles |
+| `click_001.mp3` through `click_005.mp3` | 5 | Button click | 0.1s | Subtle | **Keep similar** - subtle pitch shifts only |
+| `unlock_001.mp3` through `unlock_005.mp3` | 5 | Achievement unlocked | 1s | Exciting | Random selection |
+| `levelup_001.mp3` through `levelup_005.mp3` | 5 | Level up fanfare | 1.5s | Epic | **Make distinct** - different instruments/styles |
+
+**Total Files:** 30 files (6 effects × 5 variants)
 
 **Recommendations:**
 - Keep sounds short and punchy
 - Use 44.1kHz, 16-bit
 - Keep file sizes small (<100KB each)
 - Consider child-friendly, game-like sounds
+- **Click sounds:** Keep variants similar (subtle pitch shifts) to avoid feeling "loose"
+- **Celebrate/Levelup sounds:** Make variants distinct (different instruments) for excitement
+
+**Source:** Kenney Interface Sounds (free, CC0 license)
+- Download: https://github.com/Calinou/kenney-interface-sounds
+- Conversion script: `landing-page/scripts/convert-sfx.sh`
 
 ### 2. Emoji Pack Word Pronunciations (`/audio/emoji/`)
 
@@ -147,11 +181,11 @@ audioService.playWord('apple', 'emoji', 0)  // Play first variant
 const variants = await audioService.getWordVariants('apple', 'emoji')
 // Returns: ['/audio/emoji/apple_nova.mp3', '/audio/emoji/apple_coral.mp3', ...]
 
-// Play sound effects
-audioService.playCorrect()
-audioService.playWrong()
-audioService.playCelebrate()
-audioService.playSfx('levelup')
+// Play sound effects (randomly selects from 5 variants)
+audioService.playCorrect()  // Randomly plays correct_001.mp3 through correct_005.mp3
+audioService.playWrong()    // Randomly plays wrong_001.mp3 through wrong_005.mp3
+audioService.playCelebrate() // Randomly plays celebrate_001.mp3 through celebrate_005.mp3
+audioService.playSfx('levelup') // Randomly plays levelup_001.mp3 through levelup_005.mp3
 
 // Volume control
 audioService.setMasterVolume(0.8)
@@ -162,7 +196,7 @@ audioService.setVoiceVolume(1.0)
 audioService.setEnabled(false)
 
 // Preload for instant playback
-audioService.preloadSfx(['correct', 'wrong'])
+audioService.preloadSfx(['correct', 'wrong'])  // Preloads all 5 variants (001-005) for each effect
 audioService.preloadWords(['apple', 'banana', 'orange'])  // Preloads all variants for each word
 ```
 

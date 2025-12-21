@@ -55,7 +55,7 @@ export function EmojiCollectionShowcase() {
   if (masteredWords.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-        <div className="text-6xl mb-4">📦</div>
+        <div className="text-6xl mb-4">🪨</div>
         <h3 className="text-2xl font-bold text-white mb-2">還沒有收藏任何詞彙</h3>
         <p className="text-slate-400 mb-6">繼續學習來解鎖更多收藏！</p>
         <a
@@ -113,28 +113,28 @@ export function EmojiCollectionShowcase() {
                       return {
                         opacity: 'opacity-80',
                         glow: 'shadow-[0_0_8px_rgba(251,191,36,0.4)]',
-                        badge: '⚡',
+                        badge: '⚒️',
                         badgeColor: 'bg-amber-500/20 text-amber-400'
                       }
                     case 'known':
                       return {
                         opacity: 'opacity-90',
                         glow: 'shadow-[0_0_8px_rgba(59,130,246,0.4)]',
-                        badge: '💙',
+                        badge: '⚒️',
                         badgeColor: 'bg-blue-500/20 text-blue-400'
                       }
                     case 'mastered':
                       return {
                         opacity: 'opacity-100',
                         glow: 'shadow-[0_0_12px_rgba(234,179,8,0.5)]',
-                        badge: '✨',
+                        badge: '💎',
                         badgeColor: 'bg-yellow-500/20 text-yellow-400'
                       }
                     case 'burned':
                       return {
                         opacity: 'opacity-100',
                         glow: 'shadow-[0_0_16px_rgba(234,179,8,0.8)]',
-                        badge: '🏆',
+                        badge: '💎',
                         badgeColor: 'bg-yellow-500/30 text-yellow-300'
                       }
                     default:

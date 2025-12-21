@@ -467,9 +467,9 @@ Sparks (✨) represent effort. **ANY activity** earns Sparks. Your **Level** is 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  ⚡ XP SHOP                                                  │
+│  ⭐ XP SHOP                                                  │
 │                                                             │
-│  Your XP: 2,450 ⚡                                          │
+│  Your XP: 2,450 ⭐                                          │
 │                                                             │
 │  TOOLS                                                     │
 │  ⛏️ Iron Pickaxe (200 XP)                                   │
@@ -482,7 +482,7 @@ Sparks (✨) represent effort. **ANY activity** earns Sparks. Your **Level** is 
 │  🧊 Streak Freeze (50 XP)                                  │
 │     Protect your streak for 1 day                          │
 │                                                             │
-│  ⚡ Fast Track (100 XP per word)                           │
+│  ⭐ Fast Track (100 XP per word)                           │
 │     Skip a word to next mastery level                      │
 │                                                             │
 │  COSMETICS                                                 │
