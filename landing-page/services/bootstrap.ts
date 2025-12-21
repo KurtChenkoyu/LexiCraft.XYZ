@@ -556,7 +556,7 @@ export async function bootstrapApp(
           allLearners.map(learner => 
             Promise.race([
               downloadService.syncProgress(learner.id),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000))
             ])
             .then(() => {
               // After sync completes, rebuild snapshot from fresh IndexedDB data
@@ -910,7 +910,7 @@ export async function bootstrapApp(
           try {
             const progressData = await Promise.race([
                     progressApi.getUserProgress(currentLearnerId),
-              new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
+              new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000))
             ]) as UserProgressResponse | null
             
             if (progressData?.progress) {
@@ -1321,7 +1321,7 @@ export async function bootstrapApp(
           try {
             const progressData = await Promise.race([
               progressApi.getUserProgress(activeLearnerId),
-              new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
+              new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000))
             ]) as UserProgressResponse | null
             
             if (progressData?.progress) {

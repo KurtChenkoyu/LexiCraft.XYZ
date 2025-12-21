@@ -10,6 +10,8 @@ interface FamilyMember {
   type: 'parent' | 'child'
   level: number
   total_xp: number
+  weekly_xp: number  // XP earned in last 7 days
+  monthly_xp: number  // XP earned in last 30 days
   current_streak: number
   vocabulary_size: number
   words_learned_this_week: number
@@ -84,7 +86,9 @@ export function FamilyLeaderboard() {
               name: summary.display_name,
               type: summary.is_parent_profile ? 'parent' : 'child',
               level: summary.level,
-              total_xp: summary.total_xp,  // Now learner-scoped (accurate tier-based XP)!
+              total_xp: summary.total_xp,  // All-time XP
+              weekly_xp: summary.weekly_xp || 0,  // XP earned in last 7 days
+              monthly_xp: summary.monthly_xp || 0,  // XP earned in last 30 days
               current_streak: summary.current_streak,
               vocabulary_size: summary.vocabulary_size,
               words_learned_this_week: summary.words_learned_this_week,
@@ -113,6 +117,8 @@ export function FamilyLeaderboard() {
                     type: summary.is_parent_profile ? 'parent' : 'child',
                     level: summary.level,
                     total_xp: summary.total_xp,
+                    weekly_xp: summary.weekly_xp || 0,
+                    monthly_xp: summary.monthly_xp || 0,
                     current_streak: summary.current_streak,
                     vocabulary_size: summary.vocabulary_size,
                     words_learned_this_week: summary.words_learned_this_week,
@@ -125,11 +131,19 @@ export function FamilyLeaderboard() {
           }
         }
         
-        // Sort by total XP (descending)
-        members.sort((a, b) => b.total_xp - a.total_xp)
+        // Sort by period-based XP (descending)
+        members.sort((a, b) => {
+          const aXp = period === 'weekly' ? a.weekly_xp : period === 'monthly' ? a.monthly_xp : a.total_xp
+          const bXp = period === 'weekly' ? b.weekly_xp : period === 'monthly' ? b.monthly_xp : b.total_xp
+          return bXp - aXp
+        })
         
         console.log('🔍 FamilyLeaderboard: Final members array:', members)
-        console.log('🔍 FamilyLeaderboard: Total XP sum:', members.reduce((sum, m) => sum + m.total_xp, 0))
+        const totalXpForPeriod = members.reduce((sum, m) => {
+          const xp = period === 'weekly' ? m.weekly_xp : period === 'monthly' ? m.monthly_xp : m.total_xp
+          return sum + xp
+        }, 0)
+        console.log(`🔍 FamilyLeaderboard: Total XP for ${period}:`, totalXpForPeriod)
         
         setFamilyMembers(members)
       } catch (error) {
@@ -140,10 +154,13 @@ export function FamilyLeaderboard() {
     }
     
     loadFamilyData()
-  }, [user, learnersSummaries, isBootstrapped])
+  }, [user, learnersSummaries, isBootstrapped, period])
   
-  // Calculate aggregate stats
-  const totalXP = familyMembers.reduce((sum, m) => sum + m.total_xp, 0)
+  // Calculate aggregate stats (using period-based XP)
+  const totalXP = familyMembers.reduce((sum, m) => {
+    const xp = period === 'weekly' ? m.weekly_xp : period === 'monthly' ? m.monthly_xp : m.total_xp
+    return sum + xp
+  }, 0)
   const totalWords = familyMembers.reduce((sum, m) => sum + m.vocabulary_size, 0)
   const totalStreak = familyMembers.reduce((sum, m) => sum + m.current_streak, 0)
   const avgXP = familyMembers.length > 0 ? Math.round(totalXP / familyMembers.length) : 0
@@ -189,7 +206,9 @@ export function FamilyLeaderboard() {
       {/* Aggregate Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
-          <div className="text-slate-400 text-sm mb-2">總經驗值</div>
+          <div className="text-slate-400 text-sm mb-2">
+            {period === 'weekly' ? '本週經驗值' : period === 'monthly' ? '本月經驗值' : '總經驗值'}
+          </div>
           <div className="text-3xl font-bold text-cyan-400">{totalXP.toLocaleString()}</div>
           <div className="text-xs text-slate-500 mt-1">平均: {avgXP.toLocaleString()}</div>
         </div>
@@ -234,6 +253,8 @@ export function FamilyLeaderboard() {
         {familyMembers.map((member, index) => {
           const rank = index + 1
           const isTop3 = rank <= 3
+          // Get period-based XP
+          const memberXP = period === 'weekly' ? member.weekly_xp : period === 'monthly' ? member.monthly_xp : member.total_xp
           
           return (
             <div
@@ -268,7 +289,7 @@ export function FamilyLeaderboard() {
                   </span>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-slate-400">
-                  <span>⭐ {member.total_xp.toLocaleString()} XP</span>
+                  <span>⭐ {memberXP.toLocaleString()} XP</span>
                   <span>📚 {member.vocabulary_size} 字</span>
                   <span>⚡ {member.current_streak} 天</span>
                 </div>

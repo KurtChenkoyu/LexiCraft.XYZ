@@ -528,6 +528,8 @@ class LearnerSummary(BaseModel):
     # Summary stats (learner-scoped)
     level: int
     total_xp: int
+    weekly_xp: int  # XP earned in last 7 days
+    monthly_xp: int  # XP earned in last 30 days
     current_streak: int
     vocabulary_size: int
     words_in_progress: int  # Words with status 'hollow', 'learning', 'pending'
@@ -745,6 +747,23 @@ async def get_learners_summary(
                 
                 logger.info(f"  ✅ Vocab: size={vocabulary_size}, in_progress={words_in_progress}")
                 
+                # Calculate period-based XP from xp_history (learner-scoped)
+                xp_period_result = db.execute(
+                    text("""
+                        SELECT 
+                            COALESCE(SUM(CASE WHEN earned_at >= NOW() - INTERVAL '7 days' THEN xp_amount ELSE 0 END), 0) as weekly_xp,
+                            COALESCE(SUM(CASE WHEN earned_at >= NOW() - INTERVAL '30 days' THEN xp_amount ELSE 0 END), 0) as monthly_xp
+                        FROM xp_history
+                        WHERE learner_id = :learner_id
+                    """),
+                    {'learner_id': learner_id}
+                )
+                xp_period_row = xp_period_result.fetchone()
+                weekly_xp = xp_period_row[0] or 0 if xp_period_row else 0
+                monthly_xp = xp_period_row[1] or 0 if xp_period_row else 0
+                
+                logger.info(f"  ✅ XP Periods: weekly={weekly_xp}, monthly={monthly_xp}, total={level_info['total_xp']}")
+                
                 summaries.append(LearnerSummary(
                     learner_id=str(learner_id),
                     display_name=learner['display_name'],
@@ -752,6 +771,8 @@ async def get_learners_summary(
                     is_parent_profile=learner['is_parent_profile'],
                     level=level_info['level'],
                     total_xp=level_info['total_xp'],
+                    weekly_xp=weekly_xp,
+                    monthly_xp=monthly_xp,
                     current_streak=activity.get('activity_streak_days', 0),
                     vocabulary_size=vocabulary_size,
                     words_in_progress=words_in_progress,
@@ -773,6 +794,8 @@ async def get_learners_summary(
                     is_parent_profile=learner['is_parent_profile'],
                     level=1,
                     total_xp=0,
+                    weekly_xp=0,
+                    monthly_xp=0,
                     current_streak=0,
                     vocabulary_size=0,
                     words_in_progress=0,
