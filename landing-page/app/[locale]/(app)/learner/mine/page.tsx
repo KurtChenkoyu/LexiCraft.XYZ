@@ -344,11 +344,17 @@ export default function MinePage() {
       try {
         if (isDev) console.log('⏳ Ensuring vocabulary is ready...')
         const result = await vocabularyLoader.ensureReady()
-        if (isDev) console.log(`✅ Vocabulary ready: ${result.count} senses (${result.source})`)
+        if (isDev) {
+          if (result.count === 0) {
+            console.warn('⚠️ Vocabulary file missing, continuing with empty vocabulary')
+          } else {
+            console.log(`✅ Vocabulary ready: ${result.count} senses (${result.source})`)
+          }
+        }
       } catch (error) {
-        console.error('❌ Failed to load vocabulary:', error)
-        window.location.href = '/start'
-        return
+        console.warn('⚠️ Vocabulary loading failed (non-fatal):', error)
+        // Don't redirect - continue with empty vocabulary
+        // The app will work, just without the full vocabulary file
       }
       
       if (!mounted) return

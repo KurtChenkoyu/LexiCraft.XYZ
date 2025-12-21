@@ -1992,31 +1992,73 @@ export const useAppStore = create<AppState>()(
           }
         })
 
-        // 3. SRS SYNC (Background - Fire-and-Forget)
-        // Look up verification schedule info and submit to backend
-        correctResults.forEach(({ senseId }) => {
-          // Fire-and-forget: Don't await, don't block UI
-          progressApi.getVerificationScheduleInfo(senseId, activeLearnerId)
-            .then(scheduleInfo => {
-              if (!scheduleInfo) {
-                console.warn(`⚠️ No verification schedule found for ${senseId}, skipping backend sync`)
+        // 3. SRS SYNC (Background - Fire-and-Forget) - BATCHED VERSION
+        // Collect all verification schedule info first, then send one batch request
+        const activeLearnerIdAtStart = activeLearnerId // Capture at start (race condition protection)
+
+        // Step 1: Fetch all schedule info in parallel (non-blocking)
+        Promise.all(
+          correctResults.map(({ senseId }) =>
+            progressApi.getVerificationScheduleInfo(senseId, activeLearnerIdAtStart)
+              .then(info => ({ senseId, scheduleInfo: info }))
+              .catch(err => {
+                console.warn(`Failed to get verification schedule info for ${senseId}:`, err)
+                return { senseId, scheduleInfo: null }
+              })
+          )
+        ).then(scheduleResults => {
+          // Step 2: Filter out nulls and check learner still matches
+          const currentState = get()
+          if (currentState.activeLearner?.id !== activeLearnerIdAtStart) {
+            console.warn(`⏭️ Skipping batch sync: learner switched from ${activeLearnerIdAtStart} to ${currentState.activeLearner?.id}`)
+            return
+          }
+          
+          const validReviews = scheduleResults
+            .filter(({ scheduleInfo }) => scheduleInfo !== null)
+            .map(({ senseId, scheduleInfo }) => ({
+              learning_progress_id: scheduleInfo!.learning_progress_id,
+              performance_rating: 2, // GOOD rating (default for correct answer in emoji MCQ)
+              response_time_ms: 5000, // Default response time (TODO: Track actual time in EmojiMCQSession)
+            }))
+          
+          if (validReviews.length === 0) {
+            console.warn('⚠️ No valid verification schedules found for batch sync')
+            return
+          }
+          
+          // Step 3: Send ONE batch request
+          const { authenticatedPost } = require('@/lib/api-client')
+          authenticatedPost('/api/v1/verification/review/batch', {
+            reviews: validReviews,
+            learner_id: activeLearnerIdAtStart, // CRITICAL: Include learner_id for multi-profile validation
+          })
+            .then((response: any) => {
+              // Check learner still matches after async operation
+              const finalState = get()
+              if (finalState.activeLearner?.id !== activeLearnerIdAtStart) {
+                console.warn(`⏭️ Batch sync completed but learner switched, ignoring results`)
                 return
               }
-
-              // Submit to backend for SRS processing
-              // Use POST /api/v1/verification/review to trigger SRS algorithm
-              // This ensures next review is scheduled and mastery level is updated
-              const { authenticatedPost } = require('@/lib/api-client')
-              authenticatedPost(`/api/v1/verification/review`, {
-                learning_progress_id: scheduleInfo.learning_progress_id,
-                performance_rating: 2, // GOOD rating (default for correct answer in emoji MCQ)
-                response_time_ms: 5000, // Default response time (TODO: Track actual time in EmojiMCQSession)
-              }).catch((err: any) => {
-                console.warn(`Failed to sync verification for ${senseId}:`, err)
-              })
+              
+              console.log(`✅ Batch sync: ${response.total_succeeded}/${response.total_processed} reviews processed`)
+              
+              if (response.total_failed > 0) {
+                const failedItems = response.results.filter((r: any) => !r.success)
+                console.warn(`⚠️ Batch sync: ${response.total_failed} reviews failed:`, failedItems.map((r: any) => ({
+                  learning_progress_id: r.learning_progress_id,
+                  error: r.error
+                })))
+              }
             })
-            .catch(err => {
-              console.warn(`Failed to get verification schedule info for ${senseId}:`, err)
+            .catch((err: any) => {
+              // Check learner still matches on error
+              const errorState = get()
+              if (errorState.activeLearner?.id !== activeLearnerIdAtStart) {
+                console.warn(`⏭️ Batch sync failed but learner switched, ignoring error`)
+                return
+              }
+              console.warn('Failed to sync verification batch:', err)
             })
         })
 
