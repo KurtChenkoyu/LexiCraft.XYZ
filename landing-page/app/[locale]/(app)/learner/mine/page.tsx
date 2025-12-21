@@ -337,24 +337,33 @@ export default function MinePage() {
     }
     
     async function loadStarter() {
-      // Ensure vocabulary is ready (main thread handles everything now)
-      const { vocabularyLoader } = await import('@/lib/vocabularyLoader')
-      
-      const isDev = process.env.NODE_ENV === 'development'
-      try {
-        if (isDev) console.log('⏳ Ensuring vocabulary is ready...')
-        const result = await vocabularyLoader.ensureReady()
+      // 🎯 Skip legacy vocabulary loading if emoji pack is active
+      // Emoji pack is self-contained and doesn't need the legacy vocabulary file
+      if (isEmojiPack) {
+        const isDev = process.env.NODE_ENV === 'development'
         if (isDev) {
-          if (result.count === 0) {
-            console.warn('⚠️ Vocabulary file missing, continuing with empty vocabulary')
-          } else {
-            console.log(`✅ Vocabulary ready: ${result.count} senses (${result.source})`)
-          }
+          console.log('🎯 Mine: Skipping legacy vocabulary (emoji pack active)')
         }
-      } catch (error) {
-        console.warn('⚠️ Vocabulary loading failed (non-fatal):', error)
-        // Don't redirect - continue with empty vocabulary
-        // The app will work, just without the full vocabulary file
+      } else {
+        // Legacy Mode: Ensure vocabulary is ready (main thread handles everything now)
+        const { vocabularyLoader } = await import('@/lib/vocabularyLoader')
+        
+        const isDev = process.env.NODE_ENV === 'development'
+        try {
+          if (isDev) console.log('⏳ Ensuring vocabulary is ready...')
+          const result = await vocabularyLoader.ensureReady()
+          if (isDev) {
+            if (result.count === 0) {
+              console.warn('⚠️ Vocabulary file missing, continuing with empty vocabulary')
+            } else {
+              console.log(`✅ Vocabulary ready: ${result.count} senses (${result.source})`)
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Vocabulary loading failed (non-fatal):', error)
+          // Don't redirect - continue with empty vocabulary
+          // The app will work, just without the full vocabulary file
+        }
       }
       
       if (!mounted) return
