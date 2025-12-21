@@ -1,5 +1,8 @@
+'use client'
+
+import { use } from 'react'
 import { notFound } from 'next/navigation'
-import { getCampaignBySlug, CAMPAIGNS } from '@/lib/campaign-config'
+import { getCampaignBySlug, CAMPAIGNS, getCheckoutUrl } from '@/lib/campaign-config'
 import EmojiLandingPage from '@/components/marketing/EmojiLandingPage'
 
 interface PageProps {
@@ -9,40 +12,17 @@ interface PageProps {
   }>
 }
 
-// Generate static params for all campaigns
-export async function generateStaticParams() {
-  return Object.keys(CAMPAIGNS).map((slug) => ({
-    campaign: slug,
-  }))
-}
-
-// Generate metadata for SEO
-export async function generateMetadata({ params }: PageProps) {
-  const { campaign: slug } = await params
-  const campaign = getCampaignBySlug(slug)
-  
-  if (!campaign) {
-    return { title: 'Not Found' }
-  }
-  
-  return {
-    title: `${campaign.name} - LexiCraft 表情學英文`,
-    description: campaign.content.heroSubtitle,
-    openGraph: {
-      title: `${campaign.name} - LexiCraft`,
-      description: campaign.content.heroSubtitle,
-    },
-  }
-}
-
-export default async function CampaignPage({ params }: PageProps) {
-  const { campaign: slug } = await params
+export default function CampaignPage({ params }: PageProps) {
+  const { campaign: slug } = use(params)
   const campaign = getCampaignBySlug(slug)
   
   if (!campaign) {
     notFound()
   }
   
-  return <EmojiLandingPage campaign={campaign} />
+  // Get checkout URL (with A/B testing support if enabled)
+  const checkoutUrl = getCheckoutUrl(campaign)
+  
+  return <EmojiLandingPage campaign={campaign} checkoutUrl={checkoutUrl} />
 }
 
