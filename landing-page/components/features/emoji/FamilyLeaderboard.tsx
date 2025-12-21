@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAppStore, selectLearnersSummaries, selectUser } from '@/stores/useAppStore'
+import { useAppStore, selectLearnersSummaries, selectUser, type LearnerSummary } from '@/stores/useAppStore'
 import { downloadService } from '@/services/downloadService'
 
 interface FamilyMember {
@@ -108,7 +108,8 @@ export function FamilyLeaderboard() {
               if (freshSummaries && freshSummaries.length > 0) {
                 const { useAppStore } = await import('@/stores/useAppStore')
                 // Ensure weekly_xp and monthly_xp are present (backward compatibility)
-                const normalizedSummaries = freshSummaries.map(s => ({
+                // Map to match the store's LearnerSummary type exactly
+                const normalizedSummaries: LearnerSummary[] = freshSummaries.map(s => ({
                   ...s,
                   weekly_xp: s.weekly_xp ?? 0,
                   monthly_xp: s.monthly_xp ?? 0,

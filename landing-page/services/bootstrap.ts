@@ -398,7 +398,13 @@ export async function bootstrapApp(
       }
       
       if (learnersSummaries && learnersSummaries.length > 0) {
-        store.setLearnersSummaries(learnersSummaries)
+        // Normalize data to ensure weekly_xp and monthly_xp are present (backward compatibility)
+        const normalizedSummaries = learnersSummaries.map(s => ({
+          ...s,
+          weekly_xp: s.weekly_xp ?? 0,
+          monthly_xp: s.monthly_xp ?? 0,
+        }))
+        store.setLearnersSummaries(normalizedSummaries)
         if (process.env.NODE_ENV === 'development') {
           console.log(`✅ Bootstrap: Loaded ${learnersSummaries.length} learners summaries`)
           // Verify it was set

@@ -124,8 +124,8 @@ interface LearnerSummary {
   // Summary stats (learner-scoped)
   level: number
   total_xp: number
-  weekly_xp: number  // XP earned in last 7 days
-  monthly_xp: number  // XP earned in last 30 days
+  weekly_xp?: number  // XP earned in last 7 days (optional for backward compatibility)
+  monthly_xp?: number  // XP earned in last 30 days (optional for backward compatibility)
   current_streak: number
   vocabulary_size: number
   words_in_progress: number  // Words with status 'hollow', 'learning', 'pending'
@@ -286,7 +286,13 @@ class DownloadService {
         // Update Zustand store if summaries were fetched (even if empty, to clear stale data)
         const { useAppStore } = await import('@/stores/useAppStore')
         if (summaries) {
-          useAppStore.getState().setLearnersSummaries(summaries)
+          // Normalize data to ensure weekly_xp and monthly_xp are present (backward compatibility)
+          const normalizedSummaries = summaries.map(s => ({
+            ...s,
+            weekly_xp: s.weekly_xp ?? 0,
+            monthly_xp: s.monthly_xp ?? 0,
+          }))
+          useAppStore.getState().setLearnersSummaries(normalizedSummaries)
           if (process.env.NODE_ENV === 'development') {
             console.log(`✅ Background sync: Updated ${summaries.length} learners summaries in store`)
             if (summaries.length > 0) {
