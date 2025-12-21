@@ -124,6 +124,8 @@ interface LearnerSummary {
   // Summary stats (learner-scoped)
   level: number
   total_xp: number
+  weekly_xp: number  // XP earned in last 7 days
+  monthly_xp: number  // XP earned in last 30 days
   current_streak: number
   vocabulary_size: number
   words_in_progress: number  // Words with status 'hollow', 'learning', 'pending'

@@ -107,7 +107,13 @@ export function FamilyLeaderboard() {
               const freshSummaries = await downloadService.getLearnersSummaries(true)
               if (freshSummaries && freshSummaries.length > 0) {
                 const { useAppStore } = await import('@/stores/useAppStore')
-                useAppStore.getState().setLearnersSummaries(freshSummaries)
+                // Ensure weekly_xp and monthly_xp are present (backward compatibility)
+                const normalizedSummaries = freshSummaries.map(s => ({
+                  ...s,
+                  weekly_xp: s.weekly_xp ?? 0,
+                  monthly_xp: s.monthly_xp ?? 0,
+                }))
+                useAppStore.getState().setLearnersSummaries(normalizedSummaries)
                 console.log(`✅ FamilyLeaderboard: Manually fetched ${freshSummaries.length} learners summaries`)
                 // Re-process with fresh data
                 freshSummaries.forEach(summary => {
