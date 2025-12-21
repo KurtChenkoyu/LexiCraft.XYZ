@@ -6,6 +6,7 @@
  * 2. UTM tracking support
  * 3. Conversion event definitions
  * 4. Easy A/B testing support
+ * 5. Lemon Squeezy checkout integration
  */
 
 export interface CampaignConfig {
@@ -44,6 +45,15 @@ export interface CampaignConfig {
     salePrice: number
     duration: string // e.g., "6個月"
     discountLabel: string // e.g., "-83%"
+    priceAnchorText?: string // e.g., "~~原價 NT$599~~ 聖誕限時優惠"
+  }
+  
+  // Checkout Configuration
+  checkout: {
+    // Lemon Squeezy checkout URL
+    lemonSqueezyUrl: string
+    // Optional: Stripe checkout (if you want to support both)
+    stripeEnabled?: boolean
   }
   
   // Tracking
@@ -65,7 +75,12 @@ export interface CampaignConfig {
   // A/B Testing
   abTest?: {
     enabled: boolean
-    variants: string[]
+    variants: Array<{
+      id: string
+      name: string
+      lemonSqueezyUrl: string
+      weight: number // 0-100, determines traffic split
+    }>
     defaultVariant: string
   }
 }
@@ -106,6 +121,11 @@ export const CAMPAIGNS: Record<string, CampaignConfig> = {
       salePrice: 99,
       duration: '6個月',
       discountLabel: '-83%',
+      priceAnchorText: '~~原價 NT$599~~ 聖誕限時優惠',
+    },
+    
+    checkout: {
+      lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/07397ed4-50a9-4cb0-aeb2-2c2db295fef1',
     },
     
     tracking: {
@@ -120,6 +140,27 @@ export const CAMPAIGNS: Record<string, CampaignConfig> = {
         checkoutStart: 'promo_christmas_checkout_start',
         checkoutComplete: 'promo_christmas_checkout_complete',
       },
+    },
+    
+    // Example A/B Test: Test two different checkout URLs
+    // Set enabled: true to activate A/B testing
+    abTest: {
+      enabled: false,
+      variants: [
+        {
+          id: 'variant-a',
+          name: 'Standard Checkout',
+          lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/07397ed4-50a9-4cb0-aeb2-2c2db295fef1',
+          weight: 50, // 50% of traffic
+        },
+        {
+          id: 'variant-b',
+          name: 'Alternative Checkout',
+          lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/alternative-checkout-id',
+          weight: 50, // 50% of traffic
+        },
+      ],
+      defaultVariant: 'variant-a',
     },
   },
   
@@ -154,6 +195,11 @@ export const CAMPAIGNS: Record<string, CampaignConfig> = {
       salePrice: 99,
       duration: '6個月',
       discountLabel: '-83%',
+      priceAnchorText: '~~原價 NT$599~~ 新春限時優惠',
+    },
+    
+    checkout: {
+      lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/cny-checkout-id', // Update with actual CNY checkout URL
     },
     
     tracking: {
@@ -202,6 +248,11 @@ export const CAMPAIGNS: Record<string, CampaignConfig> = {
       salePrice: 99,
       duration: '6個月',
       discountLabel: '-83%',
+      priceAnchorText: '~~原價 NT$599~~ 開學限時優惠',
+    },
+    
+    checkout: {
+      lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/bts-checkout-id', // Update with actual BTS checkout URL
     },
     
     tracking: {
@@ -226,8 +277,9 @@ export const CAMPAIGNS: Record<string, CampaignConfig> = {
 
 /**
  * Get currently active campaign based on date
+ * Falls back to default if no campaign is active
  */
-export function getActiveCampaign(): CampaignConfig | null {
+export function getActiveCampaign(): CampaignConfig {
   const now = new Date()
   
   for (const campaign of Object.values(CAMPAIGNS)) {
@@ -239,7 +291,8 @@ export function getActiveCampaign(): CampaignConfig | null {
     }
   }
   
-  return null
+  // Fallback to default campaign (never returns null)
+  return getDefaultCampaign()
 }
 
 /**
@@ -251,9 +304,58 @@ export function getCampaignBySlug(slug: string): CampaignConfig | null {
 
 /**
  * Get default campaign (fallback)
+ * 🎯 CHANGE THIS to switch campaigns manually
+ * Options: CAMPAIGNS.christmas, CAMPAIGNS.cny, CAMPAIGNS.backtoschool
  */
 export function getDefaultCampaign(): CampaignConfig {
   return CAMPAIGNS.christmas
+}
+
+/**
+ * Get checkout URL with A/B testing support
+ * 
+ * If A/B testing is disabled, returns the default checkout URL.
+ * If enabled, assigns users to variants based on weight and persists
+ * the assignment in localStorage for consistent experience.
+ */
+export function getCheckoutUrl(campaign: CampaignConfig): string {
+  // If A/B testing is disabled, return default URL
+  if (!campaign.abTest?.enabled) {
+    return campaign.checkout.lemonSqueezyUrl
+  }
+  
+  // Get stored variant from localStorage (persistent across sessions)
+  const storedVariant = typeof window !== 'undefined' 
+    ? localStorage.getItem(`ab_variant_${campaign.id}`)
+    : null
+  
+  if (storedVariant) {
+    const variant = campaign.abTest.variants.find(v => v.id === storedVariant)
+    if (variant) {
+      return variant.lemonSqueezyUrl
+    }
+  }
+  
+  // Assign variant based on weight
+  const random = Math.random() * 100
+  let cumulativeWeight = 0
+  
+  for (const variant of campaign.abTest.variants) {
+    cumulativeWeight += variant.weight
+    if (random <= cumulativeWeight) {
+      // Store variant for this user
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`ab_variant_${campaign.id}`, variant.id)
+      }
+      return variant.lemonSqueezyUrl
+    }
+  }
+  
+  // Fallback to default variant
+  const defaultVariant = campaign.abTest.variants.find(
+    v => v.id === campaign.abTest!.defaultVariant
+  )
+  return defaultVariant?.lemonSqueezyUrl || campaign.checkout.lemonSqueezyUrl
 }
 
 /**

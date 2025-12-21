@@ -29,9 +29,6 @@ export async function generateMetadata({
     keywords: locale === 'zh-TW'
       ? '孩子學習, 單字, 賺錢, 教育, 台灣, 英文學習'
       : 'kids learning, vocabulary, earn money, education, Taiwan, English learning',
-    icons: {
-      icon: '/icon.svg',
-    },
   }
 }
 

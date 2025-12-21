@@ -14,6 +14,7 @@ from src.api import survey_router
 from src.api.deposits import router as deposits_router
 from src.api import onboarding
 from src.api import users as users_router
+from src.api import subscriptions as subscriptions_router
 from src.api import testimonials as testimonials_router
 from src.api import verification as verification_router
 from src.api import analytics as analytics_router
@@ -113,6 +114,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Register Routers
 app.include_router(survey_router)  # Mount the survey endpoints
 app.include_router(deposits_router)  # Mount the deposits endpoints
+app.include_router(subscriptions_router.router)  # Mount the subscriptions endpoints
 app.include_router(onboarding.router)  # Mount the onboarding endpoints
 app.include_router(users_router.router)  # Mount the users endpoints
 app.include_router(testimonials_router.router)  # Mount the testimonials endpoints (PSM)
