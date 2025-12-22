@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 import traceback
+import os
 from src.api import survey_router
 from src.api.deposits import router as deposits_router
 from src.api import onboarding
@@ -54,14 +55,20 @@ async def log_requests(request: Request, call_next):
         raise
 
 # CORS (Allow frontend access)
-# For development: allow all origins without credentials (CORS spec requirement)
-# For production: specify exact origins: ["http://localhost:3000", "https://yourdomain.com"]
+# Get allowed origins from environment or use defaults
+allowed_origins_str = os.getenv(
+    "ALLOWED_ORIGINS",
+    "https://lexicraft.xyz,https://www.lexicraft.xyz,http://localhost:3000"
+)
+allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend URL
-    allow_credentials=False,  # Can't use True with "*" origins per CORS spec
+    allow_origins=allowed_origins,  # Explicit origins for production
+    allow_credentials=True,  # Can use True since we specify exact origins
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Request validation error handler (catches Pydantic validation errors)
