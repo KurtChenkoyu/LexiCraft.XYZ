@@ -45,11 +45,18 @@ echo ""
 # Check if psql is available
 if ! command -v psql &> /dev/null; then
     echo -e "${RED}❌ Error: psql is not installed${NC}"
-    echo "Install PostgreSQL client tools to use this script."
+    echo ""
+    echo "Install PostgreSQL client:"
+    echo "  macOS:    brew install postgresql@15  (or: brew install libpq)"
+    echo "  Ubuntu:   sudo apt-get install postgresql-client"
+    echo "  Fedora:   sudo dnf install postgresql"
+    echo "  Windows:  Download from https://www.postgresql.org/download/windows/"
     echo ""
     echo "Alternative: Use Supabase SQL Editor to run migrations manually:"
     echo "1. Go to Supabase Dashboard → SQL Editor"
     echo "2. Run each migration file from backend/migrations/ in order"
+    echo ""
+    echo "See docs/PHASE2_SUPABASE_SETUP.md for detailed instructions."
     exit 1
 fi
 

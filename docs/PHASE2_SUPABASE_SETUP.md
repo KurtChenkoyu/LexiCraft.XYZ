@@ -103,9 +103,24 @@ Production Environment:
 
 **Option B: Using psql (Advanced)**
 
+**Prerequisites:** You need `psql` (PostgreSQL client) installed.
+
+**Install psql:**
+- **macOS:** `brew install postgresql@15` (or `brew install libpq` for just the client)
+- **Linux (Ubuntu/Debian):** `sudo apt-get install postgresql-client`
+- **Linux (Fedora/RHEL):** `sudo dnf install postgresql`
+- **Windows:** Download from [PostgreSQL Downloads](https://www.postgresql.org/download/windows/)
+
+**Verify installation:**
 ```bash
-# Get connection string from Supabase Dashboard
-export DEV_DATABASE_URL="postgresql://postgres:[PASSWORD]@[DEV_PROJECT_REF].supabase.co:6543/postgres?sslmode=require"
+psql --version
+# Should show: psql (PostgreSQL) 15.x or similar
+```
+
+**Run migrations:**
+```bash
+# Get connection string from Supabase Dashboard (Session Pooler, port 6543)
+export DEV_DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[DEV_PROJECT_REF].supabase.co:6543/postgres?sslmode=require"
 
 # Run migrations
 cd backend
@@ -113,6 +128,13 @@ for migration in migrations/*.sql; do
   echo "Running $migration..."
   psql "$DEV_DATABASE_URL" -f "$migration"
 done
+```
+
+**Or use the helper script:**
+```bash
+cd backend
+export DEV_DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[DEV_PROJECT_REF].supabase.co:6543/postgres?sslmode=require"
+./scripts/setup_dev_supabase.sh
 ```
 
 ### Step 4: Configure Production Supabase Project
