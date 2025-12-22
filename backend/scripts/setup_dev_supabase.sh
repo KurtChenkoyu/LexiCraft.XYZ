@@ -39,6 +39,48 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
+# Auto-encode password if it contains unencoded special characters
+# Check if password section (between : and @) contains unencoded special chars
+if echo "$DATABASE_URL" | grep -qE "postgresql://[^:]+:[^@]*[&#@+/?=][^@]*@"; then
+    echo -e "${YELLOW}⚠️  Password contains special characters, encoding...${NC}"
+    
+    # Use Python to properly URL-encode the password
+    ENCODED_URL=$(python3 -c "
+import urllib.parse
+import sys
+import re
+
+url = sys.argv[1]
+# Parse the connection string: postgresql://user:password@host:port/db?params
+match = re.match(r'(postgresql://)([^:]+):([^@]+)@(.+)', url)
+if match:
+    scheme = match.group(1)  # postgresql://
+    user = match.group(2)     # postgres
+    password = match.group(3)  # password (may be partially encoded)
+    rest = match.group(4)     # host:port/db?params
+    
+    # Decode first to get original password, then re-encode properly
+    try:
+        decoded = urllib.parse.unquote(password)
+        # Re-encode from decoded version to ensure all special chars are encoded
+        encoded_password = urllib.parse.quote(decoded, safe='')
+    except:
+        # If unquote fails, just encode as-is
+        encoded_password = urllib.parse.quote(password, safe='')
+    
+    encoded_url = f'{scheme}{user}:{encoded_password}@{rest}'
+    print(encoded_url)
+else:
+    # Doesn't match pattern, return as-is
+    print(url)
+" "$DATABASE_URL")
+    
+    if [ $? -eq 0 ] && [ -n "$ENCODED_URL" ] && [ "$ENCODED_URL" != "$DATABASE_URL" ]; then
+        DATABASE_URL="$ENCODED_URL"
+        echo -e "${GREEN}✅ Password encoded successfully${NC}"
+    fi
+fi
+
 echo -e "${GREEN}✅ Using database: ${DATABASE_URL%%@*}@...${NC}"
 echo ""
 
@@ -112,9 +154,23 @@ echo ""
 
 # Test connection first
 echo -e "${GREEN}Testing database connection...${NC}"
-if ! psql "$DATABASE_URL" -c "SELECT 1;" > /dev/null 2>&1; then
+CONNECTION_TEST=$(psql "$DATABASE_URL" -c "SELECT 1;" 2>&1)
+if [ $? -ne 0 ]; then
     echo -e "${RED}❌ Error: Cannot connect to database${NC}"
-    echo "Please check your DATABASE_URL and try again."
+    echo ""
+    echo "Connection error details:"
+    echo "$CONNECTION_TEST" | head -3
+    echo ""
+    echo "Common issues:"
+    echo "  1. Project still initializing (wait 2-3 minutes after creation)"
+    echo "  2. Incorrect project reference in connection string"
+    echo "  3. Wrong password"
+    echo "  4. Network/DNS issue"
+    echo ""
+    echo "Verify:"
+    echo "  - Project reference matches Supabase dashboard URL"
+    echo "  - Password is correct (check for special characters)"
+    echo "  - Using Session Pooler (port 6543) not Direct (port 5432)"
     exit 1
 fi
 
