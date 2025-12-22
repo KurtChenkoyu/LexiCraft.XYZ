@@ -38,10 +38,14 @@ Production Environment:
    - **Project Name:** `lexicraft-dev`
    - **Database Password:** Generate a strong password (save it! You'll need this for the connection string)
    - **Region:** 
-     - **Where to find:** Dropdown menu in the project creation form
+     - **Where to find:** Dropdown menu in the project creation form (appears after entering project name and password)
      - **Recommendation:** Choose the **same region as your production project** (for consistency and lower latency)
-     - **To check production region:** Go to your existing production project → Settings → General → Region
-     - **Available regions:** US (multiple), EU (multiple), Asia Pacific (Singapore, Tokyo, etc.), and more
+     - **To check production region:** 
+       1. Go to your existing production project
+       2. Click **Settings** (left sidebar)
+       3. Click **General** (first item under PROJECT SETTINGS)
+       4. Look for **"Region"** in the project information section (usually near the top, shows something like "Southeast Asia (Singapore)" or "West US (North California)")
+     - **Available regions:** US (multiple), EU (multiple), Asia Pacific (Singapore, Tokyo, Seoul, etc.), and more
      - **⚠️ Important:** Region **cannot be changed later** - you'd need to create a new project and migrate data
    - **Pricing Plan:** Free tier is fine for development
 4. Click **"Create new project"**

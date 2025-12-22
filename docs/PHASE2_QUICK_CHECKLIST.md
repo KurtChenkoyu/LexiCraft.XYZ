@@ -17,8 +17,12 @@
 - [ ] Name: `lexicraft-dev`
 - [ ] Set database password (save it! Needed for connection string)
 - [ ] **Region:** 
-  - [ ] Find region dropdown in creation form
-  - [ ] Check production region: Production project → Settings → General → Region
+  - [ ] Find region dropdown in creation form (after project name/password)
+  - [ ] **Check production region first:**
+    - [ ] Go to production project → Settings (left sidebar)
+    - [ ] Click "General" (first item under PROJECT SETTINGS)
+    - [ ] Find "Region" in project info section (top of page)
+    - [ ] Note the region (e.g., "Southeast Asia (Singapore)")
   - [ ] Choose same region as production (recommended)
   - [ ] ⚠️ Note: Region cannot be changed later!
 - [ ] Click "Create new project"
