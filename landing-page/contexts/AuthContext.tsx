@@ -63,25 +63,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase])
 
   const signOut = async () => {
-    // Clear API client cache to ensure fresh tokens on next login
-    clearClientCache()
-    
-    // CRITICAL: Reset Zustand state (clears isBootstrapped flag AND learnerCache)
     try {
-      const { useAppStore } = await import('@/stores/useAppStore')
-      const store = useAppStore.getState()
-      store.reset() // Sets isBootstrapped: false, clears learnerCache: {}, and all other state
+      // Clear API client cache to ensure fresh tokens on next login
+      clearClientCache()
       
-      // Also clear IndexedDB (Tier 1 cache)
-      const { downloadService } = await import('@/services/downloadService')
-      await downloadService.clearAll()
+      // CRITICAL: Reset Zustand state (clears isBootstrapped flag AND learnerCache)
+      try {
+        const { useAppStore } = await import('@/stores/useAppStore')
+        const store = useAppStore.getState()
+        store.reset() // Sets isBootstrapped: false, clears learnerCache: {}, and all other state
+        
+        // Also clear IndexedDB (Tier 1 cache)
+        const { downloadService } = await import('@/services/downloadService')
+        await downloadService.clearAll()
+      } catch (error) {
+        console.error('Failed to reset app state on logout:', error)
+        // Continue with logout even if reset fails
+      }
+      
+      // Sign out from Supabase with global scope to clear all sessions
+      const { error: signOutError } = await supabase.auth.signOut({ scope: 'global' })
+      
+      if (signOutError) {
+        console.error('Sign out error:', signOutError)
+        // Continue with redirect even if signOut fails
+      }
+      
+      // Force hard redirect to clear any cached state (especially important for Chrome)
+      // Use window.location.href instead of router.push for a full page reload
+      window.location.href = '/'
     } catch (error) {
-      console.error('Failed to reset app state on logout:', error)
-      // Continue with logout even if reset fails
+      console.error('Logout error:', error)
+      // Fallback: force redirect even if something fails
+      window.location.href = '/'
     }
-    
-    await supabase.auth.signOut()
-    router.push('/')
   }
 
   const refreshUser = async () => {
