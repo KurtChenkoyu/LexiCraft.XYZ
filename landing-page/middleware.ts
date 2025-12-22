@@ -3,6 +3,12 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { routing } from './i18n/routing'
 
 export async function middleware(request: NextRequest) {
+  // Early return for static assets to avoid any processing
+  const pathname = request.nextUrl.pathname
+  if (pathname.startsWith('/_next/static') || pathname.startsWith('/_next/image')) {
+    return NextResponse.next()
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -41,12 +47,15 @@ export async function middleware(request: NextRequest) {
       await supabase.auth.getUser()
     } catch (error) {
       // If Supabase fails, continue without auth (for graceful degradation)
-      console.error('Supabase auth error:', error)
+      // Only log in development to avoid noise in production
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Supabase auth error:', error)
+      }
     }
   }
 
   // Handle locale routing (existing i18n logic)
-  const pathname = request.nextUrl.pathname
+  // (pathname already defined above)
   
   // Skip locale redirect for static assets (workers, vocabulary, audio) and API routes
   if (pathname.startsWith('/workers/') || pathname.startsWith('/api/') || pathname.startsWith('/audio/') || pathname.startsWith('/auth/callback') || pathname.endsWith('.json')) {
