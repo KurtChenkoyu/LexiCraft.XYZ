@@ -92,6 +92,8 @@ export interface VocabularySense {
     connection_bonus?: number
     total_xp?: number
   }
+  base_xp?: number  // Top-level base XP (for compatibility)
+  total_value?: number  // Top-level total value (base_xp + bonuses)
 }
 
 export interface VocabularyWord {
@@ -539,11 +541,10 @@ class VocabularyStore {
       sense_id: senseId,
       word: sense.word,
       pos: sense.pos || undefined,
-      tier: 1,
       base_xp: 100,
       connection_count: connections.length,
       total_value: 100 + connections.length * 10,
-      rank: sense.frequency_rank ?? undefined,
+      rank: sense.frequency_rank ?? 4,  // Default to rank 4 if not set (word complexity 1-7)
       definition_en: sense.definition_en || '',
       definition_zh: definitionZh,
       example_en: sense.example_en || '',
@@ -569,12 +570,11 @@ class VocabularyStore {
       sense_id: id,
       word: sense.word,
       definition_preview: (sense.definition_en || sense.definition_zh || '').slice(0, 100),
-      rank: sense.rank || sense.tier || 1,  // Use rank (new) or fallback to tier (legacy)
+      rank: sense.rank || sense.frequency_rank || 1,  // Use rank (word complexity) or fallback to frequency_rank
       base_xp: baseXp,
       connection_count: connectionCount,
       total_value: totalValue,
       status: 'raw',
-      rank: sense.frequency_rank ?? undefined,
     }
   }
 

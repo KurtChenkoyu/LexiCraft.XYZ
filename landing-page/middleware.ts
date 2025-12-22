@@ -49,7 +49,7 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   
   // Skip locale redirect for static assets (workers, vocabulary, audio) and API routes
-  if (pathname.startsWith('/workers/') || pathname.startsWith('/api/') || pathname.startsWith('/audio/') || pathname.endsWith('.json')) {
+  if (pathname.startsWith('/workers/') || pathname.startsWith('/api/') || pathname.startsWith('/audio/') || pathname.startsWith('/auth/callback') || pathname.endsWith('.json')) {
     return response
   }
   

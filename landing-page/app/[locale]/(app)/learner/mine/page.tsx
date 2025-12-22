@@ -61,13 +61,12 @@ async function loadOrGenerateStarterPack(skipCheck = false, backendProgress?: an
           sense_id: detail.sense_id,
           word: detail.word,
           definition_preview: (detail.definition_en || '').slice(0, 100),
-          rank: detail.rank || detail.tier,  // Use rank (new) or fallback to tier (legacy)
+          rank: detail.rank,  // Use rank (word complexity 1-7)
           base_xp: detail.base_xp,
           connection_count: detail.connection_count,
           total_value: detail.total_value,
           status: p.status === 'verified' || p.status === 'mastered' ? 'solid' : 
                   p.status === 'pending' || p.status === 'learning' ? 'hollow' : 'raw',
-          rank: detail.rank,
         })
         addedSenseIds.add(p.sense_id)
       }
@@ -111,12 +110,11 @@ async function loadOrGenerateStarterPack(skipCheck = false, backendProgress?: an
             sense_id: detail.sense_id,
             word: detail.word,
             definition_preview: (detail.definition_en || '').slice(0, 100),
-            rank: detail.rank || detail.tier,  // Use rank (new) or fallback to tier (legacy)
+            rank: detail.rank,  // Use rank (word complexity 1-7)
             base_xp: detail.base_xp,
             connection_count: detail.connection_count,
             total_value: detail.total_value,
             status: 'raw',
-            rank: detail.rank,
           })
         }
       }
@@ -233,7 +231,6 @@ export default function MinePage() {
             connection_count: 0,
             total_value: 100,
             status: 'raw' as const,
-            rank: item.difficulty,
             emoji: item.emoji,
           }))
           setLocalBlocks(emojiBlocks)
@@ -340,18 +337,33 @@ export default function MinePage() {
     }
     
     async function loadStarter() {
-      // Ensure vocabulary is ready (main thread handles everything now)
-      const { vocabularyLoader } = await import('@/lib/vocabularyLoader')
-      
-      const isDev = process.env.NODE_ENV === 'development'
-      try {
-        if (isDev) console.log('⏳ Ensuring vocabulary is ready...')
-        const result = await vocabularyLoader.ensureReady()
-        if (isDev) console.log(`✅ Vocabulary ready: ${result.count} senses (${result.source})`)
-      } catch (error) {
-        console.error('❌ Failed to load vocabulary:', error)
-        window.location.href = '/start'
-        return
+      // 🎯 Skip legacy vocabulary loading if emoji pack is active
+      // Emoji pack is self-contained and doesn't need the legacy vocabulary file
+      if (isEmojiPack) {
+        const isDev = process.env.NODE_ENV === 'development'
+        if (isDev) {
+          console.log('🎯 Mine: Skipping legacy vocabulary (emoji pack active)')
+        }
+      } else {
+        // Legacy Mode: Ensure vocabulary is ready (main thread handles everything now)
+        const { vocabularyLoader } = await import('@/lib/vocabularyLoader')
+        
+        const isDev = process.env.NODE_ENV === 'development'
+        try {
+          if (isDev) console.log('⏳ Ensuring vocabulary is ready...')
+          const result = await vocabularyLoader.ensureReady()
+          if (isDev) {
+            if (result.count === 0) {
+              console.warn('⚠️ Vocabulary file missing, continuing with empty vocabulary')
+            } else {
+              console.log(`✅ Vocabulary ready: ${result.count} senses (${result.source})`)
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Vocabulary loading failed (non-fatal):', error)
+          // Don't redirect - continue with empty vocabulary
+          // The app will work, just without the full vocabulary file
+        }
       }
       
       if (!mounted) return
@@ -376,19 +388,21 @@ export default function MinePage() {
           if (isDev) console.log('🔄 Fetched backend progress:', backendProgress.length, 'items')
           
           // Save progress to IndexedDB in background (don't block)
-          Promise.all(backendProgress.map(async (p: any) => {
-            let status: 'raw' | 'hollow' | 'solid' = 'raw'
-            if (p.status === 'verified' || p.status === 'mastered' || p.status === 'solid') {
-              status = 'solid'
-            } else if (p.status === 'pending' || p.status === 'learning' || p.status === 'hollow') {
-              status = 'hollow'
-            }
-            await localStore.saveProgress(p.sense_id, status, {
-              rank: p.rank || p.tier,  // Use rank (new) or fallback to tier (legacy)
-              startedAt: p.started_at,
-              masteryLevel: p.mastery_level,
-            })
-          })).catch(err => console.warn('Failed to save progress:', err))
+          if (activeLearner?.id) {
+            Promise.all(backendProgress.map(async (p: any) => {
+              let status: 'raw' | 'hollow' | 'solid' = 'raw'
+              if (p.status === 'verified' || p.status === 'mastered' || p.status === 'solid') {
+                status = 'solid'
+              } else if (p.status === 'pending' || p.status === 'learning' || p.status === 'hollow') {
+                status = 'hollow'
+              }
+              await localStore.saveProgress(activeLearner.id, p.sense_id, status, {
+                tier: p.tier,  // BlockProgress uses tier (backend API)
+                startedAt: p.started_at,
+                masteryLevel: p.mastery_level,
+              })
+            })).catch(err => console.warn('Failed to save progress:', err))
+          }
         }
       } catch (err) {
         if (isDev) console.warn('⚠️ Could not fetch backend progress (timeout or error):', err)
@@ -402,14 +416,14 @@ export default function MinePage() {
             // Convert Map to array format expected by loadOrGenerateStarterPack
             // Note: getAllProgress returns Map<senseId, status>, we need to get full details
             backendProgress = []
-            for (const [senseId, status] of localProgressMap.entries()) {
+            for (const [senseId, status] of Array.from(localProgressMap.entries())) {
               const fullProgress = activeLearner?.id 
                 ? await localStore.getProgress(activeLearner.id, senseId)
                 : undefined
               backendProgress.push({
                 sense_id: senseId,
                 status: status as 'raw' | 'hollow' | 'solid' | 'mastered',
-                rank: fullProgress?.rank || fullProgress?.tier,  // Use rank (new) or fallback to tier (legacy)
+                tier: fullProgress?.tier,  // Local store uses tier
                 started_at: fullProgress?.startedAt?.toString(),
                 mastery_level: fullProgress?.masteryLevel,
               })
@@ -531,7 +545,7 @@ export default function MinePage() {
           // Convert Map to BlockProgress array format
           // Note: getAllProgress returns Map<senseId, status>, we need to get full details
           const progressData: BlockProgress[] = []
-          for (const [senseId, status] of localProgressMap.entries()) {
+          for (const [senseId, status] of Array.from(localProgressMap.entries())) {
             // Try to get full progress details if available
             const fullProgress = activeLearner?.id 
               ? await localStore.getProgress(activeLearner.id, senseId)

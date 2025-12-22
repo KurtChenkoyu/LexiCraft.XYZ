@@ -10,12 +10,22 @@
 
 import { useEffect, useState } from 'react'
 import { vocabularyLoader, type LoaderStatus } from '@/lib/vocabularyLoader'
+import { useAppStore } from '@/stores/useAppStore'
 
 export function VocabularyLoadingIndicator() {
+  const activePack = useAppStore((state) => state.activePack)
+  // Skip vocabulary loading for emoji MVP
+  const isEmojiPackActive = activePack?.id === 'emoji_core' || !activePack
+  
   const [status, setStatus] = useState<LoaderStatus>(vocabularyLoader.getCurrentStatus())
   const [isFirstTime, setIsFirstTime] = useState(false)
 
   useEffect(() => {
+    // Skip vocabulary loading for emoji MVP
+    if (isEmojiPackActive) {
+      return
+    }
+    
     // Start loading when component mounts
     vocabularyLoader.startLoading()
     
@@ -33,7 +43,12 @@ export function VocabularyLoadingIndicator() {
     })
     
     return unsubscribe
-  }, [])
+  }, [isEmojiPackActive])
+
+  // Skip vocabulary loading for emoji MVP
+  if (isEmojiPackActive) {
+    return null
+  }
 
   // Hide indicator when vocabulary is ready
   if (status.state === 'idle' || 

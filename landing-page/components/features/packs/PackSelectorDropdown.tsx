@@ -82,10 +82,10 @@ export function PackSelectorDropdown({ onClose }: PackSelectorDropdownProps) {
     
     // 3. Clear emoji state if switching FROM emoji pack
     if (activePack?.id === 'emoji_core' && pack.id !== 'emoji_core') {
-      setEmojiVocabulary(null)
-      setEmojiProgress(null)
-      setEmojiMasteredWords(null)
-      setEmojiStats(null)
+      setEmojiVocabulary([])
+      setEmojiProgress(null)  // Map can be null (setter accepts it)
+      setEmojiMasteredWords([])
+      setEmojiStats({ totalWords: 0, collectedWords: 0, masteredWords: 0, learningWords: 0 })
       console.log('🧹 Cleared emoji pack state (switching to legacy)')
     }
     
@@ -93,7 +93,8 @@ export function PackSelectorDropdown({ onClose }: PackSelectorDropdownProps) {
     setActivePack({
       id: pack.id,
       name: pack.name_zh || pack.name,
-      word_count: pack.word_count
+      word_count: pack.word_count,
+      emoji: pack.emoji
     })
     
     // 5. Mark mine data as not loaded (forces reload)

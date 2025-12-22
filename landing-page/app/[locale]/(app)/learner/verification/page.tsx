@@ -33,7 +33,8 @@ interface SessionResult {
   correct: number
   accuracy: number
   abilityChange: number
-  verifiedWords: Array<{ senseId: string, isCorrect: boolean }>
+  totalXpEarned: number
+  totalPointsEarned: number
 }
 
 export default function VerificationPage() {
@@ -217,38 +218,39 @@ export default function VerificationPage() {
     setSelectedCard(card)
   }
 
-  const handleSessionComplete = async (result: SessionResult) => {
+  const handleSessionComplete = (result: SessionResult) => {
     // Refresh due cards in background (don't wait, don't close screen)
     const learnerId = activeLearner?.id
     if (!session?.access_token || !learnerId) return
 
     const learnerIdAtStart = learnerId
 
-    try {
-      const freshCards = await downloadService.refreshLearnerDueCards(learnerIdAtStart)
-
-      const current = useAppStore.getState()
-      if (current.activeLearner?.id !== learnerIdAtStart) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log(
-            '⏭️ Skipping dueCards refresh after session for stale learner',
-            learnerIdAtStart,
-            '(current =',
-            current.activeLearner?.id,
-            ')',
-          )
+    // Fire and forget - don't await
+    downloadService.refreshLearnerDueCards(learnerIdAtStart)
+      .then((freshCards) => {
+        const current = useAppStore.getState()
+        if (current.activeLearner?.id !== learnerIdAtStart) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log(
+              '⏭️ Skipping dueCards refresh after session for stale learner',
+              learnerIdAtStart,
+              '(current =',
+              current.activeLearner?.id,
+              ')',
+            )
+          }
+          return
         }
-        return
-      }
 
-      if (freshCards) {
-        const { setDueCards: setStoreDueCards } = current
-        setDueCards(freshCards)
-        setStoreDueCards(freshCards)
-      }
-    } catch (err) {
-      console.error('Failed to refresh due cards after session:', err)
-    }
+        if (freshCards) {
+          const { setDueCards: setStoreDueCards } = current
+          setDueCards(freshCards)
+          setStoreDueCards(freshCards)
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to refresh due cards after session:', err)
+      })
 
     // DON'T auto-close - let user click "完成" button to exit
     // The onExit callback will handle closing

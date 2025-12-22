@@ -22,6 +22,9 @@ export interface Block {
   status: 'raw' | 'hollow' | 'solid'
   source?: string
   emoji?: string  // For emoji pack vocabulary
+  translation?: string  // Optional translation (can be toggled off for immersion)
+  category?: string  // Optional category/classification
+  difficulty?: number  // Optional difficulty level (1-3 for star ratings)
 }
 
 export interface OtherSense {

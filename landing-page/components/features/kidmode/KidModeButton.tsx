@@ -95,11 +95,11 @@ export function KidModeButton() {
                 {children.map((child) => (
                   <button
                     key={child.id}
-                    onClick={() => handleSelectChild(child)}
+                    onClick={() => handleSelectChild({ ...child, name: child.name || '' })}
                     className="w-full p-4 rounded-xl border-2 border-gray-200 hover:border-purple-400 hover:bg-purple-50 transition-all text-left flex items-center gap-4"
                   >
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-xl font-bold">
-                      {child.name.charAt(0).toUpperCase()}
+                      {(child.name || '').charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1">
                       <div className="font-bold text-gray-800">{child.name}</div>

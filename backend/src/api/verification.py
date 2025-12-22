@@ -77,6 +77,35 @@ class ProcessReviewResponse(BaseModel):
     debug_info: Optional[Dict[str, Any]]
 
 
+class BatchReviewRequest(BaseModel):
+    """Request to process multiple reviews."""
+    reviews: List[ProcessReviewRequest] = Field(..., description="List of reviews to process")
+    learner_id: Optional[UUID] = Field(None, description="Learner ID for validation (multi-profile system)")
+
+
+class BatchReviewItemResponse(BaseModel):
+    """Response for a single review in batch."""
+    learning_progress_id: int
+    success: bool
+    next_review_date: Optional[str] = None
+    next_interval_days: Optional[int] = None
+    was_correct: Optional[bool] = None
+    retention_predicted: Optional[float] = None
+    mastery_level: Optional[str] = None
+    mastery_changed: Optional[bool] = None
+    became_leech: Optional[bool] = None
+    algorithm_type: Optional[str] = None
+    error: Optional[str] = None
+
+
+class BatchReviewResponse(BaseModel):
+    """Response after processing batch reviews."""
+    total_processed: int
+    total_succeeded: int
+    total_failed: int
+    results: List[BatchReviewItemResponse]
+
+
 class AlgorithmInfoResponse(BaseModel):
     """Information about user's algorithm assignment."""
     algorithm: str
@@ -171,6 +200,142 @@ async def process_review(
     except Exception as e:
         logger.error(f"Failed to process review: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/review/batch", response_model=BatchReviewResponse)
+async def process_batch_review(
+    request: BatchReviewRequest,
+    user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db_session),
+):
+    """
+    Process multiple reviews in a single transaction.
+    
+    Security:
+    - Validates that all learning_progress_ids belong to the provided learner_id
+    - Verifies user_id is guardian/owner of that learner_id
+    - Processes all reviews atomically (all-or-nothing transaction)
+    """
+    results = []
+    total_succeeded = 0
+    total_failed = 0
+    
+    # Step 1: Validate learner_id ownership (if provided)
+    if request.learner_id:
+        learner_check = db.execute(
+            text("""
+                SELECT id FROM public.learners
+                WHERE id = :learner_id
+                  AND (guardian_id = :guardian_id OR user_id = :guardian_id)
+            """),
+            {'learner_id': request.learner_id, 'guardian_id': user_id}
+        ).fetchone()
+        
+        if not learner_check:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only process reviews for learners you manage"
+            )
+    
+    # Step 2: Get algorithm once (shared across all reviews)
+    algorithm = get_algorithm_for_user(user_id, db)
+    
+    # Step 3: Process each review
+    for review_request in request.reviews:
+        try:
+            # Validate learning_progress belongs to learner_id (if provided)
+            if request.learner_id:
+                progress_check = db.execute(
+                    text("""
+                        SELECT lp.id, lp.learner_id
+                        FROM learning_progress lp
+                        WHERE lp.id = :progress_id
+                    """),
+                    {'progress_id': review_request.learning_progress_id}
+                ).fetchone()
+                
+                if not progress_check:
+                    results.append(BatchReviewItemResponse(
+                        learning_progress_id=review_request.learning_progress_id,
+                        success=False,
+                        error="Learning progress not found"
+                    ))
+                    total_failed += 1
+                    continue
+                
+                if progress_check[1] != request.learner_id:
+                    results.append(BatchReviewItemResponse(
+                        learning_progress_id=review_request.learning_progress_id,
+                        success=False,
+                        error="Learner mismatch"
+                    ))
+                    total_failed += 1
+                    continue
+            
+            # Get card state
+            card_state = _get_card_state(db, user_id, review_request.learning_progress_id)
+            if not card_state:
+                results.append(BatchReviewItemResponse(
+                    learning_progress_id=review_request.learning_progress_id,
+                    success=False,
+                    error="Card state not found"
+                ))
+                total_failed += 1
+                continue
+            
+            # Process review
+            rating = PerformanceRating(review_request.performance_rating)
+            result = algorithm.process_review(
+                state=card_state,
+                rating=rating,
+                response_time_ms=review_request.response_time_ms,
+                review_date=date.today(),
+            )
+            
+            # Save state and history (deferred commit - batch endpoint handles commit)
+            _save_card_state(db, result.new_state, commit=False)
+            _save_review_history(db, user_id, review_request, result, card_state, commit=False)
+            
+            results.append(BatchReviewItemResponse(
+                learning_progress_id=review_request.learning_progress_id,
+                success=True,
+                next_review_date=result.next_review_date.isoformat(),
+                next_interval_days=result.next_interval_days,
+                was_correct=result.was_correct,
+                retention_predicted=result.retention_predicted,
+                mastery_level=result.new_state.mastery_level,
+                mastery_changed=result.mastery_changed,
+                became_leech=result.became_leech,
+                algorithm_type=result.algorithm_type,
+            ))
+            total_succeeded += 1
+            
+        except Exception as e:
+            logger.error(f"Failed to process review for learning_progress_id {review_request.learning_progress_id}: {e}")
+            results.append(BatchReviewItemResponse(
+                learning_progress_id=review_request.learning_progress_id,
+                success=False,
+                error=str(e)
+            ))
+            total_failed += 1
+    
+    # Step 4: Commit all successful reviews in one transaction
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Batch review transaction failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Transaction failed: {str(e)}"
+        )
+    
+    return BatchReviewResponse(
+        total_processed=len(request.reviews),
+        total_succeeded=total_succeeded,
+        total_failed=total_failed,
+        results=results
+    )
 
 
 @router.get("/algorithm", response_model=AlgorithmInfoResponse)
@@ -535,7 +700,7 @@ def _get_card_state(
     )
 
 
-def _save_card_state(db: Session, state: CardState) -> None:
+def _save_card_state(db: Session, state: CardState, commit: bool = True) -> None:
     """Save card state to database."""
     import json
     
@@ -582,7 +747,8 @@ def _save_card_state(db: Session, state: CardState) -> None:
             'avg_response_time_ms': state.avg_response_time_ms,
         }
     )
-    db.commit()
+    if commit:
+        db.commit()
 
 
 def _save_review_history(
@@ -591,6 +757,7 @@ def _save_review_history(
     request: ProcessReviewRequest,
     result: ReviewResult,
     old_state: CardState,
+    commit: bool = True,
 ) -> None:
     """Save review to history table."""
     import json
@@ -643,5 +810,6 @@ def _save_review_history(
             'algorithm_type': result.algorithm_type,
         }
     )
-    db.commit()
+    if commit:
+        db.commit()
 

@@ -398,7 +398,13 @@ export async function bootstrapApp(
       }
       
       if (learnersSummaries && learnersSummaries.length > 0) {
-        store.setLearnersSummaries(learnersSummaries)
+        // Normalize data to ensure weekly_xp and monthly_xp are present (backward compatibility)
+        const normalizedSummaries = learnersSummaries.map(s => ({
+          ...s,
+          weekly_xp: s.weekly_xp ?? 0,
+          monthly_xp: s.monthly_xp ?? 0,
+        }))
+        store.setLearnersSummaries(normalizedSummaries)
         if (process.env.NODE_ENV === 'development') {
           console.log(`✅ Bootstrap: Loaded ${learnersSummaries.length} learners summaries`)
           // Verify it was set
@@ -556,7 +562,7 @@ export async function bootstrapApp(
           allLearners.map(learner => 
             Promise.race([
               downloadService.syncProgress(learner.id),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000))
             ])
             .then(() => {
               // After sync completes, rebuild snapshot from fresh IndexedDB data
@@ -830,8 +836,7 @@ export async function bootstrapApp(
           base_xp: 10 * item.difficulty,
           connection_count: 0,
           total_value: 100,
-                    status: (emojiProgress?.get(item.sense_id) || 'raw') as 'raw' | 'hollow' | 'solid',
-          rank: item.difficulty,
+          status: (emojiProgress?.get(item.sense_id) || 'raw') as 'raw' | 'hollow' | 'solid',
           emoji: item.emoji,
         }))
         
@@ -870,7 +875,6 @@ export async function bootstrapApp(
                   connection_count: 0,
                   total_value: 100,
                   status: (emojiProgress?.get(item.sense_id) || 'raw') as 'raw' | 'hollow' | 'solid',
-                  rank: item.difficulty,
                   emoji: item.emoji,
                 }))
                 
@@ -912,7 +916,7 @@ export async function bootstrapApp(
           try {
             const progressData = await Promise.race([
                     progressApi.getUserProgress(currentLearnerId),
-              new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
+              new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000))
             ]) as UserProgressResponse | null
             
             if (progressData?.progress) {
@@ -993,12 +997,11 @@ export async function bootstrapApp(
                 sense_id: detail.sense_id,
                 word: detail.word,
                 definition_preview: (detail.definition_en || '').slice(0, 100),
-                rank: detail.rank || detail.tier,  // Use rank (new) or fallback to tier (legacy API)
+                rank: detail.rank,  // Use rank (word complexity)
                 base_xp: detail.base_xp,
                 connection_count: detail.connection_count,
                 total_value: detail.total_value,
                 status,
-                rank: detail.rank,
               })
             }
           }
@@ -1037,12 +1040,11 @@ export async function bootstrapApp(
                 sense_id: detail.sense_id,
                 word: detail.word,
                 definition_preview: (detail.definition_en || '').slice(0, 100),
-                rank: detail.rank || detail.tier,  // Use rank (new) or fallback to tier (legacy API)
+                rank: detail.rank,  // Use rank (word complexity)
                 base_xp: detail.base_xp,
                 connection_count: detail.connection_count,
                 total_value: detail.total_value,
                 status: status as 'raw' | 'hollow' | 'solid',
-                rank: detail.rank,
               })
             }
                 })
@@ -1246,7 +1248,6 @@ export async function bootstrapApp(
                 connection_count: 0,
                 total_value: 100,
                 status: (emojiProgress?.get(item.sense_id) || 'raw') as 'raw' | 'hollow' | 'solid',
-                rank: item.difficulty,
                 emoji: item.emoji,
               }))
               
@@ -1285,7 +1286,6 @@ export async function bootstrapApp(
               connection_count: 0,
               total_value: 100,
               status: (emojiProgress?.get(item.sense_id) || 'raw') as 'raw' | 'hollow' | 'solid',
-              rank: item.difficulty,
               emoji: item.emoji,
             }))
             
@@ -1327,7 +1327,7 @@ export async function bootstrapApp(
           try {
             const progressData = await Promise.race([
               progressApi.getUserProgress(activeLearnerId),
-              new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
+              new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000))
             ]) as UserProgressResponse | null
             
             if (progressData?.progress) {
@@ -1408,12 +1408,11 @@ export async function bootstrapApp(
                 sense_id: detail.sense_id,
                 word: detail.word,
                 definition_preview: (detail.definition_en || '').slice(0, 100),
-                rank: detail.rank || detail.tier,  // Use rank (new) or fallback to tier (legacy API)
+                rank: detail.rank,  // Use rank (word complexity)
                 base_xp: detail.base_xp,
                 connection_count: detail.connection_count,
                 total_value: detail.total_value,
                 status,
-                rank: detail.rank,
               })
             }
           }
@@ -1452,12 +1451,11 @@ export async function bootstrapApp(
                 sense_id: detail.sense_id,
                 word: detail.word,
                 definition_preview: (detail.definition_en || '').slice(0, 100),
-                rank: detail.rank || detail.tier,  // Use rank (new) or fallback to tier (legacy API)
+                rank: detail.rank,  // Use rank (word complexity)
                 base_xp: detail.base_xp,
                 connection_count: detail.connection_count,
                 total_value: detail.total_value,
                 status: status as 'raw' | 'hollow' | 'solid',
-                rank: detail.rank,
               })
             }
           })

@@ -42,6 +42,11 @@ class User(Base, BaseModel):
     email_confirmed = Column(Boolean, default=False, nullable=False)
     email_confirmed_at = Column(DateTime, nullable=True)
     
+    # Subscription fields (Lemon Squeezy integration)
+    subscription_status = Column(Text, nullable=True, index=True)  # 'active', 'inactive', 'trial', 'past_due', or NULL
+    plan_type = Column(Text, nullable=True)  # '6-month-pass', '12-month-pass', etc.
+    subscription_end_date = Column(DateTime, nullable=True)  # When subscription expires
+    
     # Relationships
     roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
     relationships_from = relationship("UserRelationship", foreign_keys="UserRelationship.from_user_id", back_populates="from_user")

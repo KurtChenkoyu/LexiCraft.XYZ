@@ -3,9 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { useUserData } from '@/contexts/UserDataContext'
 import { CampaignConfig, trackCampaignEvent } from '@/lib/campaign-config'
 
 // ===========================================
@@ -14,6 +12,7 @@ import { CampaignConfig, trackCampaignEvent } from '@/lib/campaign-config'
 
 interface EmojiLandingPageProps {
   campaign: CampaignConfig
+  checkoutUrl: string
 }
 
 // Floating emoji animation
@@ -141,12 +140,17 @@ function DemoMCQ({ campaign }: { campaign: CampaignConfig }) {
   )
 }
 
-// Hero Section - All CTAs lead to checkout/signup, NOT into the game
-function HeroSection({ campaign, isLoggedIn, onCheckout }: { 
+// Hero Section - All CTAs lead to checkout/login, NOT into the game
+function HeroSection({ campaign, isLoggedIn, checkoutUrl }: { 
   campaign: CampaignConfig
   isLoggedIn: boolean
-  onCheckout: () => void 
+  checkoutUrl: string
 }) {
+  const handleCheckout = () => {
+    trackCampaignEvent(campaign, 'checkoutStart')
+    window.open(checkoutUrl, '_blank')
+  }
+
   return (
     <section className="relative z-10 min-h-screen flex items-center px-4 py-20">
       <div className="max-w-6xl mx-auto w-full">
@@ -177,20 +181,43 @@ function HeroSection({ campaign, isLoggedIn, onCheckout }: {
               <br className="hidden sm:block" />
               200個常用單字 × 有趣表情符號 = 快樂學習！
             </p>
+
+            {/* Price Anchor Text */}
+            {campaign.content.priceAnchorText && (
+              <div className="mb-6 text-center sm:text-left">
+                <p className="text-slate-400 text-sm">
+                  {(() => {
+                    const parts = campaign.content.priceAnchorText.split('~~')
+                    const originalPrice = parts[1] || ''
+                    const promoText = parts[2] || parts[0] || ''
+                    return (
+                      <>
+                        <span className="line-through">{originalPrice}</span>
+                        {' '}
+                        <span className="text-red-400 font-bold">{promoText.trim()}</span>
+                      </>
+                    )
+                  })()}
+                </p>
+              </div>
+            )}
             
             <div className="flex flex-wrap gap-4">
               {/* Primary CTA: Always leads to checkout flow */}
               {isLoggedIn ? (
-                <motion.button
-                  onClick={onCheckout}
+                <motion.a
+                  href={checkoutUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleCheckout}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="px-8 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold rounded-xl shadow-lg"
+                  className="px-8 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold rounded-xl shadow-lg cursor-pointer"
                 >
                   💳 NT${campaign.content.salePrice} 立即購買
-                </motion.button>
+                </motion.a>
               ) : (
-                <Link href="/signup">
+                <Link href="/login">
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -313,50 +340,14 @@ function WordForgeSection({ campaign }: { campaign: CampaignConfig }) {
 }
 
 // Pricing Section
-function PricingSection({ campaign, isLoggedIn, userId, learnerId }: { 
+function PricingSection({ campaign, isLoggedIn, checkoutUrl }: { 
   campaign: CampaignConfig
   isLoggedIn: boolean
-  userId?: string
-  learnerId?: string 
+  checkoutUrl: string
 }) {
-  const router = useRouter()
-  const [isCheckingOut, setIsCheckingOut] = useState(false)
-  
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     trackCampaignEvent(campaign, 'checkoutStart')
-    
-    if (!userId) {
-      router.push('/signup')
-      return
-    }
-    
-    setIsCheckingOut(true)
-    try {
-      const response = await fetch('/api/deposits/create-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: campaign.content.salePrice,
-          userId,
-          learnerId: learnerId || userId,
-        }),
-      })
-      
-      const data = await response.json()
-      
-      if (data.url) {
-        trackCampaignEvent(campaign, 'checkoutComplete', { redirecting: true })
-        window.location.href = data.url
-      } else {
-        console.error('Checkout error:', data.error)
-        router.push('/parent/dashboard/finance')
-      }
-    } catch (error) {
-      console.error('Checkout failed:', error)
-      router.push('/parent/dashboard/finance')
-    } finally {
-      setIsCheckingOut(false)
-    }
+    window.open(checkoutUrl, '_blank')
   }
   
   const features = [
@@ -402,6 +393,18 @@ function PricingSection({ campaign, isLoggedIn, userId, learnerId }: {
             <p className="text-emerald-400 font-medium mt-1">
               一次付費，{campaign.content.duration}暢玩！
             </p>
+            {/* Price Anchor Text */}
+            {campaign.content.priceAnchorText && (
+              <p className="text-slate-400 text-sm mt-2">
+                <span className="line-through">
+                  {campaign.content.priceAnchorText.match(/~~([^~]+)~~/)?.[1] || ''}
+                </span>
+                {' '}
+                <span className="text-red-400 font-bold">
+                  {campaign.content.priceAnchorText.split('~~').slice(-1)[0]?.trim() || ''}
+                </span>
+              </p>
+            )}
           </div>
           
           {/* Features */}
@@ -416,29 +419,24 @@ function PricingSection({ campaign, isLoggedIn, userId, learnerId }: {
           {/* CTA */}
           {isLoggedIn ? (
             <>
-              <motion.button
+              <motion.a
+                href={checkoutUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={handleCheckout}
-                disabled={isCheckingOut}
-                whileHover={{ scale: isCheckingOut ? 1 : 1.02 }}
-                whileTap={{ scale: isCheckingOut ? 1 : 0.98 }}
-                className={`w-full py-4 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-black font-black text-xl rounded-xl shadow-lg transition-all ${isCheckingOut ? 'opacity-70 cursor-wait' : ''}`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="block w-full py-4 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-black font-black text-xl rounded-xl shadow-lg transition-all text-center"
               >
-                {isCheckingOut ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                    處理中...
-                  </span>
-                ) : (
-                  `💳 立即購買 NT$${campaign.content.salePrice}`
-                )}
-              </motion.button>
+                💳 立即購買 NT${campaign.content.salePrice}
+              </motion.a>
               <p className="text-center text-slate-400 text-sm mt-4">
                 安全付款，立即開通
               </p>
             </>
           ) : (
             <>
-              <Link href="/signup">
+              <Link href="/login">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -458,12 +456,17 @@ function PricingSection({ campaign, isLoggedIn, userId, learnerId }: {
   )
 }
 
-// Final CTA Section - All CTAs lead to checkout/signup
-function FinalCTASection({ campaign, isLoggedIn, onCheckout }: { 
+// Final CTA Section - All CTAs lead to checkout/login
+function FinalCTASection({ campaign, isLoggedIn, checkoutUrl }: { 
   campaign: CampaignConfig
   isLoggedIn: boolean
-  onCheckout: () => void 
+  checkoutUrl: string
 }) {
+  const handleCheckout = () => {
+    trackCampaignEvent(campaign, 'checkoutStart')
+    window.open(checkoutUrl, '_blank')
+  }
+
   return (
     <section className="relative z-10 px-4 py-20 text-center">
       <div className="max-w-2xl mx-auto">
@@ -481,16 +484,19 @@ function FinalCTASection({ campaign, isLoggedIn, onCheckout }: {
             快樂學習，從今天開始！
           </p>
           {isLoggedIn ? (
-            <motion.button
-              onClick={onCheckout}
+            <motion.a
+              href={checkoutUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleCheckout}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-12 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold text-xl rounded-xl shadow-lg"
+              className="inline-block px-12 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold text-xl rounded-xl shadow-lg"
             >
               💳 NT${campaign.content.salePrice} 立即購買
-            </motion.button>
+            </motion.a>
           ) : (
-            <Link href="/signup">
+            <Link href="/login">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -510,55 +516,11 @@ function FinalCTASection({ campaign, isLoggedIn, onCheckout }: {
 // MAIN COMPONENT
 // ===========================================
 
-export default function EmojiLandingPage({ campaign }: EmojiLandingPageProps) {
+export default function EmojiLandingPage({ campaign, checkoutUrl }: EmojiLandingPageProps) {
   const [mounted, setMounted] = useState(false)
-  const [isCheckingOut, setIsCheckingOut] = useState(false)
-  const router = useRouter()
   const { user, loading: authLoading } = useAuth()
-  const { children, selectedChildId } = useUserData()
   
   const isLoggedIn = !authLoading && !!user
-  const userId = user?.id
-  const learnerId = selectedChildId || children[0]?.id
-  
-  // Unified checkout handler
-  const handleCheckout = async () => {
-    trackCampaignEvent(campaign, 'checkoutStart')
-    
-    if (!userId) {
-      // Not logged in - send to signup first
-      router.push('/signup')
-      return
-    }
-    
-    setIsCheckingOut(true)
-    try {
-      const response = await fetch('/api/deposits/create-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: campaign.content.salePrice,
-          userId,
-          learnerId: learnerId || userId,
-        }),
-      })
-      
-      const data = await response.json()
-      
-      if (data.url) {
-        trackCampaignEvent(campaign, 'checkoutComplete', { redirecting: true })
-        window.location.href = data.url
-      } else {
-        console.error('Checkout error:', data.error)
-        router.push('/parent/dashboard/finance')
-      }
-    } catch (error) {
-      console.error('Checkout failed:', error)
-      router.push('/parent/dashboard/finance')
-    } finally {
-      setIsCheckingOut(false)
-    }
-  }
   
   // Track page view
   useEffect(() => {
@@ -579,16 +541,6 @@ export default function EmojiLandingPage({ campaign }: EmojiLandingPageProps) {
     )
   }
   
-  // Show loading overlay when checking out
-  if (isCheckingOut) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center">
-        <div className="text-6xl mb-4 animate-bounce">💳</div>
-        <p className="text-white text-xl">正在前往付款頁面...</p>
-      </div>
-    )
-  }
-  
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 relative">
         {/* Background Effects */}
@@ -603,16 +555,15 @@ export default function EmojiLandingPage({ campaign }: EmojiLandingPageProps) {
         
         {/* Sections - No duplicate nav, global nav handles it */}
         <div className="pt-4">
-          <HeroSection campaign={campaign} isLoggedIn={isLoggedIn} onCheckout={handleCheckout} />
+          <HeroSection campaign={campaign} isLoggedIn={isLoggedIn} checkoutUrl={checkoutUrl} />
         </div>
         <WordForgeSection campaign={campaign} />
         <PricingSection 
           campaign={campaign} 
           isLoggedIn={isLoggedIn} 
-          userId={userId} 
-          learnerId={learnerId} 
+          checkoutUrl={checkoutUrl}
         />
-        <FinalCTASection campaign={campaign} isLoggedIn={isLoggedIn} onCheckout={handleCheckout} />
+        <FinalCTASection campaign={campaign} isLoggedIn={isLoggedIn} checkoutUrl={checkoutUrl} />
         
         {/* Footer */}
         <footer className="relative z-10 py-8 border-t border-slate-800">

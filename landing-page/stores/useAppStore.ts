@@ -144,6 +144,8 @@ export interface LearnerSummary {
   // Summary stats (learner-scoped)
   level: number
   total_xp: number
+  weekly_xp: number  // XP earned in last 7 days
+  monthly_xp: number  // XP earned in last 30 days
   current_streak: number
   vocabulary_size: number
   words_in_progress: number  // Words with status 'hollow', 'learning', 'pending'
@@ -262,6 +264,7 @@ interface AppState {
     id: string           // 'emoji_core'
     name: string         // 'Core Emoji'
     word_count: number
+    emoji?: string       // Pack icon: '🎯'
   } | null
   
   // Emoji Pack Data (preloaded for instant rendering)
@@ -316,7 +319,6 @@ interface AppState {
   setCurrencies: (currencies: any | null) => void
   setRooms: (rooms: any[]) => void
   setBuildState: (learnerId: string, currencies: any | null, rooms: any[]) => void
-  setBuildState: (learnerId: string, currencies: any | null, rooms: any[]) => void
   setBootstrapped: (value: boolean) => void
   setIsSyncing: (value: boolean) => void
   setBootstrapError: (error: string | null) => void
@@ -358,7 +360,7 @@ interface AppState {
   
   // Leaderboard Page Actions
   setLeaderboardData: (data: { entries: any[], userRank: any | null, period: string, metric: string }) => void
-  setActivePack: (pack: { id: string, name: string, word_count: number } | null) => void
+  setActivePack: (pack: { id: string, name: string, word_count: number, emoji?: string } | null) => void
 
   // Emoji Pack Data Actions
   setEmojiVocabulary: (vocab: PackVocabularyItem[]) => void
@@ -864,6 +866,7 @@ export const useAppStore = create<AppState>()(
                     emojiSRSLevels: emptyEmojiSRSLevels,
                     progress: defaultProgress,
                     dueCards: cachedDueCards, // Use loaded due cards (may be empty)
+                    collectedWords: [],
                     currencies: null,
                     rooms: [],
                     timestamp: Date.now(),
@@ -997,6 +1000,7 @@ export const useAppStore = create<AppState>()(
                       emojiSRSLevels: emojiSRSMap, // Always a Map (never null) from above
                       progress: progressStats,
                       dueCards: existing?.dueCards ?? s.dueCards ?? [],
+                      collectedWords: existing?.collectedWords ?? s.collectedWords ?? [],
                       currencies: existing?.currencies ?? s.currencies ?? null,
                       rooms: existing?.rooms ?? s.rooms ?? [],
                       timestamp: Date.now(),
@@ -1990,31 +1994,73 @@ export const useAppStore = create<AppState>()(
           }
         })
 
-        // 3. SRS SYNC (Background - Fire-and-Forget)
-        // Look up verification schedule info and submit to backend
-        correctResults.forEach(({ senseId }) => {
-          // Fire-and-forget: Don't await, don't block UI
-          progressApi.getVerificationScheduleInfo(senseId, activeLearnerId)
-            .then(scheduleInfo => {
-              if (!scheduleInfo) {
-                console.warn(`⚠️ No verification schedule found for ${senseId}, skipping backend sync`)
+        // 3. SRS SYNC (Background - Fire-and-Forget) - BATCHED VERSION
+        // Collect all verification schedule info first, then send one batch request
+        const activeLearnerIdAtStart = activeLearnerId // Capture at start (race condition protection)
+
+        // Step 1: Fetch all schedule info in parallel (non-blocking)
+        Promise.all(
+          correctResults.map(({ senseId }) =>
+            progressApi.getVerificationScheduleInfo(senseId, activeLearnerIdAtStart)
+              .then(info => ({ senseId, scheduleInfo: info }))
+              .catch(err => {
+                console.warn(`Failed to get verification schedule info for ${senseId}:`, err)
+                return { senseId, scheduleInfo: null }
+              })
+          )
+        ).then(scheduleResults => {
+          // Step 2: Filter out nulls and check learner still matches
+          const currentState = get()
+          if (currentState.activeLearner?.id !== activeLearnerIdAtStart) {
+            console.warn(`⏭️ Skipping batch sync: learner switched from ${activeLearnerIdAtStart} to ${currentState.activeLearner?.id}`)
+            return
+          }
+          
+          const validReviews = scheduleResults
+            .filter(({ scheduleInfo }) => scheduleInfo !== null)
+            .map(({ senseId, scheduleInfo }) => ({
+              learning_progress_id: scheduleInfo!.learning_progress_id,
+              performance_rating: 2, // GOOD rating (default for correct answer in emoji MCQ)
+              response_time_ms: 5000, // Default response time (TODO: Track actual time in EmojiMCQSession)
+            }))
+          
+          if (validReviews.length === 0) {
+            console.warn('⚠️ No valid verification schedules found for batch sync')
+            return
+          }
+          
+          // Step 3: Send ONE batch request
+          const { authenticatedPost } = require('@/lib/api-client')
+          authenticatedPost('/api/v1/verification/review/batch', {
+            reviews: validReviews,
+            learner_id: activeLearnerIdAtStart, // CRITICAL: Include learner_id for multi-profile validation
+          })
+            .then((response: any) => {
+              // Check learner still matches after async operation
+              const finalState = get()
+              if (finalState.activeLearner?.id !== activeLearnerIdAtStart) {
+                console.warn(`⏭️ Batch sync completed but learner switched, ignoring results`)
                 return
               }
-
-              // Submit to backend for SRS processing
-              // Use POST /api/v1/verification/review to trigger SRS algorithm
-              // This ensures next review is scheduled and mastery level is updated
-              const { authenticatedPost } = require('@/lib/api-client')
-              authenticatedPost(`/api/v1/verification/review`, {
-                learning_progress_id: scheduleInfo.learning_progress_id,
-                performance_rating: 2, // GOOD rating (default for correct answer in emoji MCQ)
-                response_time_ms: 5000, // Default response time (TODO: Track actual time in EmojiMCQSession)
-              }).catch(err => {
-                console.warn(`Failed to sync verification for ${senseId}:`, err)
-              })
+              
+              console.log(`✅ Batch sync: ${response.total_succeeded}/${response.total_processed} reviews processed`)
+              
+              if (response.total_failed > 0) {
+                const failedItems = response.results.filter((r: any) => !r.success)
+                console.warn(`⚠️ Batch sync: ${response.total_failed} reviews failed:`, failedItems.map((r: any) => ({
+                  learning_progress_id: r.learning_progress_id,
+                  error: r.error
+                })))
+              }
             })
-            .catch(err => {
-              console.warn(`Failed to get verification schedule info for ${senseId}:`, err)
+            .catch((err: any) => {
+              // Check learner still matches on error
+              const errorState = get()
+              if (errorState.activeLearner?.id !== activeLearnerIdAtStart) {
+                console.warn(`⏭️ Batch sync failed but learner switched, ignoring error`)
+                return
+              }
+              console.warn('Failed to sync verification batch:', err)
             })
         })
 
@@ -2032,7 +2078,7 @@ export const useAppStore = create<AppState>()(
                 status: 'verified' // Backend uses 'verified' for solid state (not 'solid')
               }
             }))
-          }).catch(err => {
+          }).catch((err: any) => {
             console.warn('Failed to sync progress status to backend:', err)
           })
         }

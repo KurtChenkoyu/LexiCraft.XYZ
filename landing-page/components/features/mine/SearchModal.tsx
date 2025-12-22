@@ -171,7 +171,7 @@ export function SearchModal({
     // Convert to grouped results
     const groupedResults: GroupedResult[] = []
     
-    for (const [lemmaKey, senses] of lemmaGroups) {
+    for (const [lemmaKey, senses] of Array.from(lemmaGroups)) {
       // Sort senses by score (best first)
       senses.sort((a, b) => b.score - a.score)
       
@@ -259,7 +259,7 @@ export function SearchModal({
               phrase_meaning: coll.meaning,
               primary: {
                 sense_id: senseId,
-                pos: sense.pos,
+                pos: sense.pos || undefined,
                 cefr: coll.cefr || sense.cefr,
                 definition_en: coll.meaning,
                 definition_zh: coll.meaning_zh,
@@ -277,7 +277,7 @@ export function SearchModal({
         }
       }
       
-      groupedResults.push(...phraseResults.values())
+      groupedResults.push(...Array.from(phraseResults.values()))
     }
 
     return groupedResults

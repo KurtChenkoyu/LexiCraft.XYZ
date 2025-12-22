@@ -56,7 +56,7 @@ const CACHE_KEYS = {
 }
 
 // Learner-scoped helpers
-const getLearnerDueCardsCacheKey = (learnerId: string) =>
+export const getLearnerDueCardsCacheKey = (learnerId: string) =>
   `${CACHE_KEYS.DUE_CARDS}_${learnerId}`
 
 const getLearnerCurrenciesKey = (learnerId: string) =>
@@ -124,6 +124,8 @@ interface LearnerSummary {
   // Summary stats (learner-scoped)
   level: number
   total_xp: number
+  weekly_xp?: number  // XP earned in last 7 days (optional for backward compatibility)
+  monthly_xp?: number  // XP earned in last 30 days (optional for backward compatibility)
   current_streak: number
   vocabulary_size: number
   words_in_progress: number  // Words with status 'hollow', 'learning', 'pending'
@@ -284,7 +286,13 @@ class DownloadService {
         // Update Zustand store if summaries were fetched (even if empty, to clear stale data)
         const { useAppStore } = await import('@/stores/useAppStore')
         if (summaries) {
-          useAppStore.getState().setLearnersSummaries(summaries)
+          // Normalize data to ensure weekly_xp and monthly_xp are present (backward compatibility)
+          const normalizedSummaries = summaries.map(s => ({
+            ...s,
+            weekly_xp: s.weekly_xp ?? 0,
+            monthly_xp: s.monthly_xp ?? 0,
+          }))
+          useAppStore.getState().setLearnersSummaries(normalizedSummaries)
           if (process.env.NODE_ENV === 'development') {
             console.log(`✅ Background sync: Updated ${summaries.length} learners summaries in store`)
             if (summaries.length > 0) {
@@ -557,7 +565,7 @@ class DownloadService {
               // Merge with existing to preserve timestamps
               const existing = await localStore.getCollectedWords(learnerId)
               const collectedAtMap = new Map(existing.map(w => [w.sense_id, w.collectedAt]))
-              const masteredAtMap = new Map(existing.map(w => [w.sense_id, w.masteredAt]).filter(([_, t]) => t !== undefined))
+              const masteredAtMap = new Map(existing.map(w => [w.sense_id, w.masteredAt]).filter(([_, t]) => t !== undefined) as [string, number][])
               const isArchivedMap = new Map(existing.map(w => [w.sense_id, w.isArchived || false]))
               
               collectedWords.forEach(w => {
@@ -565,7 +573,10 @@ class DownloadService {
                   w.collectedAt = collectedAtMap.get(w.sense_id)!
                 }
                 if (masteredAtMap.has(w.sense_id)) {
-                  w.masteredAt = masteredAtMap.get(w.sense_id)!
+                  const masteredAt = masteredAtMap.get(w.sense_id)
+                  if (masteredAt !== undefined) {
+                    w.masteredAt = masteredAt
+                  }
                 }
                 if (isArchivedMap.has(w.sense_id)) {
                   w.isArchived = isArchivedMap.get(w.sense_id)!

@@ -10,17 +10,17 @@
  * Each campaign has its own config in lib/campaign-config.ts
  */
 
-import { getActiveCampaign, getDefaultCampaign } from '@/lib/campaign-config'
-import EmojiLandingPage from '@/components/marketing/EmojiLandingPage'
+'use client'
 
-export const metadata = {
-  title: '表情學英文 - LexiCraft',
-  description: '用表情符號學英文！專為 4-10 歲孩子設計的英語學習遊戲。',
-}
+import { getActiveCampaign, getDefaultCampaign, getCheckoutUrl } from '@/lib/campaign-config'
+import EmojiLandingPage from '@/components/marketing/EmojiLandingPage'
 
 export default function EmojiFunPage() {
   // Auto-select active campaign or use default
   const campaign = getActiveCampaign() || getDefaultCampaign()
   
-  return <EmojiLandingPage campaign={campaign} />
+  // Get checkout URL (with A/B testing support if enabled)
+  const checkoutUrl = getCheckoutUrl(campaign)
+  
+  return <EmojiLandingPage campaign={campaign} checkoutUrl={checkoutUrl} />
 }

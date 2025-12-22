@@ -59,7 +59,7 @@ function getXpValue(sense: VocabularySense): number {
   }
   
   // Fallback: calculate from rank (word complexity)
-  const rank = sense.rank || sense.tier || 1  // Use rank (new) or fallback to tier (legacy)
+  const rank = sense.rank || 1
   const rankBaseXp: Record<number, number> = {
     1: 100,
     2: 120,  // Updated to frequency-aligned values

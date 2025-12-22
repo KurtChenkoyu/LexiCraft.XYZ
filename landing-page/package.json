@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "upload-audio": "node scripts/upload-audio-to-supabase.js",
     "backend:start": "cd ../backend && ./start-backend.sh",
     "backend:stop": "lsof -ti :8000 | xargs kill -9 2>/dev/null || echo 'No backend running'",
     "backend:check": "curl -s http://localhost:8000/health | python3 -m json.tool || echo 'Backend not responding'"
@@ -29,7 +30,7 @@
     "idb": "^8.0.3",
     "lucide-react": "^0.555.0",
     "mixpanel-browser": "^2.0.0",
-    "next": "^14.0.0",
+    "next": "^14.2.35",
     "next-intl": "^3.0.0",
     "posthog-js": "^1.0.0",
     "react": "^18.2.0",

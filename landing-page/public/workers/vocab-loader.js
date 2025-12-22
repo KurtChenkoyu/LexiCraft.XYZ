@@ -24,6 +24,19 @@ self.onmessage = async (event) => {
 
       // Use version query param to bust HTTP cache when vocabulary changes
       const response = await fetch(`/vocabulary-v6-enriched.json?v=${VOCABULARY_VERSION}`)
+      
+      // GRACEFUL 404 HANDLING: If file is missing, return empty vocabulary
+      if (response.status === 404) {
+        console.warn('⚠️ Vocabulary file missing (404), loading empty set')
+        self.postMessage({ 
+          status: 'parsed', 
+          senses: [],
+          count: 0,
+          version: VOCABULARY_VERSION
+        })
+        return
+      }
+      
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }

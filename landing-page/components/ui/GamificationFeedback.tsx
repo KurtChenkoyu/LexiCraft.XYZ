@@ -84,7 +84,7 @@ export const StreakBanner: React.FC<{
   return (
     <div className="fixed top-32 left-1/2 -translate-x-1/2 z-[60] animate-bounce">
       <div className="bg-gradient-to-r from-red-500 to-orange-500 px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
-        <span className="text-xl">🔥</span>
+        <span className="text-xl">⚡</span>
         <span className="text-white font-bold">連續 {days} 天！</span>
       </div>
     </div>

@@ -178,18 +178,31 @@ class VocabularyLoader {
             break
 
           case 'error':
-            console.error('❌ Worker error:', error)
+            console.warn('⚠️ Vocabulary loading failed:', error)
+            // Don't crash - just return empty vocabulary
             this.updateStatus({ state: 'error', error })
-            this.readyReject?.(new Error(error))
+            // Resolve with empty result instead of rejecting
+            this.readyResolve?.({
+              success: true,
+              source: 'cache', // Treat as cached (empty)
+              count: 0,
+              version: 'empty'
+            })
             this.terminate()
             break
         }
       }
 
       this.worker.onerror = (error) => {
-        console.error('❌ Worker crashed:', error)
-        this.updateStatus({ state: 'error', error: error.message || 'Worker crashed' })
-        this.readyReject?.(new Error(error.message || 'Worker crashed'))
+        console.warn('⚠️ Worker error (non-fatal):', error)
+        // Don't crash - return empty vocabulary
+        this.updateStatus({ state: 'error', error: error.message || 'Worker error' })
+        this.readyResolve?.({
+          success: true,
+          source: 'cache',
+          count: 0,
+          version: 'empty'
+        })
         this.terminate()
       }
 

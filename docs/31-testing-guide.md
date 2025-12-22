@@ -547,7 +547,7 @@ Overall Status: [ ] Pass [ ] Fail [ ] Needs Review
 
 **Expected:**
 - [ ] XP toast: "+15 XP" (or more with streak)
-- [ ] If streak extended: "🔥 連續 X 天！" banner
+- [ ] If streak extended: "⚡ 連續 X 天！" banner
 - [ ] Response includes complete `gamification` object
 
 ### 8.3 Streak Multipliers

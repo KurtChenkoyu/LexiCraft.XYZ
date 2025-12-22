@@ -119,31 +119,49 @@ export function EmojiMineGrid({ onWordClick }: EmojiMineGridProps) {
   
   // Infinite scroll with Intersection Observer
   useEffect(() => {
-    if (!hasMore || loading) return
-    
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          setDisplayCount(prev => {
-            const newCount = prev + 6
-            const filtered = selectedCategory 
-              ? allWords.filter(w => w.category === selectedCategory)
-              : allWords
-            setHasMore(newCount < filtered.length)
-            return newCount
-          })
-        }
-      },
-      { threshold: 0.1 }
-    )
-    
-    if (loadMoreRef.current) {
-      observerRef.current.observe(loadMoreRef.current)
-    }
-    
-    return () => {
+    if (!hasMore || loading) {
+      // Clean up observer if conditions change
       if (observerRef.current) {
         observerRef.current.disconnect()
+        observerRef.current = null
+      }
+      return
+    }
+    
+    // Wait for the ref to be available (next tick)
+    const setupObserver = () => {
+      const element = loadMoreRef.current
+      if (!element || !(element instanceof Node)) {
+        return
+      }
+      
+      observerRef.current = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            setDisplayCount(prev => {
+              const newCount = prev + 6
+              const filtered = selectedCategory 
+                ? allWords.filter(w => w.category === selectedCategory)
+                : allWords
+              setHasMore(newCount < filtered.length)
+              return newCount
+            })
+          }
+        },
+        { threshold: 0.1 }
+      )
+      
+      observerRef.current.observe(element)
+    }
+    
+    // Use setTimeout to ensure DOM is ready
+    const timeoutId = setTimeout(setupObserver, 0)
+    
+    return () => {
+      clearTimeout(timeoutId)
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+        observerRef.current = null
       }
     }
   }, [hasMore, loading, selectedCategory, allWords])
@@ -162,11 +180,11 @@ export function EmojiMineGrid({ onWordClick }: EmojiMineGridProps) {
   const getStatusDisplay = (status: 'new' | 'learning' | 'reviewing' | 'mastered') => {
     switch (status) {
       case 'new':
-        return { emoji: '📦', color: 'text-slate-400', bg: 'bg-slate-700/30' }
+        return { emoji: '🪨', color: 'text-slate-400', bg: 'bg-slate-700/30' }
       case 'learning':
         return { emoji: '🔥', color: 'text-orange-400', bg: 'bg-orange-500/20' }
       case 'reviewing':
-        return { emoji: '✨', color: 'text-blue-400', bg: 'bg-blue-500/20' }
+        return { emoji: '⚒️', color: 'text-blue-400', bg: 'bg-blue-500/20' }
       case 'mastered':
         return { emoji: '💎', color: 'text-yellow-400', bg: 'bg-yellow-500/20' }
     }
@@ -239,11 +257,11 @@ export function EmojiMineGrid({ onWordClick }: EmojiMineGridProps) {
             <span>已掌握: {masteredCount}</span>
           </div>
           <div className="flex items-center gap-1">
-            <span>📚</span>
+            <span>🔥</span>
             <span>學習中: {learningCount}</span>
           </div>
           <div className="flex items-center gap-1">
-            <span>📦</span>
+            <span>🪨</span>
             <span>未開始: {totalWords - masteredCount - learningCount}</span>
           </div>
         </div>

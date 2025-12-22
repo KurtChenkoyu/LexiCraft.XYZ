@@ -245,7 +245,6 @@ const MCQSession: React.FC<MCQSessionProps> = ({
         setMcqs(mcqData)
         setStatus('active')
       } catch (error) {
-        clearTimeout(loadingTimeout)
         console.error('Failed to load MCQs:', error)
         setErrorMessage(error instanceof Error ? error.message : 'Unknown error')
         setStatus('error')
@@ -272,7 +271,7 @@ const MCQSession: React.FC<MCQSessionProps> = ({
       const isCorrect = selectedIndex === currentMcq.correct_index
       instantResult = {
         is_correct: isCorrect,
-        correct_index: currentMcq.correct_index,
+        correct_index: currentMcq.correct_index ?? 0,
         explanation: '',
         feedback: isCorrect ? '答對了！' : '答錯了',
         ability_before: 0.5,
@@ -698,18 +697,21 @@ const MCQSession: React.FC<MCQSessionProps> = ({
           })()}
 
           {/* Ability Change - Hidden (confusing to users) */}
-          {false && (
-            <div className="mb-6 p-3 bg-gray-800/50 rounded-lg">
-              <div className="text-sm text-gray-400 mb-1">能力變化</div>
-              <div className={`text-lg font-bold ${
-                abilityChange > 0 ? 'text-emerald-400' : 
-                abilityChange < 0 ? 'text-red-400' : 'text-gray-400'
-              }`}>
-                {abilityChange > 0 ? '+' : ''}{(abilityChange * 100).toFixed(1)}%
-                {abilityChange > 0 ? ' ↑' : abilityChange < 0 ? ' ↓' : ''}
+          {false && (() => {
+            const abilityChange = 0 // Hidden feature - not displayed
+            return (
+              <div className="mb-6 p-3 bg-gray-800/50 rounded-lg">
+                <div className="text-sm text-gray-400 mb-1">能力變化</div>
+                <div className={`text-lg font-bold ${
+                  abilityChange > 0 ? 'text-emerald-400' : 
+                  abilityChange < 0 ? 'text-red-400' : 'text-gray-400'
+                }`}>
+                  {abilityChange > 0 ? '+' : ''}{(abilityChange * 100).toFixed(1)}%
+                  {abilityChange > 0 ? ' ↑' : abilityChange < 0 ? ' ↓' : ''}
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Actions */}
           <div className="flex gap-3">

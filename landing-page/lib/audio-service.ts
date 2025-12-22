@@ -9,9 +9,9 @@
  * Audio file locations:
  * - /audio/emoji/{word}_{voice}.mp3 - Emoji pack word pronunciations
  *   Voices: alloy, ash, coral, echo, fable, nova, onyx, sage, shimmer
- * - /audio/fx/correct.mp3 - Correct answer sound
- * - /audio/fx/wrong.mp3 - Wrong answer sound
- * - /audio/fx/celebrate.mp3 - Celebration sound
+ * - /audio/fx/{effect}_001.mp3 through {effect}_005.mp3 - Sound effects (5 variants each)
+ *   Effects: correct, wrong, click, levelup, celebrate, unlock
+ *   Randomly selects one variant (001-005) for variety
  */
 
 // Audio cache to prevent reloading
@@ -34,13 +34,27 @@ export const DEFAULT_VOICE: Voice = 'nova'
 
 /**
  * Audio file paths by category
+ * 
+ * Supports both local paths (for development) and Supabase Storage URLs (for production)
  */
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+const USE_SUPABASE_STORAGE = !!SUPABASE_URL // Use Supabase Storage if URL is configured
+
+const getAudioBasePath = (category: string) => {
+  if (USE_SUPABASE_STORAGE) {
+    // Use Supabase Storage public URL
+    return `${SUPABASE_URL}/storage/v1/object/public/audio/${category}`
+  }
+  // Fallback to local path
+  return `/audio/${category}`
+}
+
 export const AUDIO_PATHS = {
-  emoji: '/audio/emoji',     // {word}_{voice}.mp3
-  legacy: '/audio/legacy',   // {sense_id}.wav (future)
-  fx: '/audio/fx',           // UI sound effects
-  prompts: '/audio/prompts', // {prompt_id}_{voice}.mp3 (in category subdirs)
-  feedback: '/audio/feedback', // {feedback_id}_{voice}.mp3 (in category subdirs)
+  emoji: getAudioBasePath('emoji'),     // {word}_{voice}.mp3
+  legacy: getAudioBasePath('legacy'),   // {sense_id}.wav (future)
+  fx: getAudioBasePath('fx'),           // UI sound effects
+  prompts: getAudioBasePath('prompts'), // {prompt_id}_{voice}.mp3 (in category subdirs)
+  feedback: getAudioBasePath('feedback'), // {feedback_id}_{voice}.mp3 (in category subdirs)
 } as const
 
 /**
@@ -143,22 +157,37 @@ class AudioServiceClass {
   }
   
   /**
+   * Get all variant paths for a sound effect
+   * Returns array of 5 variant paths (001-005)
+   */
+  private getSfxVariantPaths(effect: SoundEffect): string[] {
+    const variants: string[] = []
+    for (let i = 1; i <= 5; i++) {
+      const variantNumber = i.toString().padStart(3, '0') // 001, 002, 003, 004, 005
+      variants.push(`${AUDIO_PATHS.fx}/${effect}_${variantNumber}.mp3`)
+    }
+    return variants
+  }
+
+  /**
    * Play sound effect
-   * Uses generated Web Audio since we don't have SFX files yet
+   * Randomly selects from 5 variants (001-005) for variety
+   * Falls back to generated Web Audio if file doesn't exist
    */
   async playSfx(effect: SoundEffect): Promise<void> {
     if (!this.enabled) return
     
-    // For now, always use generated sound (no files in /audio/fx/)
-    // TODO: Once we have real SFX files, uncomment file-based playback
-    // const path = `${AUDIO_PATHS.fx}/${effect}.mp3`
-    // try {
-    //   await this.playAudio(path, masterVolume * sfxVolume)
-    // } catch {
-    //   return this.playGeneratedSfx(effect)
-    // }
+    // Randomly select variant (1-5)
+    const variantNumber = Math.floor(Math.random() * 5) + 1
+    const variantString = variantNumber.toString().padStart(3, '0') // 001, 002, etc.
+    const path = `${AUDIO_PATHS.fx}/${effect}_${variantString}.mp3`
     
-    return this.playGeneratedSfx(effect)
+    try {
+      await this.playAudio(path, masterVolume * sfxVolume)
+    } catch {
+      // Fall back to generated sound if file doesn't exist
+      return this.playGeneratedSfx(effect)
+    }
   }
   
   /**
@@ -261,6 +290,8 @@ class AudioServiceClass {
    * Internal: Play audio file
    */
   private async playAudio(path: string, volume: number): Promise<void> {
+    // Silently fail if audio files don't exist (MVP: audio files not yet generated)
+    // This prevents 404 errors from cluttering the console
     if (typeof window === 'undefined') return
     
     try {
@@ -268,7 +299,21 @@ class AudioServiceClass {
       
       if (!audio) {
         audio = new Audio(path)
+        // Handle 404 errors silently (audio files not yet generated for MVP)
+        audio.addEventListener('error', (e) => {
+          // Silently ignore 404 errors for missing audio files
+          if (audio?.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+            // File doesn't exist - expected for MVP, fail silently
+            return
+          }
+        })
         audioCache.set(path, audio)
+      }
+      
+      // Check if audio failed to load (404)
+      if (audio?.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+        // File doesn't exist - expected for MVP, fail silently
+        return
       }
       
       // Reset and play
@@ -276,8 +321,11 @@ class AudioServiceClass {
       audio.volume = volume
       
       await audio.play().catch(err => {
-        // Browser might block autoplay - fail silently
-        console.warn('Audio playback blocked:', err.message)
+        // Browser might block autoplay or file doesn't exist - fail silently
+        // Don't log 404 errors for missing audio files (expected in MVP)
+        if (!err.message?.includes('404') && !err.message?.includes('Failed to load')) {
+          console.warn('Audio playback blocked:', err.message)
+        }
       })
       
       // Wait for audio to finish playing
@@ -301,16 +349,19 @@ class AudioServiceClass {
   
   /**
    * Preload audio files for instant playback
+   * Preloads all 5 variants (001-005) for each effect
    */
   async preloadSfx(effects: SoundEffect[]): Promise<void> {
     if (typeof window === 'undefined') return
     
     for (const effect of effects) {
-      const path = `${AUDIO_PATHS.fx}/${effect}.mp3`
-      const audio = new Audio()
-      audio.preload = 'auto'
-      audio.src = path
-      audioCache.set(path, audio)
+      const variantPaths = this.getSfxVariantPaths(effect)
+      for (const path of variantPaths) {
+        const audio = new Audio()
+        audio.preload = 'auto'
+        audio.src = path
+        audioCache.set(path, audio)
+      }
     }
   }
   

@@ -104,7 +104,7 @@ export function LearnerTopBar() {
           
           {/* Streak */}
           <div className="flex items-center gap-2 text-sm bg-orange-500/20 px-3 py-1.5 rounded-lg">
-            <span className="text-orange-400">🔥</span>
+            <span className="text-orange-400">⚡</span>
             <span className="text-white font-semibold">{currentStreak}</span>
           </div>
         </div>

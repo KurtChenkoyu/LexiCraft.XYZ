@@ -18,7 +18,7 @@ const goalTypeConfig: Record<string, { label: string; labelZh: string; icon: str
   daily_words: { label: 'Daily Words', labelZh: '每日單字', icon: '📅' },
   weekly_words: { label: 'Weekly Words', labelZh: '每週單字', icon: '📆' },
   monthly_words: { label: 'Monthly Words', labelZh: '每月單字', icon: '📊' },
-  streak: { label: 'Streak', labelZh: '連勝目標', icon: '🔥' },
+  streak: { label: 'Streak', labelZh: '連勝目標', icon: '⚡' },
   vocabulary_size: { label: 'Vocabulary Size', labelZh: '詞彙量目標', icon: '📚' },
 }
 
