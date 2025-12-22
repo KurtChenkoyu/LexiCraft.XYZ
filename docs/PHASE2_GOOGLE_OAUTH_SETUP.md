@@ -12,20 +12,28 @@ Separate Google OAuth clients for development and production to ensure:
 ```
 Development Environment:
 ├── Google OAuth Client: lexicraft-dev
+├── Authorized JavaScript origins:
+│   ├── http://localhost:3000 (frontend)
+│   └── https://[DEV_SUPABASE_REF].supabase.co (Supabase - required)
 ├── Authorized Redirect URIs:
 │   └── https://[DEV_SUPABASE_REF].supabase.co/auth/v1/callback
-│       (Supabase handles all redirects - no wildcards needed)
 └── Used by: Dev Supabase project
 
 Production Environment:
 ├── Google OAuth Client: lexicraft-prod
+├── Authorized JavaScript origins:
+│   ├── https://lexicraft.xyz (frontend)
+│   ├── https://www.lexicraft.xyz (if using www)
+│   └── https://[PROD_SUPABASE_REF].supabase.co (Supabase - required)
 ├── Authorized Redirect URIs:
 │   └── https://[PROD_SUPABASE_REF].supabase.co/auth/v1/callback
-│       (Supabase handles all redirects - no wildcards needed)
 └── Used by: Production Supabase project
 ```
 
-**Important:** Google OAuth doesn't allow wildcards (`*`) in redirect URIs. Supabase handles all frontend redirects, so you only need to add the Supabase callback URL.
+**Important:** 
+- Google OAuth doesn't allow wildcards (`*`) in redirect URIs
+- **JavaScript origins** must include both your frontend domain AND Supabase domain
+- **Redirect URIs** only need the Supabase callback URL
 
 ## Step 1: Create Dev Google OAuth Client
 
@@ -50,13 +58,15 @@ Production Environment:
    - **Application type:** Web application
    - **Name:** `lexicraft-dev` (or `LexiCraft Development`)
    - **Authorized JavaScript origins:**
-     - `http://localhost:3000`
+     - `http://localhost:3000` (your frontend)
+     - `https://[DEV_SUPABASE_REF].supabase.co` (Supabase domain - required for OAuth)
+       - Replace `[DEV_SUPABASE_REF]` with your dev Supabase project reference
+       - Example: `https://kaaqoziufmpsmnsqypln.supabase.co`
    - **Authorized redirect URIs:**
      - `https://[DEV_SUPABASE_REF].supabase.co/auth/v1/callback`
        - Replace `[DEV_SUPABASE_REF]` with your dev Supabase project reference
        - Example: `https://kaaqoziufmpsmnsqypln.supabase.co/auth/v1/callback`
        - ⚠️ **Note:** Google OAuth doesn't allow wildcards. Only add the Supabase callback URL here.
-       - The frontend redirects are handled by Supabase, not directly by Google.
    - Click **Create**
 5. **Copy credentials:**
    - **Client ID:** Copy this (starts with something like `123456789-abc...`)
@@ -87,14 +97,16 @@ Production Environment:
    - **Application type:** Web application
    - **Name:** `lexicraft-prod` (or `LexiCraft Production`)
    - **Authorized JavaScript origins:**
-     - `https://lexicraft.xyz`
+     - `https://lexicraft.xyz` (your frontend)
      - `https://www.lexicraft.xyz` (if using www subdomain)
+     - `https://[PROD_SUPABASE_REF].supabase.co` (Supabase domain - required for OAuth)
+       - Replace `[PROD_SUPABASE_REF]` with your production Supabase project reference
+       - Example: `https://cwgexbjyfcqndeyhravb.supabase.co`
    - **Authorized redirect URIs:**
      - `https://[PROD_SUPABASE_REF].supabase.co/auth/v1/callback`
        - Replace `[PROD_SUPABASE_REF]` with your production Supabase project reference
        - Example: `https://cwgexbjyfcqndeyhravb.supabase.co/auth/v1/callback`
        - ⚠️ **Note:** Google OAuth doesn't allow wildcards. Only add the Supabase callback URL here.
-       - The frontend redirects are handled by Supabase, not directly by Google.
    - Click **Create**
 3. **Copy credentials:**
    - **Client ID:** Copy this
