@@ -36,7 +36,15 @@
   - [ ] Site URL: `http://localhost:3000`
   - [ ] Add Redirect URL: `http://localhost:3000/**`
   - [ ] Save
-- [ ] Settings → Database: Copy connection string (Transaction mode, port 6543)
+- [ ] **Get Connection String:**
+  - [ ] Click "Connect" button (top right or in Database section)
+  - [ ] In "Connect to your project" modal:
+    - [ ] Tab: "Connection String"
+    - [ ] Type: "URI"
+    - [ ] Source: "Primary Database"
+    - [ ] Method: "Session Pooler" (port 6543) - recommended
+    - [ ] Copy connection string
+    - [ ] Replace [YOUR-PASSWORD] with actual password
 
 ### 3. Run Migrations on Dev (5 min)
 

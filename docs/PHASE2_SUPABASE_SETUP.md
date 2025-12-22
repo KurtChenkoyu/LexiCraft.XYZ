@@ -76,9 +76,20 @@ Production Environment:
    - **Redirect URLs:** Add `http://localhost:3000/**`
    - Click **"Save"**
 
-3. **Go to Settings → Database**
-   - Copy **Connection string** (Transaction mode, port 6543)
-   - Format: `postgresql://postgres:[PASSWORD]@[DEV_PROJECT_REF].supabase.co:6543/postgres?sslmode=require`
+3. **Get Database Connection String**
+   - **New Location:** Click the **"Connect"** button (usually in top right of project dashboard, or in Database section)
+   - **Or:** Go to **Settings → Database** → Look for **"Connect"** or **"Connection string"** button
+   - This opens a **"Connect to your project"** modal
+   - In the modal:
+     - **Tab:** "Connection String" (should be selected by default)
+     - **Type:** Select "URI"
+     - **Source:** Select "Primary Database" 
+     - **Method:** Select **"Session Pooler"** (port 6543) - recommended for Railway/serverless
+       - ⚠️ **Note:** "Direct connection" (port 5432) may show IPv4 compatibility warning
+       - Use "Session Pooler" to avoid IPv4 issues on Railway
+   - Copy the connection string
+   - Format should be: `postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:6543/postgres?sslmode=require`
+   - **Important:** Replace `[YOUR-PASSWORD]` with your actual database password
 
 ### Step 3: Run Database Migrations on Dev Project
 
@@ -139,7 +150,8 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
 ```bash
 # Development Database (NEW)
-DATABASE_URL=postgresql://postgres:[DEV_PASSWORD]@[DEV_PROJECT_REF].supabase.co:6543/postgres?sslmode=require
+# Format: postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:6543/postgres?sslmode=require
+DATABASE_URL=postgresql://postgres:[DEV_PASSWORD]@db.[DEV_PROJECT_REF].supabase.co:6543/postgres?sslmode=require
 SUPABASE_JWT_SECRET=[DEV_JWT_SECRET]
 
 # Keep existing Neo4j settings
@@ -147,6 +159,8 @@ NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=...
 ```
+
+**Note:** Connection string format changed - now uses `db.[PROJECT_REF].supabase.co` instead of `[PROJECT_REF].supabase.co`
 
 ### Step 6: Test Dev Environment
 
