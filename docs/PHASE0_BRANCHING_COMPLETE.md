@@ -19,56 +19,37 @@
    - Updated `.cursorrules` - Added "Branch & Environment Strategy" section for AI context
    - Both committed to `develop` branch
 
-## ⚠️ Manual Step Required: Main Branch Push
+## ✅ Main Branch Push - COMPLETE
 
-**Issue:** Local `main` and `origin/main` have unrelated histories (diverged 85 vs 23 commits).
+**Action Taken:** Option A - Force Push (Clean Baseline)
 
-**Current Situation:**
-- Local `main`: Contains merged `debug/gemini-fix` code (what's currently in production)
-- Remote `main`: Has different commits (birthday feature, profile editing, etc.)
+**Result:**
+- ✅ Force pushed `main` to `origin/main`
+- ✅ Remote `main` now contains clean production baseline from `debug/gemini-fix`
+- ✅ `develop` branch synced with `main`
+- ✅ Both branches pushed to origin
 
-**Decision Needed:**
+**Commit History:**
+- Latest commit on `main`: `a229c70` - "chore: merge debug/gemini-fix into main - establish production baseline for environment separation"
+- Clean history established, ready for environment separation
 
-Since `debug/gemini-fix` is what's **currently deployed to production**, you have two options:
+## ✅ Next Steps - READY FOR PHASE 1
 
-### Option A: Force Push (Recommended if debug/gemini-fix is truly production)
-
-```bash
-git checkout main
-git push origin main --force
-```
-
-**Warning:** This will overwrite remote `main` with your local version. Only do this if:
-- `debug/gemini-fix` is definitely what's running in production
-- You don't need the commits from remote `main` (birthday feature, etc.)
-
-### Option B: Merge Both Histories (Safer, preserves all code)
-
-```bash
-git checkout main
-git pull origin main --allow-unrelated-histories
-# Resolve any conflicts
-git push origin main
-```
-
-**This preserves:**
-- All commits from `debug/gemini-fix` (current production)
-- All commits from remote `main` (birthday feature, profile editing, etc.)
-
-## Next Steps After Main Push
-
-1. **Configure Railway/Vercel:**
+1. **Configure Railway/Vercel (Manual):**
    - Go to Railway/Vercel dashboard
    - Set production service to **only deploy from `main` branch**
    - Remove any branch-specific triggers for other branches
+   - **Status:** ⏳ Manual action required
 
 2. **Verify Production:**
-   - After pushing `main`, verify `https://lexicraft.xyz` still works correctly
+   - Verify `https://lexicraft.xyz` still works correctly after Railway picks up new `main`
    - Check that all features from `debug/gemini-fix` are present
+   - **Status:** ⏳ Manual verification required
 
 3. **Continue with Phase 1:**
    - Create `.env.example` files
    - Set up environment variable templates
+   - **Status:** ✅ Ready to proceed
 
 ## Branch Status
 
