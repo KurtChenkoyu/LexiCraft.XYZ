@@ -92,8 +92,14 @@ Production Environment:
          - Our code is configured for Session Pooler
        - See `docs/SUPABASE_CONNECTION_METHODS.md` for full comparison
    - Copy the connection string
-   - Format should be: `postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:6543/postgres?sslmode=require`
+   - **Format:** The connection string format depends on the method:
+     - **Session Pooler:** `postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres`
+       - Note: Project reference is in the username (`postgres.[PROJECT_REF]`)
+       - Hostname is regional (`aws-1-ap-southeast-1.pooler.supabase.com`)
+       - Port is `5432` (not 6543)
+     - **Direct Connection:** `postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres?sslmode=require`
    - **Important:** Replace `[YOUR-PASSWORD]` with your actual database password
+   - **Password encoding:** If your password contains special characters (`%`, `&`, `+`, `=`, etc.), they will be automatically URL-encoded in the connection string
 
 ### Step 3: Run Database Migrations on Dev Project
 
