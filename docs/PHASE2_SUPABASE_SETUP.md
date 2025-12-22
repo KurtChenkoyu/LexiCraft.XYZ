@@ -61,8 +61,15 @@ Production Environment:
 
 1. **Go to Settings → API**
    - Copy **Project URL**: `https://[DEV_PROJECT_REF].supabase.co`
-   - Copy **anon public key**: `eyJhbGc...`
-   - Copy **service_role key** (keep secret!): `eyJhbGc...`
+   - **For Frontend (Client-Side):**
+     - **Option A (New - Recommended):** In "Publishable and secret API keys" tab, copy **Publishable key** (starts with `sb_publishable_...`)
+     - **Option B (Legacy):** Click "Legacy anon, service_role API keys" tab, copy **anon public key** (starts with `eyJhbGc...`)
+     - ⚠️ **Both work!** Use whichever is available. Variable name stays `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - **For Backend (Server-Side - only if you need admin operations):**
+     - **Option A (New - Recommended):** In "Publishable and secret API keys" tab, copy **Secret key** (starts with `sb_secret_...`)
+     - **Option B (Legacy):** Click "Legacy anon, service_role API keys" tab, copy **service_role key** (starts with `eyJhbGc...`)
+     - ⚠️ **Note:** Most backend operations use `SUPABASE_JWT_SECRET` (different from API keys). Only needed for admin scripts.
+   - See `docs/SUPABASE_API_KEYS_MIGRATION.md` for full details on new vs legacy keys
 
 2. **Go to Authentication → URL Configuration**
    - **Site URL:** `http://localhost:3000`
