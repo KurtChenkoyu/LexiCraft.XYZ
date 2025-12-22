@@ -13,17 +13,19 @@ Separate Google OAuth clients for development and production to ensure:
 Development Environment:
 ├── Google OAuth Client: lexicraft-dev
 ├── Authorized Redirect URIs:
-│   ├── http://localhost:3000/**
 │   └── https://[DEV_SUPABASE_REF].supabase.co/auth/v1/callback
+│       (Supabase handles all redirects - no wildcards needed)
 └── Used by: Dev Supabase project
 
 Production Environment:
 ├── Google OAuth Client: lexicraft-prod
 ├── Authorized Redirect URIs:
-│   ├── https://lexicraft.xyz/**
 │   └── https://[PROD_SUPABASE_REF].supabase.co/auth/v1/callback
+│       (Supabase handles all redirects - no wildcards needed)
 └── Used by: Production Supabase project
 ```
+
+**Important:** Google OAuth doesn't allow wildcards (`*`) in redirect URIs. Supabase handles all frontend redirects, so you only need to add the Supabase callback URL.
 
 ## Step 1: Create Dev Google OAuth Client
 
@@ -50,10 +52,11 @@ Production Environment:
    - **Authorized JavaScript origins:**
      - `http://localhost:3000`
    - **Authorized redirect URIs:**
-     - `http://localhost:3000/**`
      - `https://[DEV_SUPABASE_REF].supabase.co/auth/v1/callback`
        - Replace `[DEV_SUPABASE_REF]` with your dev Supabase project reference
        - Example: `https://kaaqoziufmpsmnsqypln.supabase.co/auth/v1/callback`
+       - ⚠️ **Note:** Google OAuth doesn't allow wildcards. Only add the Supabase callback URL here.
+       - The frontend redirects are handled by Supabase, not directly by Google.
    - Click **Create**
 5. **Copy credentials:**
    - **Client ID:** Copy this (starts with something like `123456789-abc...`)
@@ -87,11 +90,11 @@ Production Environment:
      - `https://lexicraft.xyz`
      - `https://www.lexicraft.xyz` (if using www subdomain)
    - **Authorized redirect URIs:**
-     - `https://lexicraft.xyz/**`
-     - `https://www.lexicraft.xyz/**` (if using www)
      - `https://[PROD_SUPABASE_REF].supabase.co/auth/v1/callback`
        - Replace `[PROD_SUPABASE_REF]` with your production Supabase project reference
        - Example: `https://cwgexbjyfcqndeyhravb.supabase.co/auth/v1/callback`
+       - ⚠️ **Note:** Google OAuth doesn't allow wildcards. Only add the Supabase callback URL here.
+       - The frontend redirects are handled by Supabase, not directly by Google.
    - Click **Create**
 3. **Copy credentials:**
    - **Client ID:** Copy this
@@ -133,6 +136,8 @@ Production Environment:
 - **Fix:** Verify redirect URI in Google Console matches exactly:
   - `https://[SUPABASE_REF].supabase.co/auth/v1/callback`
   - Check for typos, missing `https://`, wrong project reference
+  - ⚠️ **No wildcards:** Google doesn't allow `*` in redirect URIs
+  - Only add the exact Supabase callback URL (no frontend URLs needed)
 
 **Issue: OAuth works in dev but not prod (or vice versa)**
 - **Cause:** Using wrong OAuth client for the environment
