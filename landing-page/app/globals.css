@@ -2,6 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   BASE INPUT STYLES (Global Form Fix)
+   ============================================
+   
+   Strategy: Hybrid Approach
+   - Global CSS fixes all inputs immediately (quick win)
+   - Use Input.tsx component for new features (better accessibility, validation, consistency)
+   - Gradually migrate existing forms to Input.tsx component during cleanup
+   
+   Why Global CSS First:
+   - Fixes "white text on white background" issue site-wide immediately
+   - Prevents broken inputs on any current or future forms
+   - Low maintenance - set once, works everywhere
+   
+   Why Input.tsx for New Features:
+   - Built-in accessibility (ARIA labels, screen-reader support)
+   - Pre-defined focus states and validation styling
+   - Consistent look/feel across the app
+   - Easier to maintain (single component vs scattered styles)
+   
+   Execution Plan:
+   1. ✅ Global CSS applied (this file) - fixes all inputs now
+   2. ⏳ Use Input.tsx component for new features (Word Forge, Emoji MVP)
+   3. ⏳ Gradually migrate existing forms to Input.tsx during cleanup
+   ============================================ */
+@layer base {
+  /* Base input styles - ensures all inputs have visible text */
+  /* Prevents invisible text when inputs inherit dark background colors */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  textarea,
+  select {
+    @apply bg-white text-gray-900;
+  }
+  
+  /* Dark mode support (for users with system dark mode enabled) */
+  @media (prefers-color-scheme: dark) {
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="search"],
+    textarea,
+    select {
+      @apply bg-gray-800 text-white border-gray-600;
+    }
+  }
+}
+
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
