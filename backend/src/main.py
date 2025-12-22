@@ -39,22 +39,7 @@ app = FastAPI(
     version="8.1"
 )
 
-# Request logging middleware (for debugging batch endpoint)
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    if "/api/v1/mcq/submit-batch" in str(request.url.path):
-        print(f"🔍 [MIDDLEWARE] {request.method} {request.url.path} - Received batch request")
-    try:
-        response = await call_next(request)
-        if "/api/v1/mcq/submit-batch" in str(request.url.path):
-            print(f"🔍 [MIDDLEWARE] {request.method} {request.url.path} - Response status: {response.status_code}")
-        return response
-    except Exception as e:
-        if "/api/v1/mcq/submit-batch" in str(request.url.path):
-            print(f"🔍 [MIDDLEWARE] ERROR in batch endpoint: {e}")
-        raise
-
-# CORS (Allow frontend access)
+# CORS (Allow frontend access) - MUST be added FIRST before other middleware
 # Get allowed origins from environment or use defaults
 allowed_origins_str = os.getenv(
     "ALLOWED_ORIGINS",
@@ -70,6 +55,21 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+# Request logging middleware (for debugging batch endpoint)
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    if "/api/v1/mcq/submit-batch" in str(request.url.path):
+        print(f"🔍 [MIDDLEWARE] {request.method} {request.url.path} - Received batch request")
+    try:
+        response = await call_next(request)
+        if "/api/v1/mcq/submit-batch" in str(request.url.path):
+            print(f"🔍 [MIDDLEWARE] {request.method} {request.url.path} - Response status: {response.status_code}")
+        return response
+    except Exception as e:
+        if "/api/v1/mcq/submit-batch" in str(request.url.path):
+            print(f"🔍 [MIDDLEWARE] ERROR in batch endpoint: {e}")
+        raise
 
 # Request validation error handler (catches Pydantic validation errors)
 @app.exception_handler(RequestValidationError)
