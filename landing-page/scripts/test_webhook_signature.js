@@ -11,7 +11,14 @@
 const crypto = require('crypto');
 
 // Test webhook secret (use the same one from .env.local)
-const WEBHOOK_SECRET = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET || 'test-secret-key';
+const WEBHOOK_SECRET = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
+
+if (!WEBHOOK_SECRET) {
+  console.error('❌ ERROR: LEMON_SQUEEZY_WEBHOOK_SECRET environment variable is required');
+  console.error('   Set it in .env.local or export it before running this script');
+  console.error('   Example: export LEMON_SQUEEZY_WEBHOOK_SECRET=your-secret-key');
+  process.exit(1);
+}
 
 /**
  * Verify Lemon Squeezy webhook signature using HMAC-SHA256
