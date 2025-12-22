@@ -84,9 +84,13 @@ Production Environment:
      - **Tab:** "Connection String" (should be selected by default)
      - **Type:** Select "URI"
      - **Source:** Select "Primary Database" 
-     - **Method:** Select **"Session Pooler"** (port 6543) - recommended for Railway/serverless
-       - ⚠️ **Note:** "Direct connection" (port 5432) may show IPv4 compatibility warning
-       - Use "Session Pooler" to avoid IPv4 issues on Railway
+     - **Method:** Select **"Session Pooler"** (port 6543) - recommended
+       - ✅ **Why:** Works on Railway (IPv4), matches our code configuration, no network issues
+       - ⚠️ **Alternative:** "Direct connection" (port 5432) works if you have IPv6 support, but:
+         - May show "Not IPv4 compatible" warning
+         - Won't work on Railway without IPv4 add-on
+         - Our code is configured for Session Pooler
+       - See `docs/SUPABASE_CONNECTION_METHODS.md` for full comparison
    - Copy the connection string
    - Format should be: `postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:6543/postgres?sslmode=require`
    - **Important:** Replace `[YOUR-PASSWORD]` with your actual database password
