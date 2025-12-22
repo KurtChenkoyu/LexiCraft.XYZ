@@ -33,13 +33,19 @@ Production Environment:
 **Manual Action Required:**
 
 1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
-2. Click **"New Project"**
-3. **Project Name:** `lexicraft-dev`
-4. **Database Password:** Generate a strong password (save it!)
-5. **Region:** Choose same region as production (for consistency)
-6. **Pricing Plan:** Free tier is fine for development
-7. Click **"Create new project"**
-8. Wait 2-3 minutes for project to initialize
+2. Click **"New Project"** (green button in top right)
+3. Fill in the project creation form:
+   - **Project Name:** `lexicraft-dev`
+   - **Database Password:** Generate a strong password (save it! You'll need this for the connection string)
+   - **Region:** 
+     - **Where to find:** Dropdown menu in the project creation form
+     - **Recommendation:** Choose the **same region as your production project** (for consistency and lower latency)
+     - **To check production region:** Go to your existing production project → Settings → General → Region
+     - **Available regions:** US (multiple), EU (multiple), Asia Pacific (Singapore, Tokyo, etc.), and more
+     - **⚠️ Important:** Region **cannot be changed later** - you'd need to create a new project and migrate data
+   - **Pricing Plan:** Free tier is fine for development
+4. Click **"Create new project"**
+5. Wait 2-3 minutes for project to initialize
 
 **After Creation:**
 - Note your **Project Reference ID** (e.g., `abcdefghijklmnop`)

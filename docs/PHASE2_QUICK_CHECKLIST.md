@@ -13,11 +13,16 @@
 ### 1. Create Dev Supabase Project (5 min)
 
 - [ ] Go to https://supabase.com/dashboard
-- [ ] Click "New Project"
+- [ ] Click "New Project" (green button, top right)
 - [ ] Name: `lexicraft-dev`
-- [ ] Set database password (save it!)
-- [ ] Choose region (same as production)
-- [ ] Wait for project to initialize
+- [ ] Set database password (save it! Needed for connection string)
+- [ ] **Region:** 
+  - [ ] Find region dropdown in creation form
+  - [ ] Check production region: Production project → Settings → General → Region
+  - [ ] Choose same region as production (recommended)
+  - [ ] ⚠️ Note: Region cannot be changed later!
+- [ ] Click "Create new project"
+- [ ] Wait 2-3 minutes for initialization
 - [ ] Copy Project Reference ID: `_________________`
 
 ### 2. Configure Dev Project (3 min)
