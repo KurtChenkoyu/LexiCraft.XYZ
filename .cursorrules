@@ -5,6 +5,37 @@
 - **MVP Mechanics:** "Learning = Earning". Users grind vocab (Inventory) to earn real cash (Withdrawal).
 - **Mental Model:** The UI feels like a Game (Instant, Snappy, Rich), even though the logic is currently MVP (Quiz & Wallet).
 
+## 0. Branch & Environment Strategy (CRITICAL FOR AI CONTEXT)
+
+**This section helps AI assistants understand which environment we're working in.**
+
+### Branch Mapping
+- **`main` branch** = **Production** environment
+  - URL: `https://lexicraft.xyz`
+  - Supabase: Production project
+  - Payment keys: Live Mode (`sk_live_...`, `pk_live_...`)
+  - Deployed to: Railway/Vercel (auto-deploys from `main`)
+  
+- **`develop` branch** = **Development** environment
+  - URL: `http://localhost:3000`
+  - Supabase: Dev project (`lexicraft-dev`)
+  - Payment keys: Test Mode (`sk_test_...`, `pk_test_...`)
+  - Local development only
+
+### AI Assistant Rules
+1. **Always check current branch** before suggesting environment variable changes
+2. **When on `develop`:** Use localhost URLs, test keys, dev Supabase
+3. **When on `main`:** Use production URLs, live keys, prod Supabase
+4. **Never suggest production URLs** when working on `develop` branch
+5. **Never suggest localhost URLs** when working on `main` branch
+
+### Deployment Rules
+- Railway/Vercel production services **only** deploy from `main` branch
+- All new work happens on `develop` branch
+- Merge `develop` → `main` when ready for production release
+
+**See `README_ENV.md` for complete environment setup guide.**
+
 ## 2. Design Philosophy (Product Vision)
 
 These principles guide ALL feature design and UX decisions:
