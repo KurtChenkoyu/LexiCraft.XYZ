@@ -431,6 +431,8 @@ Do NOT mix Parent and Learner logic in the same views.
 
 ### 2. Directory Structure Standard
 
+**Note:** Marketing and App routes are intentionally kept in the same Next.js app (not separate apps) to enable "Logged-In Marketing" - personalized CTAs and seamless UX. This is a strategic decision that may evolve as the product scales. See `landing-page/docs/ARCHITECTURE_PRINCIPLES.md` for full rationale.
+
 ```
 app/[locale]/
 ├── (marketing)/              # PUBLIC - Landing pages (serves /)

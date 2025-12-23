@@ -73,6 +73,46 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
     }
     return isHealthy
   }
-  console.log('💡 Test Supabase connection: Run testSupabaseConnection() in console')
+  
+  // Expose createClient for console use
+  (window as any).getSupabaseClient = () => {
+    return createClient()
+  }
+  
+  // Helper to assign parent role
+  (window as any).assignParentRole = async () => {
+    const supabase = createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    
+    if (!token) {
+      console.error('❌ No session token. Please log in again.')
+      return
+    }
+    
+    const response = await fetch('http://localhost:8000/api/users/me/roles', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ role: 'parent' })
+    })
+    
+    const result = await response.json()
+    console.log('✅ Result:', result)
+    
+    if (result.success) {
+      console.log('🔄 Refreshing page...')
+      location.reload()
+    } else {
+      console.error('❌ Failed:', result)
+    }
+  }
+  
+  console.log('💡 Console helpers available:')
+  console.log('   - testSupabaseConnection() - Test Supabase connection')
+  console.log('   - getSupabaseClient() - Get Supabase client instance')
+  console.log('   - assignParentRole() - Assign parent role to current user')
 }
 

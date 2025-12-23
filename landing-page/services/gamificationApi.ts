@@ -369,8 +369,13 @@ export const leaderboardsApi = {
       return await authenticatedGet<UserRank>(
         `/api/v1/leaderboards/rank?period=${period}&metric=${metric}`
       )
-    } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
+    } catch (error: any) {
+      // 404 is expected if user is not ranked yet
+      if (error?.response?.status === 404) {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('ℹ️ User not ranked yet (no leaderboard entry)')
+        }
+      } else if (process.env.NODE_ENV === 'development') {
         console.warn('User rank API unavailable:', error)
       }
       return null

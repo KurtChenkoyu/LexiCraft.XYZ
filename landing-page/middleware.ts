@@ -5,7 +5,19 @@ import { routing } from './i18n/routing'
 export async function middleware(request: NextRequest) {
   // Early return for static assets to avoid any processing
   const pathname = request.nextUrl.pathname
-  if (pathname.startsWith('/_next/static') || pathname.startsWith('/_next/image')) {
+  if (
+    pathname.startsWith('/_next/static') || 
+    pathname.startsWith('/_next/image') ||
+    pathname === '/icon.svg' ||
+    pathname === '/favicon.ico' ||
+    pathname.endsWith('.svg') ||
+    pathname.endsWith('.ico') ||
+    pathname.endsWith('.png') ||
+    pathname.endsWith('.jpg') ||
+    pathname.endsWith('.jpeg') ||
+    pathname.endsWith('.gif') ||
+    pathname.endsWith('.webp')
+  ) {
     return NextResponse.next()
   }
 

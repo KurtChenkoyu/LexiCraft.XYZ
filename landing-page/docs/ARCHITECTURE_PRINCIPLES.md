@@ -27,20 +27,51 @@ Check `UserDataContext.tsx` and `downloadService.ts` for the correct pattern.
 
 ---
 
-## ⚠️ Landing Page vs App Separation (IMMUTABLE)
+## 🎯 Landing Page vs App Architecture (STRATEGIC DECISION)
 
-**Landing pages and app pages are SEPARATE. Do not confuse them.**
+**Decision (January 2025): Landing pages and app pages remain in the SAME Next.js app using Route Groups.**
 
-### Route Groups
+**Status:** This is a strategic decision that may evolve as the product scales. See "When to Separate" section below.
 
-- **`(marketing)/`** - Public landing pages (no auth, no user data)
+### Route Groups (Not Separate Apps)
+
+- **`(marketing)/`** - Public landing pages (shares AuthProvider for smart CTAs)
 - **`(auth)/`** - Auth flow pages (auth only, no user data)
 - **`(app)/`** - Authenticated app pages (auth + user data)
+
+### Why Keep Them Together? (Strategic Rationale)
+
+**The "Logged-In Marketing" Advantage:**
+- **Smart CTAs**: Landing page can detect logged-in users via shared `AuthContext` and show personalized CTAs ("Welcome Back, Kurt! Continue Building" instead of "Sign Up")
+- **Viral Loops**: Pre-fill referral codes, show personalized offers without requiring re-authentication
+- **Seamless UX**: Single domain (`lexicraft.xyz`) with no context switching between marketing and app
+
+**Architecture is Already "Future-Proof":**
+- Route Groups provide logical separation without physical separation
+- `(app)/layout.tsx` acts as security guard (auth required)
+- `(marketing)/layout.tsx` keeps lobby open (public access)
+- No "Integration Hell" - shared code, shared infrastructure (i18n, analytics, components)
+
+**For MVP/Early Stage:** Keeping together is the right choice. Separation adds complexity without clear benefits at current scale.
+
+### When to Separate (Future Consideration)
+
+Consider separating into different Next.js apps when:
+- Marketing needs independent CDN/edge deployment
+- Marketing bundle size becomes a significant concern
+- Marketing team needs different tech stack or tooling
+- Different scaling requirements emerge (e.g., marketing needs global CDN, app needs regional deployment)
+- Marketing becomes a separate product/brand with different domain
+
+**Note:** If separation becomes necessary, plan for:
+- Shared authentication state (cookies/tokens)
+- Cross-app navigation (subdomain routing or query params)
+- Code duplication (i18n, analytics, shared components)
 
 ### Context Providers Location
 
 **Root Layout** (`app/[locale]/layout.tsx`):
-- ✅ `AuthProvider` - Needed for AppTopNav login button
+- ✅ `AuthProvider` - Needed for AppTopNav login button AND marketing page smart CTAs
 - ❌ `UserDataProvider` - **FORBIDDEN** (privacy issue for visitors)
 - ❌ `SidebarProvider` - **FORBIDDEN** (only for app pages)
 
@@ -48,12 +79,12 @@ Check `UserDataContext.tsx` and `downloadService.ts` for the correct pattern.
 - ✅ `UserDataProvider` - Loads user data from IndexedDB
 - ✅ `SidebarProvider` - Manages sidebar state
 
-### Why This Separation?
+### Why This Context Separation?
 
 1. **Privacy**: Visitors never load cached user data
-2. **Performance**: Landing pages are lighter
+2. **Performance**: Landing pages are lighter (no UserDataProvider)
 3. **Security**: User data only for authenticated users
-4. **Standard Practice**: Common Next.js SaaS pattern
+4. **Strategic**: Marketing pages can check auth state for personalized experience without loading user data
 
 ### Common Mistakes
 
