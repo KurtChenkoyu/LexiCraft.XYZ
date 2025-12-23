@@ -168,6 +168,61 @@ async def complete_onboarding(
         # Role already set to 'learner' by trigger, but ensure it exists
         if not user_crud.user_has_role(db, parent_uuid, 'learner'):
             user_crud.add_user_role(db, parent_uuid, 'learner')
+        
+        # Create learner profile for self-learner (is_parent_profile=false, but user_id set)
+        from sqlalchemy import text
+        from ..database.postgres_crud.users import _age_to_age_group
+        
+        # Check if learner profile already exists
+        existing_profile = db.execute(
+            text("""
+                SELECT id FROM public.learners
+                WHERE user_id = :user_id
+            """),
+            {'user_id': parent_uuid}
+        ).fetchone()
+        
+        if not existing_profile:
+            # Create learner profile
+            # For learners >= 20, use age as string directly (age_group accepts any string)
+            try:
+                age_group = _age_to_age_group(data.learner_age)
+            except ValueError:
+                # Age >= 20, use age as string
+                age_group = str(data.learner_age)
+            result = db.execute(
+                text("""
+                    INSERT INTO public.learners (
+                        guardian_id,
+                        user_id,
+                        display_name,
+                        avatar_emoji,
+                        age_group,
+                        is_parent_profile,
+                        is_independent,
+                        settings
+                    )
+                    VALUES (
+                        :guardian_id,
+                        :user_id,
+                        :display_name,
+                        :avatar_emoji,
+                        :age_group,
+                        false,
+                        true,
+                        '{}'::jsonb
+                    )
+                    RETURNING id
+                """),
+                {
+                    'guardian_id': parent_uuid,  # Self-guardian for independent learners
+                    'user_id': parent_uuid,
+                    'display_name': parent_user.name or 'Learner',
+                    'avatar_emoji': '👤',
+                    'age_group': age_group
+                }
+            )
+            db.commit()
     
     elif data.account_type == 'both':
         # Parent who also wants to learn (same person, same age)
@@ -195,6 +250,62 @@ async def complete_onboarding(
             user_crud.add_user_role(db, parent_uuid, 'parent')
         if not user_crud.user_has_role(db, parent_uuid, 'learner'):
             user_crud.add_user_role(db, parent_uuid, 'learner')
+        
+        # Create parent's own learner profile (is_parent_profile=true)
+        # This allows parent to switch to learner view and use learner endpoints
+        from sqlalchemy import text
+        from ..database.postgres_crud.users import _age_to_age_group
+        
+        # Check if parent learner profile already exists
+        existing_profile = db.execute(
+            text("""
+                SELECT id FROM public.learners
+                WHERE user_id = :user_id AND is_parent_profile = true
+            """),
+            {'user_id': parent_uuid}
+        ).fetchone()
+        
+        if not existing_profile:
+            # Create parent's learner profile
+            # For parents >= 20, use age as string directly (age_group accepts any string)
+            try:
+                age_group = _age_to_age_group(data.parent_age)
+            except ValueError:
+                # Age >= 20, use age as string
+                age_group = str(data.parent_age)
+            result = db.execute(
+                text("""
+                    INSERT INTO public.learners (
+                        guardian_id,
+                        user_id,
+                        display_name,
+                        avatar_emoji,
+                        age_group,
+                        is_parent_profile,
+                        is_independent,
+                        settings
+                    )
+                    VALUES (
+                        :guardian_id,
+                        :user_id,
+                        :display_name,
+                        :avatar_emoji,
+                        :age_group,
+                        true,
+                        true,
+                        '{}'::jsonb
+                    )
+                    RETURNING id
+                """),
+                {
+                    'guardian_id': parent_uuid,
+                    'user_id': parent_uuid,
+                    'display_name': parent_user.name or 'Parent',
+                    'avatar_emoji': '👨',  # Default, can be customized later
+                    'age_group': age_group
+                }
+            )
+            db.commit()
         
         # Create child account if provided
         # IMPORTANT: Create child AFTER parent role is assigned

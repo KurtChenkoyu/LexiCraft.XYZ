@@ -141,3 +141,4 @@ echo "NEXT_PUBLIC_API_URL=https://your-backend.railway.app" >> landing-page/.env
 
 Once deployed, proceed to Step 2 (update frontend API URL).
 
+

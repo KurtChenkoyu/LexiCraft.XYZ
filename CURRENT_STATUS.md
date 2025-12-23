@@ -1,7 +1,99 @@
 # LexiCraft Project Status
 
-**Last Updated:** December 14, 2025  
-**Status:** 🟢 Active Development - Emoji MVP Implementation
+**Last Updated:** December 23, 2025  
+**Status:** 🟢 Active Development - Pre-Launch Sprint
+
+---
+
+## 🎯 Current Sprint: Pre-Launch Critical Path (December 2025)
+
+**Goal:** Fix critical blockers and improve conversion funnel before holiday launch
+
+### Tier 1: Money & Trust Blockers (🔴 CRITICAL - Do First)
+
+*If these fail, users can't pay or will demand refunds immediately.*
+
+- [x] **Subscription/Gate/Webhooks Verification** ✅ **VERIFIED**
+  - ✅ Payment webhook flow tested end-to-end (Lemon Squeezy → Backend → Database)
+  - ✅ Webhook signature verification working
+  - ✅ Database updates successful (subscription_status, plan_type, end_date)
+  - ✅ Idempotency protection active (older webhooks don't overwrite newer data)
+  - ✅ Error handling graceful (email mismatches logged, webhook returns 200 OK)
+  - ✅ All 5 code fixes applied and tested
+  - **Status:** ✅ Complete - Ready for production (see `docs/WEBHOOK_VERIFICATION_REPORT.md`)
+  - **Note:** Access gate implementation is separate task (no subscription checks found in codebase)
+
+- [ ] **Chinese Email Receipts**
+  - Hardcode localized email template in Lemon Squeezy settings
+  - Test receipt delivery (both test and production)
+  - **Note:** Don't over-engineer full i18n system yet - just solve for primary market
+
+- [ ] **Audio Latency Fix**
+  - Game sounds must be instant or learning value is zero
+  - Investigate preloading strategy vs. current on-demand loading
+  - **Impact:** High - if gameplay feels broken, no marketing saves you
+
+### Tier 2: Conversion Bridge (🟡 HIGH PRIORITY)
+
+*Users are interested but fall into a hole before they become addicted.*
+
+- [ ] **Landing Page → Onboarding Handshake**
+  - Problem: Mini-game on landing page doesn't represent actual app experience
+  - Solution: Refactor `EmojiGame` component to accept `mode="demo"` for landing page
+  - Use same component as real game (or simplified version) - don't maintain two codebases
+  - **Next Step:** Analyze current `EmojiGame` component and create demo mode
+
+- [ ] **Progress Recovery System**
+  - Save demo progress to `localStorage` when user plays on landing page
+  - On signup, check `localStorage` and restore mastered words
+  - Show notification: "We recovered X words you mastered! Added to your collection."
+  - **Impact:** Loss aversion - users feel invested before paying
+
+- [ ] **Onboarding Process Simplification**
+  - Current: Too many steps, losing 60% of users
+  - Target: Login → "Who is learning?" → Start Game
+  - Cut everything else for MVP
+  - **Status:** Needs review of current onboarding flow
+
+### Tier 3: Retention Layer (🟢 MEDIUM PRIORITY)
+
+*Users paid, but will they stay?*
+
+- [ ] **Parent Dashboard Enhancement**
+  - Problem: Parent is the customer, child is the user
+  - Parent needs to see "Value" (graphs, "Words Learned") to justify renewal
+  - **MVP Scope:** Build ONE good chart: "Words Mastered this Week"
+  - Don't build "a lot more work" - just one chart is enough for MVP
+
+- [ ] **"Mastered" Math Review**
+  - Current: Math is "wrong" but feels rewarding
+  - **Decision:** DO NOT FIX IT (yet)
+  - Rule: In Game Design, **Feeling > Math**
+  - If users feel smart and rewarded, the math is "correct" for engagement
+  - Only fix if it breaks the learning curve
+
+### Tier 4: Scale & Polish (⚪ LOW PRIORITY - Do Later)
+
+*Nice to have, but won't stop you from launching.*
+
+- [ ] **Three-Tier Cache Review**
+  - Unless game is unplayable, ignore this
+  - "Good enough" performance is fine for MVP
+  - **Status:** Bootstrap frontloading already provides instant feel
+
+- [ ] **Funnel for Organic Content to Sales**
+  - This is a marketing task, not a dev task
+  - Do this after code is stable
+
+- [ ] **Project-Wide Language UX Design**
+  - Email receipts need Chinese (Tier 1)
+  - But full i18n system can wait
+  - Document language strategy for future
+
+- [ ] **Real User Testing Flow**
+  - Do this AFTER Tier 1 & 2 are done
+  - Can't test a broken payment flow
+  - See `docs/TESTING_STRATEGY.md` for test account system
 
 ---
 

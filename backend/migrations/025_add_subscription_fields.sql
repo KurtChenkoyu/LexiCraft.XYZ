@@ -27,3 +27,4 @@ COMMENT ON COLUMN users.subscription_status IS 'Subscription status: active, ina
 COMMENT ON COLUMN users.plan_type IS 'Plan type: 6-month-pass, 12-month-pass, etc.';
 COMMENT ON COLUMN users.subscription_end_date IS 'When subscription expires - shows parents how much time is left to verify building blocks';
 
+

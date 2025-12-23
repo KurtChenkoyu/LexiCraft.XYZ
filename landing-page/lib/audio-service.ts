@@ -288,6 +288,7 @@ class AudioServiceClass {
   
   /**
    * Internal: Play audio file
+   * Checks readiness and waits if needed (fallback if preload didn't complete)
    */
   private async playAudio(path: string, volume: number): Promise<void> {
     // Silently fail if audio files don't exist (MVP: audio files not yet generated)
@@ -314,6 +315,16 @@ class AudioServiceClass {
       if (audio?.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
         // File doesn't exist - expected for MVP, fail silently
         return
+      }
+      
+      // Check if audio is ready to play (fallback if preload didn't complete)
+      if (audio.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA) {
+        // Wait for audio to be ready
+        await new Promise<void>((resolve) => {
+          audio.addEventListener('canplaythrough', () => resolve(), { once: true })
+          audio.addEventListener('error', () => resolve(), { once: true })
+          setTimeout(() => resolve(), 2000) // Timeout after 2 seconds
+        })
       }
       
       // Reset and play
@@ -350,29 +361,60 @@ class AudioServiceClass {
   /**
    * Preload audio files for instant playback
    * Preloads all 5 variants (001-005) for each effect
+   * Waits for canplaythrough to ensure audio is ready
    */
   async preloadSfx(effects: SoundEffect[]): Promise<void> {
     if (typeof window === 'undefined') return
     
+    const preloadPromises: Promise<void>[] = []
+    
     for (const effect of effects) {
       const variantPaths = this.getSfxVariantPaths(effect)
       for (const path of variantPaths) {
+        // Skip if already cached and ready
+        const existing = audioCache.get(path)
+        if (existing && existing.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+          continue
+        }
+        
         const audio = new Audio()
         audio.preload = 'auto'
         audio.src = path
-        audioCache.set(path, audio)
+        
+        // Wait for audio to be ready
+        const preloadPromise = new Promise<void>((resolve) => {
+          audio.addEventListener('canplaythrough', () => {
+            audioCache.set(path, audio)
+            resolve()
+          }, { once: true })
+          
+          audio.addEventListener('error', () => {
+            // Silently fail for missing files (expected in MVP)
+            resolve()
+          }, { once: true })
+          
+          // Timeout after 3 seconds to prevent hanging
+          setTimeout(() => resolve(), 3000)
+        })
+        
+        preloadPromises.push(preloadPromise)
       }
     }
+    
+    // Wait for all audio files to be ready
+    await Promise.all(preloadPromises)
   }
   
   /**
    * Preload word pronunciations
    * Only preloads the default voice to save bandwidth
+   * Waits for canplaythrough to ensure audio is ready
    */
   async preloadWords(words: string[], pack: 'emoji' | 'legacy' = 'emoji'): Promise<void> {
     if (typeof window === 'undefined') return
     
     const basePath = pack === 'emoji' ? AUDIO_PATHS.emoji : AUDIO_PATHS.legacy
+    const preloadPromises: Promise<void>[] = []
     
     for (const word of words) {
       const cleanWord = word.toLowerCase().replace(/\s+/g, '_')
@@ -382,11 +424,37 @@ class AudioServiceClass {
         ? `${basePath}/${cleanWord}_${DEFAULT_VOICE}.mp3`
         : `${basePath}/${cleanWord}.wav`
       
+      // Skip if already cached and ready
+      const existing = audioCache.get(path)
+      if (existing && existing.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+        continue
+      }
+      
       const audio = new Audio()
       audio.preload = 'auto'
       audio.src = path
-      audioCache.set(path, audio)
+      
+      // Wait for audio to be ready
+      const preloadPromise = new Promise<void>((resolve) => {
+        audio.addEventListener('canplaythrough', () => {
+          audioCache.set(path, audio)
+          resolve()
+        }, { once: true })
+        
+        audio.addEventListener('error', () => {
+          // Silently fail for missing files (expected in MVP)
+          resolve()
+        }, { once: true })
+        
+        // Timeout after 3 seconds to prevent hanging
+        setTimeout(() => resolve(), 3000)
+      })
+      
+      preloadPromises.push(preloadPromise)
     }
+    
+    // Wait for all audio files to be ready
+    await Promise.all(preloadPromises)
   }
   
   /**
@@ -537,9 +605,12 @@ async playRandomFeedback(
 
 /**
  * Preload prompt audio files
+ * Waits for canplaythrough to ensure audio is ready
  */
 async preloadPrompts(promptIds: string[], category: 'questions' | 'instructions' = 'questions'): Promise<void> {
   if (typeof window === 'undefined') return
+  
+  const preloadPromises: Promise<void>[] = []
   
   for (const promptId of promptIds) {
     const normalizedId = promptId.toLowerCase().replace(/\s+/g, '_').replace('?', '').replace('!', '').replace(',', '').replace("'", "")
@@ -547,29 +618,84 @@ async preloadPrompts(promptIds: string[], category: 'questions' | 'instructions'
     const defaultVoice = category === 'questions' ? 'echo' : 'nova'
     const path = `${AUDIO_PATHS.prompts}/${category}/${normalizedId}_${defaultVoice}.mp3`
     
+    // Skip if already cached and ready
+    const existing = audioCache.get(path)
+    if (existing && existing.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+      continue
+    }
+    
     const audio = new Audio()
     audio.preload = 'auto'
     audio.src = path
-    audioCache.set(path, audio)
+    
+    // Wait for audio to be ready
+    const preloadPromise = new Promise<void>((resolve) => {
+      audio.addEventListener('canplaythrough', () => {
+        audioCache.set(path, audio)
+        resolve()
+      }, { once: true })
+      
+      audio.addEventListener('error', () => {
+        // Silently fail for missing files (expected in MVP)
+        resolve()
+      }, { once: true })
+      
+      // Timeout after 3 seconds to prevent hanging
+      setTimeout(() => resolve(), 3000)
+    })
+    
+    preloadPromises.push(preloadPromise)
   }
+  
+  // Wait for all audio files to be ready
+  await Promise.all(preloadPromises)
 }
 
 /**
  * Preload feedback audio files
+ * Waits for canplaythrough to ensure audio is ready
  */
 async preloadFeedback(feedbackIds: string[], category: 'correct' | 'incorrect' = 'correct'): Promise<void> {
   if (typeof window === 'undefined') return
+  
+  const preloadPromises: Promise<void>[] = []
   
   for (const feedbackId of feedbackIds) {
     const normalizedId = feedbackId.toLowerCase().replace(/\s+/g, '_').replace('?', '').replace('!', '').replace(',', '').replace("'", "")
     const defaultVoice = category === 'correct' ? 'coral' : 'nova'
     const path = `${AUDIO_PATHS.feedback}/${category}/${normalizedId}_${defaultVoice}.mp3`
     
+    // Skip if already cached and ready
+    const existing = audioCache.get(path)
+    if (existing && existing.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+      continue
+    }
+    
     const audio = new Audio()
     audio.preload = 'auto'
     audio.src = path
-    audioCache.set(path, audio)
+    
+    // Wait for audio to be ready
+    const preloadPromise = new Promise<void>((resolve) => {
+      audio.addEventListener('canplaythrough', () => {
+        audioCache.set(path, audio)
+        resolve()
+      }, { once: true })
+      
+      audio.addEventListener('error', () => {
+        // Silently fail for missing files (expected in MVP)
+        resolve()
+      }, { once: true })
+      
+      // Timeout after 3 seconds to prevent hanging
+      setTimeout(() => resolve(), 3000)
+    })
+    
+    preloadPromises.push(preloadPromise)
   }
+  
+  // Wait for all audio files to be ready
+  await Promise.all(preloadPromises)
 }
 
 /**
@@ -577,6 +703,13 @@ async preloadFeedback(feedbackIds: string[], category: 'correct' | 'incorrect' =
  */
 getAvailableVoices(): readonly Voice[] {
   return VOICES
+}
+
+/**
+ * Get audio cache (for components that need to check cache)
+ */
+getAudioCache(): Map<string, HTMLAudioElement> {
+  return audioCache
 }
 
 /**

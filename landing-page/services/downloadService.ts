@@ -845,8 +845,13 @@ class DownloadService {
         console.log('✅ Learner profile fetched and cached')
       }
       return profile
-    } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
+    } catch (error: any) {
+      // 404 is expected if user doesn't have a learner profile yet
+      if (error?.response?.status === 404) {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('ℹ️ No learner profile found (user may not have completed onboarding)')
+        }
+      } else if (process.env.NODE_ENV === 'development') {
         console.error('❌ Failed to fetch learner profile:', error)
       }
       return undefined

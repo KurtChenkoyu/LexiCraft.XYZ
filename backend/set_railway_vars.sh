@@ -13,3 +13,4 @@ echo "✅ Environment variables set!"
 echo ""
 echo "Next step: railway up"
 
+

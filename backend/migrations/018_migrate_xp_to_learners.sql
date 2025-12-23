@@ -204,3 +204,4 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION initialize_learner_xp IS 'Initializes XP record for a learner (replaces initialize_user_xp)';
 COMMENT ON FUNCTION initialize_user_xp IS 'DEPRECATED: Use initialize_learner_xp or LevelService._ensure_learner_xp instead';
 
+

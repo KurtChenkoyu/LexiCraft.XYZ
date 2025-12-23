@@ -938,6 +938,8 @@ export default function MinePage() {
             >
               📋 列表
             </button>
+            {/* Graph view button - Temporarily disabled, needs async refactor for IndexedDB
+            TODO: Revive in Version 2.0 when graph visualization is properly refactored
             <button
               onClick={() => setViewMode('graph')}
               className={`px-5 py-2.5 rounded-lg font-medium transition-all ${
@@ -949,6 +951,7 @@ export default function MinePage() {
             >
               🕸️ 網絡
             </button>
+            */}
           </div>
           
           {/* Search Button */}
@@ -959,7 +962,7 @@ export default function MinePage() {
             🔍 搜尋單字
           </button>
           
-          {/* Demo mode toggle (only in graph view) */}
+          {/* Demo mode toggle (only in graph view) - Temporarily disabled with graph view
           {isGraphView && (
             <button
               onClick={() => setDemoMode(!demoMode)}
@@ -972,6 +975,7 @@ export default function MinePage() {
               {demoMode ? '🎮 Demo ON' : '🎮 Demo'}
             </button>
           )}
+          */}
         </div>
 
         {/* Content based on view mode */}

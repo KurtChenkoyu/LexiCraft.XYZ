@@ -252,3 +252,4 @@ conn.close()
 4. **"Connection refused"**
    - Solution: Make sure backend is running on port 8000 and Next.js on port 3000
 
+

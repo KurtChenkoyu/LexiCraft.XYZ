@@ -40,7 +40,8 @@ export async function POST(request: NextRequest) {
     }
     
     // Get origin and locale for redirect URLs
-    const origin = request.headers.get('origin') || 'http://localhost:3000'
+    // Use NEXT_PUBLIC_SITE_URL from environment (set per environment: localhost for dev, lexicraft.xyz for prod)
+    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     const referer = request.headers.get('referer') || ''
     // Extract locale from referer URL (e.g., /zh-TW/dashboard)
     const localeMatch = referer.match(/\/([a-z]{2}(?:-[A-Z]{2})?)\//i)
