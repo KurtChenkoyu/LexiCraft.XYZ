@@ -111,7 +111,7 @@ export function EmojiMCQSession({
   
   // Load MCQs for all sense IDs and preload session audio
   useEffect(() => {
-    const preloadSessionAudio = async (mcqs: typeof mcqs) => {
+    const preloadSessionAudio = async (mcqs: EmojiMCQ[]) => {
       // Extract unique words from all MCQs
       const uniqueWords = new Set<string>()
       const promptIds = new Set<string>()
