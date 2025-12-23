@@ -139,3 +139,4 @@ NEXT_PUBLIC_API_URL=https://your-backend.railway.app
 
 **Ready to proceed!** All automated steps are complete. Please run the Railway commands above to complete deployment.
 
+

@@ -132,7 +132,7 @@ export default function AppTopNav({ currentLocale }: AppTopNavProps) {
 
   return (
     <nav 
-      className="fixed top-0 left-0 right-0 z-50 bg-cosmic-950/80 backdrop-blur-md border-b border-white/5 shadow-lg"
+      className="fixed top-0 left-0 right-0 z-40 bg-cosmic-950/80 backdrop-blur-md border-b border-white/5 shadow-lg"
       role="navigation"
       aria-label="Main navigation"
     >

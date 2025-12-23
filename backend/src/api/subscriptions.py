@@ -94,11 +94,13 @@ async def activate_subscription(
         if request.subscription_end_date:
             try:
                 new_end_date = datetime.fromisoformat(request.subscription_end_date.replace('Z', '+00:00'))
-            except (ValueError, AttributeError):
-                # If date parsing fails, log but continue (end_date is optional)
+            except (ValueError, AttributeError) as e:
+                # Log warning but continue (end_date is optional)
+                print(f"⚠️ Warning: Failed to parse subscription_end_date '{request.subscription_end_date}': {e}")
                 pass
         
         # 4. Idempotency check: Only update if new end_date is newer than existing
+        # Only skip if both dates exist AND new_date is older or equal
         if existing_end_date and new_end_date:
             # Convert existing_end_date to datetime if it's a string
             if isinstance(existing_end_date, str):
@@ -115,6 +117,8 @@ async def activate_subscription(
                     "current_status": mapped_status,
                     "skipped": True
                 }
+        # If existing_end_date is NULL, always update (new subscription)
+        # If new_end_date is NULL but existing exists, still update (status change)
         
         # 5. Update subscription fields
         update_params = {

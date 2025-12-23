@@ -1656,32 +1656,73 @@ export async function bootstrapApp(
     // Lazy Audio Preloading (Background, Non-Blocking)
     // ============================================
     if (store.activePack?.id === 'emoji_core' && store.emojiVocabulary) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🎵 [Bootstrap] Starting audio preload: pack=${store.activePack.id}, words=${store.emojiVocabulary.length}`)
+      }
       setTimeout(() => {
         try {
           const { audioService } = require('@/lib/audio-service')
           const words = store.emojiVocabulary!.map(w => w.word)
           
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`🎵 [Bootstrap] Preloading ${words.length} word audio files...`)
+          }
+          
           // Preload ALL words (default voice only = ~2.1MB)
           // Browser handles concurrent requests safely, no race conditions
+          // Now waits for canplaythrough to ensure audio is ready
+          const bootstrapAudioStart = Date.now()
           audioService.preloadWords(words, 'emoji')
-            .then(() => {
+            .then(async () => {
+              const wordsDuration = ((Date.now() - bootstrapAudioStart) / 1000).toFixed(1)
               if (process.env.NODE_ENV === 'development') {
-                console.log(`🎵 Background: Preloaded ${words.length} audio files`)
+                console.log(`🎵 [Bootstrap] Preloaded ${words.length} audio files (words) in ${wordsDuration}s`)
+              }
+              
+              // Preload prompts used in MCQ games
+              const promptsStart = Date.now()
+              const promptIds = [
+                'which_emoji_matches',
+                'which_word_matches',
+                'click_on_apple',
+                'pick_the_cat'
+              ]
+              await audioService.preloadPrompts(promptIds, 'questions')
+              const promptsDuration = ((Date.now() - promptsStart) / 1000).toFixed(1)
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`🗣 [Bootstrap] Preloaded ${promptIds.length} prompts in ${promptsDuration}s`)
+              }
+              
+              // Preload feedback sounds (correct/wrong)
+              const sfxStart = Date.now()
+              await audioService.preloadSfx(['correct', 'wrong'])
+              const sfxDuration = ((Date.now() - sfxStart) / 1000).toFixed(1)
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`🔔 [Bootstrap] Preloaded 2 sfx in ${sfxDuration}s`)
+              }
+              
+              const totalDuration = ((Date.now() - bootstrapAudioStart) / 1000).toFixed(1)
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`✅ [Bootstrap] All audio preloading complete (${totalDuration}s total)`)
               }
             })
             .catch((err: unknown) => {
               // Non-critical - audio will load on-demand if preload fails
               if (process.env.NODE_ENV === 'development') {
-                console.warn('Audio preload failed (non-critical):', err)
+                console.warn('❌ [Bootstrap] Audio preload failed (non-critical):', err)
               }
             })
         } catch (err: unknown) {
           // Non-critical - audio will load on-demand if preload fails
           if (process.env.NODE_ENV === 'development') {
-            console.warn('Audio preload setup failed (non-critical):', err)
+            console.warn('❌ [Bootstrap] Audio preload setup failed (non-critical):', err)
           }
         }
       }, 1000) // Wait 1s after bootstrap to not interfere with critical loading
+    } else {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`⚠️ [Bootstrap] Audio preload skipped: activePack=${store.activePack?.id}, emojiVocabulary=${!!store.emojiVocabulary}`)
+      }
     }
 
     return { success: true, redirectTo }

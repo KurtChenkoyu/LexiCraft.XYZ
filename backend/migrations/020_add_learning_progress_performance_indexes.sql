@@ -29,3 +29,4 @@ ON public.learning_progress(user_id, learned_at DESC NULLS LAST);
 --   AND schemaname = 'public'
 --   AND indexname LIKE 'idx_learning_progress_user%';
 
+

@@ -83,3 +83,4 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...              # Legacy (still works)
 - [Supabase API Keys Documentation](https://supabase.com/docs/guides/api/api-keys)
 - [JWT Signing Keys Migration](https://dev.to/supabase/introducing-jwt-signing-keys-4h3g)
 
+

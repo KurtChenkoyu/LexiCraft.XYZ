@@ -109,13 +109,75 @@ export function EmojiMCQSession({
   
   const applyDelta = useAppStore((state) => state.applyDelta)
   
-  // Load MCQs for all sense IDs
+  // Load MCQs for all sense IDs and preload session audio
   useEffect(() => {
+    const preloadSessionAudio = async (mcqs: typeof mcqs) => {
+      // Extract unique words from all MCQs
+      const uniqueWords = new Set<string>()
+      const promptIds = new Set<string>()
+      
+      mcqs.forEach(mcq => {
+        // Extract words from questions and options
+        if (mcq.type === 'word_to_emoji') {
+          const questionWord = mcq.question.text
+          if (questionWord) {
+            uniqueWords.add(questionWord)
+            
+            // Map to prompt ID
+            const wordLower = questionWord.toLowerCase()
+            if (wordLower === 'apple') {
+              promptIds.add('click_on_apple')
+            } else if (wordLower === 'cat') {
+              promptIds.add('pick_the_cat')
+            } else {
+              promptIds.add('which_emoji_matches')
+            }
+          }
+        } else {
+          // emoji_to_word
+          promptIds.add('which_word_matches')
+          
+          // Extract correct word
+          const correctWord = mcq.options[mcq.correct_index]?.text
+          if (correctWord) {
+            uniqueWords.add(correctWord)
+          }
+        }
+        
+        // Extract all option words (for emoji_to_word)
+        mcq.options.forEach(option => {
+          if (option.text) {
+            uniqueWords.add(option.text)
+          }
+        })
+      })
+      
+      // Preload session-specific audio
+      const preloadStartTime = Date.now()
+      try {
+        await Promise.all([
+          audioService.preloadWords(Array.from(uniqueWords), 'emoji'),
+          audioService.preloadPrompts(Array.from(promptIds), 'questions'),
+          audioService.preloadSfx(['correct', 'wrong'])
+        ])
+        
+        const preloadDuration = Date.now() - preloadStartTime
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🎵 Session: Preloaded ${uniqueWords.size} words, ${promptIds.size} prompts, feedback sounds (${preloadDuration}ms)`)
+        }
+      } catch (err) {
+        console.warn('Session audio preload failed (non-critical):', err)
+      }
+    }
+    
     // Fast path: Use pre-generated questions if available (instant start)
     if (preGeneratedMcqs && preGeneratedMcqs.length > 0) {
       setMcqs(preGeneratedMcqs)
-      setStatus('active')
-      console.log(`⚡ Using ${preGeneratedMcqs.length} pre-generated MCQs (instant start)`)
+      // Preload audio before marking as active
+      preloadSessionAudio(preGeneratedMcqs).then(() => {
+        setStatus('active')
+        console.log(`⚡ Using ${preGeneratedMcqs.length} pre-generated MCQs (instant start)`)
+      })
       return
     }
     
@@ -127,6 +189,9 @@ export function EmojiMCQSession({
         // Shuffle the MCQs
         const shuffled = allMcqs.sort(() => Math.random() - 0.5)
         setMcqs(shuffled)
+        
+        // Preload audio before marking as active
+        await preloadSessionAudio(shuffled)
         setStatus('active')
         console.log(`🎯 Loaded ${shuffled.length} emoji MCQs for ${senseIds.length} words`)
       } catch (error) {

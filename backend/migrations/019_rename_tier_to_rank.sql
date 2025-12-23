@@ -88,3 +88,4 @@ END $$;
 -- WHERE tablename = 'learning_progress' 
 --   AND indexname LIKE '%rank%';
 
+

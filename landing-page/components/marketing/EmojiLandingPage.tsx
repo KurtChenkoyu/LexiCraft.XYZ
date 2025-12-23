@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { CampaignConfig, trackCampaignEvent } from '@/lib/campaign-config'
+import { DemoFlow } from './DemoFlow'
 
 // ===========================================
 // SHARED COMPONENTS FOR EMOJI LANDING PAGES
@@ -241,7 +242,7 @@ function HeroSection({ campaign, isLoggedIn, checkoutUrl }: {
           
           {/* Right: Demo */}
           <div className="relative">
-            <DemoMCQ campaign={campaign} />
+            <DemoFlow campaign={campaign} />
           </div>
         </div>
       </div>

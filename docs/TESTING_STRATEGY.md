@@ -344,3 +344,4 @@ SET email_confirmed_at = NOW(), email_confirmed = true
 WHERE email LIKE 'test+%@lexicraft.xyz';
 ```
 
+
