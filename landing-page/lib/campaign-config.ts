@@ -109,7 +109,7 @@ export const CAMPAIGNS: Record<string, CampaignConfig> = {
     content: {
       heroTagline: '🎄 聖誕節特別活動 🎅',
       heroTitle: '用表情符號學英文！',
-      heroSubtitle: '專為 4-10 歲孩子設計的英語學習遊戲',
+      heroSubtitle: '專為初學者和 4-10 歲孩子設計的英語學習遊戲',
       
       finalCTA: {
         title: '這個聖誕節',

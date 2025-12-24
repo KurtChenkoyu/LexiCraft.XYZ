@@ -161,6 +161,7 @@ function HeroSection({ campaign, isLoggedIn, checkoutUrl }: {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6 }}
+            className="text-center lg:text-left"
           >
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -178,14 +179,14 @@ function HeroSection({ campaign, isLoggedIn, checkoutUrl }: {
             </h1>
             
             <p className="text-xl text-slate-300 mb-8">
-              {campaign.content.heroSubtitle}。
-              <br className="hidden sm:block" />
-              200個常用單字 × 有趣表情符號 = 快樂學習！
+              {campaign.content.heroSubtitle}
+              <br />
+              200個常用單字 × 有趣表情符號 =沒有那麼不快樂的學習!
             </p>
 
             {/* Price Anchor Text */}
             {campaign.content.priceAnchorText && (
-              <div className="mb-6 text-center sm:text-left">
+              <div className="mb-6">
                 <p className="text-slate-400 text-sm">
                   {(() => {
                     const parts = campaign.content.priceAnchorText.split('~~')
@@ -203,7 +204,7 @@ function HeroSection({ campaign, isLoggedIn, checkoutUrl }: {
               </div>
             )}
             
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
               {/* Primary CTA: Always leads to checkout flow */}
               {isLoggedIn ? (
                 <motion.a
@@ -241,7 +242,7 @@ function HeroSection({ campaign, isLoggedIn, checkoutUrl }: {
           </motion.div>
           
           {/* Right: Demo */}
-          <div className="relative">
+          <div className="relative flex justify-center lg:justify-start">
             <DemoFlow campaign={campaign} />
           </div>
         </div>
@@ -261,7 +262,7 @@ function WordForgeSection({ campaign }: { campaign: CampaignConfig }) {
   
   return (
     <section className="relative z-10 px-4 py-20 bg-gradient-to-b from-slate-900 to-indigo-950">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto w-full">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
