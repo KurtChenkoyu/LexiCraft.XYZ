@@ -21,6 +21,7 @@ export default function MarketingLayout({
               overflow: auto !important;
               overflow-x: hidden !important;
               position: static !important;
+              scrollbar-gutter: stable !important;
             }
           `,
         }}
