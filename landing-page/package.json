@@ -8,6 +8,12 @@
     "start": "next start",
     "lint": "next lint",
     "upload-audio": "node scripts/upload-audio-to-supabase.js",
+    "simulate-webhook": "tsx scripts/simulate-webhook.ts",
+    "find-customer-id": "tsx scripts/find-customer-id.ts",
+    "update-billing-customer-id": "tsx scripts/update-billing-customer-id.ts",
+    "test-portal-api": "tsx scripts/test-portal-api.ts",
+    "test-subscriptions-api": "tsx scripts/test-subscriptions-api.ts",
+    "test-customer-api": "tsx scripts/test-customer-api.ts",
     "backend:start": "cd ../backend && ./start-backend.sh",
     "backend:stop": "lsof -ti :8000 | xargs kill -9 2>/dev/null || echo 'No backend running'",
     "backend:check": "curl -s http://localhost:8000/health | python3 -m json.tool || echo 'Backend not responding'"
@@ -46,8 +52,10 @@
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "autoprefixer": "^10.4.16",
+    "dotenv": "^16.4.5",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.3.6",
+    "tsx": "^4.19.2",
     "typescript": "^5.2.2"
   }
 }
