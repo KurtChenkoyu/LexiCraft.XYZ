@@ -18,7 +18,8 @@ router = APIRouter(prefix="/api/subscriptions", tags=["Subscriptions"])
 
 # --- Request Models ---
 class ActivateSubscriptionRequest(BaseModel):
-    email: str
+    user_id: Optional[str] = None  # Primary: Use ID if available (immutable identifier)
+    email: Optional[str] = None    # Fallback: Use email if ID not available (backward compatibility)
     subscription_status: str  # 'active', 'inactive', 'trial', 'past_due'
     plan_type: Optional[str] = None  # '6-month-pass', '12-month-pass', etc.
     subscription_end_date: Optional[str] = None  # ISO format timestamp
@@ -66,7 +67,7 @@ async def activate_subscription(
     
     This endpoint is called by the webhook handler after Lemon Squeezy payment events.
     It:
-    1. Finds user by email
+    1. Finds user by user_id (primary) or email (fallback)
     2. Maps Lemon Squeezy status to our subscription_status
     3. Updates subscription_status, plan_type, and subscription_end_date
     4. Implements idempotency: only updates if new end_date is newer than existing
@@ -74,14 +75,35 @@ async def activate_subscription(
     Idempotency: Prevents old delayed webhooks from overwriting newer subscription status.
     """
     try:
-        # 1. Find user by email
-        user = db.execute(
-            text("SELECT id, subscription_status, subscription_end_date FROM users WHERE email = :email"),
-            {"email": request.email}
-        ).fetchone()
+        # Validate: At least one identifier must be provided
+        if not request.user_id and not request.email:
+            raise HTTPException(status_code=400, detail="Either user_id or email must be provided")
         
-        if not user:
-            raise HTTPException(status_code=404, detail=f"User not found with email: {request.email}")
+        # 1. Find user by ID (primary) or email (fallback)
+        if request.user_id:
+            # Primary: Match by user_id (immutable, reliable)
+            try:
+                from uuid import UUID
+                user_uuid = UUID(request.user_id)
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Invalid user_id format: {request.user_id}")
+            
+            user = db.execute(
+                text("SELECT id, subscription_status, subscription_end_date FROM users WHERE id = :user_id"),
+                {"user_id": user_uuid}
+            ).fetchone()
+            
+            if not user:
+                raise HTTPException(status_code=404, detail=f"User not found with user_id: {request.user_id}")
+        elif request.email:
+            # Fallback: Match by email (for backward compatibility)
+            user = db.execute(
+                text("SELECT id, subscription_status, subscription_end_date FROM users WHERE email = :email"),
+                {"email": request.email}
+            ).fetchone()
+            
+            if not user:
+                raise HTTPException(status_code=404, detail=f"User not found with email: {request.email}")
         
         user_id = user[0]
         existing_end_date = user[2]  # subscription_end_date (index 2)

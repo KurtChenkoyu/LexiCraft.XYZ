@@ -46,6 +46,28 @@ export interface CampaignConfig {
     duration: string // e.g., "6個月"
     discountLabel: string // e.g., "-83%"
     priceAnchorText?: string // e.g., "~~原價 NT$599~~ 聖誕限時優惠"
+    
+    // Hybrid Pricing (Subscription + Lifetime)
+    pricing: {
+      monthly: {
+        productName: string // "字塊所 Emoji 月暢遊券 - 家庭號 (LexiCraft.xyz Emoji Monthly Pass)"
+        price: number // e.g., 99 (NT$)
+        priceUsd: number // e.g., 2.99
+        lemonSqueezyUrl: string
+      }
+      yearly: {
+        productName: string // "字塊所 全所通行證 - 家庭號 (年繳) (LexiCraft.xyz All-Access Year Pass)"
+        price: number // e.g., 999 (NT$)
+        priceUsd: number // e.g., 29.99
+        lemonSqueezyUrl: string
+      }
+      lifetime: {
+        productName: string // "字塊所 Emoji 永久字塊金庫 - 家庭號 (LexiCraft.xyz Emoji Lifetime Family Vault)"
+        price: number // e.g., 299 (NT$)
+        priceUsd: number // e.g., 9.99
+        lemonSqueezyUrl: string
+      }
+    }
   }
   
   // Checkout Configuration
@@ -118,14 +140,34 @@ export const CAMPAIGNS: Record<string, CampaignConfig> = {
       },
       
       originalPrice: 599,
-      salePrice: 99,
-      duration: '6個月',
+      salePrice: 299, // Lifetime price (backward compatibility)
+      duration: '永久使用',
       discountLabel: '-83%',
       priceAnchorText: '~~原價 NT$599~~ 聖誕限時優惠',
+      pricing: {
+        monthly: {
+          productName: '字塊所 Emoji 月暢遊券 - 家庭號 (LexiCraft.xyz Emoji Monthly Pass)',
+          price: 199,
+          priceUsd: 6.99,
+          lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/07397ed4-50a9-4cb0-aeb2-2c2db295fef1',
+        },
+        yearly: {
+          productName: '字塊所 全所通行證 - 家庭號 (年繳) (LexiCraft.xyz All-Access Year Pass)',
+          price: 990,
+          priceUsd: 29.99,
+          lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/a8524393-2fcd-4c10-a9b2-3a2a4c9e358c',
+        },
+        lifetime: {
+          productName: '字塊所 Emoji 永久字塊金庫 - 家庭號 (LexiCraft.xyz Emoji Lifetime Family Vault)',
+          price: 299,
+          priceUsd: 9.99,
+          lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/7661e2bf-485f-46cc-abf7-fc5e75bdc594',
+        },
+      },
     },
     
     checkout: {
-      lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/07397ed4-50a9-4cb0-aeb2-2c2db295fef1',
+      lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/7661e2bf-485f-46cc-abf7-fc5e75bdc594', // Default to lifetime URL
     },
     
     tracking: {
@@ -165,6 +207,12 @@ export const CAMPAIGNS: Record<string, CampaignConfig> = {
   },
   
   // 🧧 Chinese New Year 2025
+  // PWA Strategy: Smart Banner on Mine page promotes "Add to Home Screen"
+  // Messaging: "Boredom Buster" - 寒假、過年期間的最佳良伴 (Winter Break & CNY companion)
+  // Focus: Pain relief (boring waiting moments) rather than financial value
+  // Safe positioning: Avoids explicit "car/driving" references to prevent motion sickness concerns
+  // Goal: Get app icon on parent's phone during CNY (high engagement period - waiting for dinner, adult conversations, between activities)
+  // Implementation: See PWA Implementation Plan for details
   cny: {
     id: 'cny-2025',
     name: 'Chinese New Year 2025',
@@ -192,10 +240,30 @@ export const CAMPAIGNS: Record<string, CampaignConfig> = {
       },
       
       originalPrice: 599,
-      salePrice: 99,
-      duration: '6個月',
+      salePrice: 299, // Lifetime price (backward compatibility)
+      duration: '永久使用',
       discountLabel: '-83%',
       priceAnchorText: '~~原價 NT$599~~ 新春限時優惠',
+      pricing: {
+        monthly: {
+          productName: '字塊所 Emoji 月暢遊券 - 家庭號 (LexiCraft.xyz Emoji Monthly Pass)',
+          price: 199,
+          priceUsd: 6.99,
+          lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/cny-monthly-checkout-id', // TODO: Update with actual monthly checkout URL
+        },
+        yearly: {
+          productName: '字塊所 全所通行證 - 家庭號 (年繳) (LexiCraft.xyz All-Access Year Pass)',
+          price: 990,
+          priceUsd: 29.99,
+          lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/cny-yearly-checkout-id', // TODO: Update with actual yearly checkout URL
+        },
+        lifetime: {
+          productName: '字塊所 Emoji 永久字塊金庫 - 家庭號 (LexiCraft.xyz Emoji Lifetime Family Vault)',
+          price: 299,
+          priceUsd: 9.99,
+          lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/cny-checkout-id', // TODO: Update with actual lifetime checkout URL
+        },
+      },
     },
     
     checkout: {
@@ -245,10 +313,30 @@ export const CAMPAIGNS: Record<string, CampaignConfig> = {
       },
       
       originalPrice: 599,
-      salePrice: 99,
-      duration: '6個月',
+      salePrice: 299, // Lifetime price (backward compatibility)
+      duration: '永久使用',
       discountLabel: '-83%',
       priceAnchorText: '~~原價 NT$599~~ 開學限時優惠',
+      pricing: {
+        monthly: {
+          productName: '字塊所 Emoji 月暢遊券 - 家庭號 (LexiCraft.xyz Emoji Monthly Pass)',
+          price: 199,
+          priceUsd: 6.99,
+          lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/bts-monthly-checkout-id', // TODO: Update with actual monthly checkout URL
+        },
+        yearly: {
+          productName: '字塊所 全所通行證 - 家庭號 (年繳) (LexiCraft.xyz All-Access Year Pass)',
+          price: 990,
+          priceUsd: 29.99,
+          lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/bts-yearly-checkout-id', // TODO: Update with actual yearly checkout URL
+        },
+        lifetime: {
+          productName: '字塊所 Emoji 永久字塊金庫 - 家庭號 (LexiCraft.xyz Emoji Lifetime Family Vault)',
+          price: 299,
+          priceUsd: 9.99,
+          lemonSqueezyUrl: 'https://lexicraft-xyz.lemonsqueezy.com/checkout/buy/bts-checkout-id', // TODO: Update with actual lifetime checkout URL
+        },
+      },
     },
     
     checkout: {
@@ -314,14 +402,17 @@ export function getDefaultCampaign(): CampaignConfig {
 /**
  * Get checkout URL with A/B testing support
  * 
- * If A/B testing is disabled, returns the default checkout URL.
+ * If A/B testing is disabled, returns the default checkout URL (lifetime).
  * If enabled, assigns users to variants based on weight and persists
  * the assignment in localStorage for consistent experience.
  */
 export function getCheckoutUrl(campaign: CampaignConfig): string {
+  // Default to lifetime checkout URL
+  const defaultUrl = campaign.content.pricing?.lifetime?.lemonSqueezyUrl || campaign.checkout.lemonSqueezyUrl
+  
   // If A/B testing is disabled, return default URL
   if (!campaign.abTest?.enabled) {
-    return campaign.checkout.lemonSqueezyUrl
+    return defaultUrl
   }
   
   // Get stored variant from localStorage (persistent across sessions)
@@ -355,7 +446,122 @@ export function getCheckoutUrl(campaign: CampaignConfig): string {
   const defaultVariant = campaign.abTest.variants.find(
     v => v.id === campaign.abTest!.defaultVariant
   )
-  return defaultVariant?.lemonSqueezyUrl || campaign.checkout.lemonSqueezyUrl
+  return defaultVariant?.lemonSqueezyUrl || defaultUrl
+}
+
+/**
+ * Get Lifetime checkout URL
+ */
+export function getLifetimeCheckoutUrl(campaign: CampaignConfig): string {
+  return campaign.content.pricing?.lifetime?.lemonSqueezyUrl || campaign.checkout.lemonSqueezyUrl
+}
+
+/**
+ * Get Monthly checkout URL
+ */
+export function getMonthlyCheckoutUrl(campaign: CampaignConfig): string {
+  return campaign.content.pricing?.monthly?.lemonSqueezyUrl || campaign.checkout.lemonSqueezyUrl
+}
+
+/**
+ * Get Yearly checkout URL
+ */
+export function getYearlyCheckoutUrl(campaign: CampaignConfig): string {
+  return campaign.content.pricing?.yearly?.lemonSqueezyUrl || campaign.checkout.lemonSqueezyUrl
+}
+
+/**
+ * Validate checkout URL (supports both Live and Test Mode)
+ * 
+ * Accepts:
+ * - Live URLs: https://...lemonsqueezy.com/checkout/buy/...
+ * - Test URLs: https://...lemonsqueezy.test/checkout/buy/...
+ * 
+ * Rejects:
+ * - Placeholders (product-id, checkout-id)
+ * - Invalid formats (#, non-http)
+ */
+export function isValidCheckoutUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') {
+    return false
+  }
+  
+  // Reject placeholders
+  if (url.includes('product-id') || url.includes('checkout-id') || url === '#' || !url.startsWith('http')) {
+    return false
+  }
+  
+  // Accept both Live and Test Mode URLs
+  const isLive = url.includes('lemonsqueezy.com/checkout/buy/')
+  const isTest = url.includes('lemonsqueezy.test/checkout/buy/')
+  
+  // Must be valid Lemon Squeezy URL and have reasonable length (UUIDs are ~36 chars)
+  return (isLive || isTest) && url.length > 50
+}
+
+/**
+ * Get valid checkout URL with validation
+ * Returns null if URL is invalid/placeholder
+ */
+export function getValidCheckoutUrl(campaign: CampaignConfig, plan: 'lifetime' | 'monthly' | 'yearly'): string | null {
+  let url: string
+  if (plan === 'lifetime') {
+    url = getLifetimeCheckoutUrl(campaign)
+  } else if (plan === 'yearly') {
+    url = getYearlyCheckoutUrl(campaign)
+  } else {
+    url = getMonthlyCheckoutUrl(campaign)
+  }
+  
+  return isValidCheckoutUrl(url) ? url : null
+}
+
+/**
+ * Append user identity (email + user ID) to checkout URL for logged-in users
+ * 
+ * Format: 
+ * - ?checkout[email]=user@example.com
+ * - ?checkout[custom][user_id]=<SUPABASE_USER_ID>
+ * 
+ * CRITICAL: 
+ * - User ID provides immutable matching even if user changes email in checkout form
+ * - This is the PARENT's user_id (auth.users.id), NOT a learner_id
+ * - Payment is at user level (one payment unlocks all children)
+ * - Subscription is stored in public.users table, not learners table
+ * 
+ * @param baseUrl - The base Lemon Squeezy checkout URL
+ * @param user - User object with email and id (parent's Supabase auth user ID)
+ * @returns URL with identity parameters appended (if user provided)
+ */
+export function appendUserIdentityToCheckoutUrl(
+  baseUrl: string, 
+  user: { email?: string; id?: string } | null
+): string {
+  if (!user || !baseUrl) {
+    return baseUrl
+  }
+  
+  // Use URL API for safer parsing (handles existing query params automatically)
+  try {
+    const url = new URL(baseUrl)
+    
+    // Append email if available (UX improvement - pre-fills form)
+    if (user.email) {
+      url.searchParams.set('checkout[email]', user.email)
+    }
+    
+    // CRITICAL: Append user ID as custom data (immutable identifier)
+    // This allows webhook to find user even if they change email in checkout
+    if (user.id) {
+      url.searchParams.set('checkout[custom][user_id]', user.id)
+    }
+    
+    return url.toString()
+  } catch (error) {
+    // Fallback: If URL parsing fails, return original URL
+    console.warn('Failed to parse checkout URL:', error)
+    return baseUrl
+  }
 }
 
 /**

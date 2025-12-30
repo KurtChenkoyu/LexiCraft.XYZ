@@ -2,10 +2,12 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { bootstrapApp } from '@/services/bootstrap'
 import { useAppStore } from '@/stores/useAppStore'
 import { vocabularyLoader } from '@/lib/vocabularyLoader'
+import { getDefaultCampaign, getLifetimeCheckoutUrl, getMonthlyCheckoutUrl, getValidCheckoutUrl, appendUserIdentityToCheckoutUrl } from '@/lib/campaign-config'
 
 /**
  * 🎮 Game Loading Screen (Traffic Cop + Bootstrap)
@@ -43,6 +45,7 @@ const INITIAL_STEPS: LoadingStep[] = [
 export default function StartPage() {
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
   const isBootstrapped = useAppStore((state) => state.isBootstrapped)
   
@@ -54,6 +57,24 @@ export default function StartPage() {
   const [isComplete, setIsComplete] = useState(false)
 
   const locale = pathname.split('/')[1] || 'zh-TW'
+  
+  // Check for checkout redirect params (from OAuth callback)
+  // CRITICAL: Google OAuth may strip query params, so check localStorage as fallback
+  let planParam = searchParams.get('plan') as 'lifetime' | 'monthly' | 'yearly' | null
+  let redirectParam = searchParams.get('redirect')
+  
+  // Fallback to localStorage if URL params are missing (Google OAuth may have stripped them)
+  if (typeof window !== 'undefined' && (!planParam || !redirectParam)) {
+    const storedPlan = localStorage.getItem('pending_checkout_plan') as 'lifetime' | 'monthly' | 'yearly' | null
+    const storedRedirect = localStorage.getItem('pending_checkout_redirect')
+    
+    if (storedPlan && !planParam) {
+      planParam = storedPlan
+    }
+    if (storedRedirect && !redirectParam) {
+      redirectParam = storedRedirect
+    }
+  }
 
   const updateStep = useCallback((stepId: string, status: LoadingStep['status'], detail?: string) => {
     setSteps(prev => prev.map(s => 
@@ -202,8 +223,79 @@ export default function StartPage() {
         setIsComplete(true)
         console.log('✅ Full bootstrap complete!')
         
+        // Check if we need to redirect to checkout (from OAuth signup flow)
+        if (redirectParam === 'checkout' && planParam) {
+          const campaign = getDefaultCampaign()
+          
+          // Validate checkout URL before redirecting
+          const checkoutUrl = getValidCheckoutUrl(campaign, planParam)
+          
+          if (!checkoutUrl) {
+            // Show user-friendly error instead of broken redirect
+            alert('Payment system is being set up. Please check back soon or contact support.')
+            // Clear stored intent
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('pending_checkout_plan')
+              localStorage.removeItem('pending_checkout_redirect')
+              localStorage.removeItem('pending_checkout_utm')
+            }
+            // Redirect to normal app flow
+            setTimeout(() => {
+              router.replace(`/${locale}${result.redirectTo}`)
+            }, 800)
+            return
+          }
+          
+          // Append user identity (user is available from useAuth() at this point)
+          const checkoutUrlWithIdentity = appendUserIdentityToCheckoutUrl(
+            checkoutUrl,
+            user ? { email: user.email, id: user.id } : null
+          )
+          
+          // Preserve UTM params if present (check both URL params and localStorage)
+          const utmParams: Record<string, string> = {}
+          searchParams.forEach((value, key) => {
+            if (key.startsWith('utm_')) {
+              utmParams[key] = value
+            }
+          })
+          
+          // Also check localStorage for UTM params (in case they were lost in OAuth)
+          if (typeof window !== 'undefined') {
+            const storedUtm = localStorage.getItem('pending_checkout_utm')
+            if (storedUtm) {
+              try {
+                const storedUtmParams = JSON.parse(storedUtm)
+                Object.assign(utmParams, storedUtmParams)
+              } catch (e) {
+                console.warn('Failed to parse stored UTM params:', e)
+              }
+            }
+          }
+          
+          let finalUrl = checkoutUrlWithIdentity
+          if (Object.keys(utmParams).length > 0) {
+            const params = new URLSearchParams(utmParams)
+            finalUrl = `${checkoutUrlWithIdentity}${checkoutUrlWithIdentity.includes('?') ? '&' : '?'}${params.toString()}`
+          }
+          
+          // Clear stored intent after successful validation
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('pending_checkout_plan')
+            localStorage.removeItem('pending_checkout_redirect')
+            localStorage.removeItem('pending_checkout_utm')
+          }
+          
+          // Redirect to checkout (same-tab navigation for PWA support)
           setTimeout(() => {
-            router.replace(`/${locale}${result.redirectTo}`)
+            window.location.href = finalUrl
+          }, 800)
+          return
+        }
+        
+        // Normal redirect (role-based routing)
+        setTimeout(() => {
+          router.replace(`/${locale}${result.redirectTo}`)
         }, 800)
         
       } catch (err) {

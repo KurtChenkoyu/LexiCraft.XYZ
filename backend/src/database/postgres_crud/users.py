@@ -35,6 +35,30 @@ def create_user(
     return user
 
 
+def create_user_no_commit(
+    session: Session,
+    email: str,
+    password_hash: Optional[str] = None,
+    name: Optional[str] = None,
+    phone: Optional[str] = None,
+    country: str = 'TW',
+    age: Optional[int] = None
+) -> User:
+    """Create a new user without committing (for transaction atomicity)."""
+    user = User(
+        email=email,
+        password_hash=password_hash,
+        name=name,
+        phone=phone,
+        country=country,
+        age=age
+    )
+    session.add(user)
+    session.flush()  # Flush to get ID but don't commit
+    session.refresh(user)
+    return user
+
+
 def get_user_by_id(session: Session, user_id: UUID) -> Optional[User]:
     """Get user by ID."""
     return session.query(User).filter(User.id == user_id).first()
@@ -90,6 +114,15 @@ def add_user_role(session: Session, user_id: UUID, role: str) -> UserRole:
     user_role = UserRole(user_id=user_id, role=role)
     session.add(user_role)
     session.commit()
+    session.refresh(user_role)
+    return user_role
+
+
+def add_user_role_no_commit(session: Session, user_id: UUID, role: str) -> UserRole:
+    """Add a role to a user without committing (for transaction atomicity)."""
+    user_role = UserRole(user_id=user_id, role=role)
+    session.add(user_role)
+    session.flush()  # Flush to check constraints but don't commit
     session.refresh(user_role)
     return user_role
 
@@ -160,6 +193,48 @@ def create_user_relationship(
     )
     session.add(relationship)
     session.commit()
+    session.refresh(relationship)
+    return relationship
+
+
+def create_user_relationship_no_commit(
+    session: Session,
+    from_user_id: UUID,
+    to_user_id: UUID,
+    relationship_type: str,
+    status: str = 'active',
+    permissions: Optional[dict] = None,
+    metadata: Optional[dict] = None,
+    requested_by: Optional[UUID] = None,
+    approved_by: Optional[UUID] = None
+) -> UserRelationship:
+    """Create a user relationship without committing (for transaction atomicity)."""
+    if from_user_id == to_user_id:
+        raise ValueError("Users cannot have relationship with themselves")
+    
+    # Default permissions for parent_child
+    if permissions is None and relationship_type == 'parent_child':
+        permissions = {
+            "can_view_progress": True,
+            "can_assign_work": True,
+            "can_verify_learning": False,
+            "can_withdraw": True,
+            "can_manage_account": True,
+            "can_view_financials": True
+        }
+    
+    relationship = UserRelationship(
+        from_user_id=from_user_id,
+        to_user_id=to_user_id,
+        relationship_type=relationship_type,
+        status=status,
+        permissions=permissions or {},
+        relationship_metadata=metadata or {},
+        requested_by=requested_by,
+        approved_by=approved_by
+    )
+    session.add(relationship)
+    session.flush()  # Flush to check constraints but don't commit
     session.refresh(relationship)
     return relationship
 
@@ -346,8 +421,8 @@ def create_child_account(
         child_uuid = uuid_lib.uuid4()
         placeholder_email = f"child-{child_uuid}@lexicraft.xyz"
     
-    # Create child user
-    child_user = create_user(
+    # Create child user (no commit - caller handles transaction)
+    child_user = create_user_no_commit(
         session=session,
         email=placeholder_email,
         name=child_name,
@@ -355,15 +430,16 @@ def create_child_account(
         country=parent.country  # Inherit parent's country
     )
     
-    # Assign 'learner' role
-    add_user_role(session, child_user.id, 'learner')
+    # Assign 'learner' role (no commit - caller handles transaction)
+    add_user_role_no_commit(session, child_user.id, 'learner')
     
-    # Create parent-child relationship
-    create_parent_child_relationship(
+    # Create parent-child relationship (no commit - caller handles transaction)
+    create_user_relationship_no_commit(
         session=session,
-        parent_id=parent_id,
-        child_id=child_user.id,
-        relationship_type='parent_child'
+        from_user_id=parent_id,
+        to_user_id=child_user.id,
+        relationship_type='parent_child',
+        status='active'
     )
     
     # Create corresponding Learner profile
@@ -402,8 +478,9 @@ def create_child_account(
     )
     
     learner_id = result.fetchone()[0]
-    # Note: Don't commit here - let the caller handle transaction
-    # If this fails, the whole create_child_account will rollback via context manager
+    # CRITICAL: This function does NOT commit - caller must handle transaction
+    # All operations (user, role, relationship, learner profile) are in the same transaction
+    # Caller must: flush -> verify -> commit (or rollback on error)
     
     # Option B: Create Supabase Auth account (not implemented yet)
     password = None

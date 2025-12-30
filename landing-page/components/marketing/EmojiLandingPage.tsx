@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import Link from 'next/link'
+import { Link, useRouter } from '@/i18n/routing'
 import { useAuth } from '@/contexts/AuthContext'
-import { CampaignConfig, trackCampaignEvent } from '@/lib/campaign-config'
+import { CampaignConfig, trackCampaignEvent, getValidCheckoutUrl, appendUserIdentityToCheckoutUrl } from '@/lib/campaign-config'
 import { DemoFlow } from './DemoFlow'
 
 // ===========================================
@@ -142,15 +142,13 @@ function DemoMCQ({ campaign }: { campaign: CampaignConfig }) {
 }
 
 // Hero Section - All CTAs lead to checkout/login, NOT into the game
-function HeroSection({ campaign, isLoggedIn, checkoutUrl }: { 
+function HeroSection({ campaign, isLoggedIn, checkoutUrl, onCheckout, authLoading }: { 
   campaign: CampaignConfig
   isLoggedIn: boolean
   checkoutUrl: string
+  onCheckout: () => void
+  authLoading: boolean
 }) {
-  const handleCheckout = () => {
-    trackCampaignEvent(campaign, 'checkoutStart')
-    window.open(checkoutUrl, '_blank')
-  }
 
   return (
     <section className="relative z-10 min-h-screen flex items-center px-4 py-20">
@@ -207,28 +205,29 @@ function HeroSection({ campaign, isLoggedIn, checkoutUrl }: {
             <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
               {/* Primary CTA: Always leads to checkout flow */}
               {isLoggedIn ? (
-                <motion.a
-                  href={checkoutUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={handleCheckout}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="px-8 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold rounded-xl shadow-lg cursor-pointer"
+                <motion.button
+                  onClick={onCheckout}
+                  disabled={authLoading}
+                  whileHover={{ scale: authLoading ? 1 : 1.05 }}
+                  whileTap={{ scale: authLoading ? 1 : 0.98 }}
+                  className="px-8 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold rounded-xl shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   💳 NT${campaign.content.salePrice} 立即購買
-                </motion.a>
+                </motion.button>
               ) : (
-                <Link href="/login">
+                <Link href={`/signup?plan=lifetime&redirect=checkout&utm_source=${campaign.tracking.utmSource}&utm_medium=${campaign.tracking.utmMedium}&utm_campaign=${campaign.tracking.utmCampaign}`}>
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     className="px-8 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold rounded-xl shadow-lg"
                   >
-                    🎁 免費註冊
+                    💳 立即購買 NT${campaign.content.pricing?.lifetime?.price || campaign.content.salePrice}
                   </motion.button>
                 </Link>
               )}
+              <p className="text-xs text-slate-400 mt-2 text-center sm:text-left">
+                一次付費，永久使用
+              </p>
               <Link href="#pricing">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -243,7 +242,9 @@ function HeroSection({ campaign, isLoggedIn, checkoutUrl }: {
           
           {/* Right: Demo */}
           <div className="relative flex justify-center lg:justify-start">
-            <DemoFlow campaign={campaign} />
+            <DemoFlow 
+              campaign={campaign}
+            />
           </div>
         </div>
       </div>
@@ -341,18 +342,19 @@ function WordForgeSection({ campaign }: { campaign: CampaignConfig }) {
   )
 }
 
-// Pricing Section
-function PricingSection({ campaign, isLoggedIn, checkoutUrl }: { 
+// Pricing Section (3-Tier: Monthly + Lifetime + Yearly)
+function PricingSection({ campaign, isLoggedIn, checkoutUrl, onCheckout, authLoading }: { 
   campaign: CampaignConfig
   isLoggedIn: boolean
   checkoutUrl: string
+  onCheckout: (plan: 'lifetime' | 'monthly' | 'yearly') => void
+  authLoading: boolean
 }) {
-  const handleCheckout = () => {
-    trackCampaignEvent(campaign, 'checkoutStart')
-    window.open(checkoutUrl, '_blank')
-  }
+  const lifetimePrice = campaign.content.pricing?.lifetime?.price || campaign.content.salePrice
+  const monthlyPrice = campaign.content.pricing?.monthly?.price || 199
+  const yearlyPrice = campaign.content.pricing?.yearly?.price || 990
   
-  const features = [
+  const standardFeatures = [
     '200個精選表情符號單字',
     '雙向配對遊戲 (單字↔表情)',
     '語音發音 (AI朗讀)',
@@ -362,112 +364,230 @@ function PricingSection({ campaign, isLoggedIn, checkoutUrl }: {
     '無廣告・無限制',
   ]
   
+  const yearlyFeatures = [
+    ...standardFeatures,
+    '未來所有擴充包 (Junior/Senior)',
+    '優先體驗新功能',
+    '學習分析報告 (Coming Soon)',
+  ]
+  
   return (
     <section id="pricing" className="relative z-10 px-4 py-20 bg-gradient-to-b from-slate-900 to-slate-800">
-      <div className="max-w-xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className={`bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-8 border-2 border-amber-500/50 shadow-2xl relative overflow-hidden`}
-        >
-          {/* Badge */}
-          <div className="absolute top-4 right-4">
-            <span className={`bg-gradient-to-r ${campaign.theme.primary} text-white px-3 py-1 rounded-full text-xs font-bold`}>
-              {campaign.content.heroTagline.replace(/🎄|🎅|🧧|🐍|📚|✏️/g, '').trim()}
-            </span>
-          </div>
-          
-          <h3 className="text-2xl font-bold text-white mb-2">表情學英文 啟動包</h3>
-          <p className="text-slate-400 mb-6">200個表情符號單字・無限練習</p>
-          
-          {/* Price */}
-          <div className="text-center mb-6">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <span className="text-slate-500 line-through text-xl">NT${campaign.content.originalPrice}</span>
-              <span className="bg-amber-500 text-black px-2 py-0.5 rounded text-sm font-bold">
-                {campaign.content.discountLabel}
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-black text-white mb-4">選擇你的方案</h2>
+          <p className="text-slate-400">一次付費，永久使用（3 個月回本）</p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Monthly Plan (Decoy - Left, Ticket Style) */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-8 border-2 border-slate-700 shadow-xl relative"
+          >
+            {/* Badge */}
+            <div className="absolute top-4 right-4">
+              <span className="bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs font-medium">
+                Flexible
               </span>
             </div>
-            <div className="flex items-baseline justify-center gap-1">
-              <span className="text-5xl font-black text-white">NT${campaign.content.salePrice}</span>
+            
+            <h3 className="text-xl font-bold text-white mb-2">月暢遊券</h3>
+            <p className="text-slate-400 mb-6 text-sm">Monthly Adventure</p>
+            
+            <div className="text-center mb-6">
+              <div className="flex items-baseline justify-center gap-1">
+                <span className="text-4xl font-black text-white">NT${monthlyPrice}</span>
+                <span className="text-slate-400 text-lg">/月</span>
+              </div>
+              <p className="text-slate-500 text-sm mt-1">每年 NT${monthlyPrice * 12}</p>
             </div>
-            <p className="text-emerald-400 font-medium mt-1">
-              一次付費，{campaign.content.duration}暢玩！
-            </p>
-            {/* Price Anchor Text */}
-            {campaign.content.priceAnchorText && (
-              <p className="text-slate-400 text-sm mt-2">
-                <span className="line-through">
-                  {campaign.content.priceAnchorText.match(/~~([^~]+)~~/)?.[1] || ''}
-                </span>
-                {' '}
-                <span className="text-red-400 font-bold">
-                  {campaign.content.priceAnchorText.split('~~').slice(-1)[0]?.trim() || ''}
-                </span>
-              </p>
-            )}
-          </div>
-          
-          {/* Features */}
-          <ul className="space-y-3 mb-8">
-            {features.map((feature, i) => (
-              <li key={i} className="flex items-center gap-2 text-slate-300">
-                <span className="text-emerald-400">✓</span> {feature}
-              </li>
-            ))}
-          </ul>
-          
-          {/* CTA */}
-          {isLoggedIn ? (
-            <>
-              <motion.a
-                href={checkoutUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={handleCheckout}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="block w-full py-4 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-black font-black text-xl rounded-xl shadow-lg transition-all text-center"
+            
+            <ul className="space-y-2 mb-8">
+              {standardFeatures.map((feature, i) => (
+                <li key={i} className="flex items-center gap-2 text-slate-300 text-sm">
+                  <span className="text-emerald-400">✓</span> {feature}
+                </li>
+              ))}
+            </ul>
+            
+            {isLoggedIn ? (
+              <motion.button
+                onClick={() => onCheckout('monthly')}
+                disabled={authLoading}
+                whileHover={{ scale: authLoading ? 1 : 1.02 }}
+                whileTap={{ scale: authLoading ? 1 : 0.98 }}
+                className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                💳 立即購買 NT${campaign.content.salePrice}
-              </motion.a>
-              <p className="text-center text-slate-400 text-sm mt-4">
-                安全付款，立即開通
+                開始月費方案
+              </motion.button>
+            ) : (
+              <Link href={`/signup?plan=monthly&redirect=checkout&utm_source=${campaign.tracking.utmSource}&utm_medium=${campaign.tracking.utmMedium}&utm_campaign=${campaign.tracking.utmCampaign}`}>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-all"
+                >
+                  開始月費方案
+                </motion.button>
+              </Link>
+            )}
+          </motion.div>
+          
+          {/* Lifetime Plan (Hero - Center, Treasure Chest/Vault Style) */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="bg-gradient-to-br from-amber-900/30 via-amber-800/20 to-slate-900 rounded-3xl p-8 border-4 border-amber-400/80 shadow-2xl relative overflow-hidden transform scale-105 z-10 ring-4 ring-amber-500/20"
+          >
+            {/* Glow effect */}
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-transparent pointer-events-none" />
+            
+            {/* Badge */}
+            <div className="absolute top-4 right-4 z-10">
+              <span className="bg-gradient-to-r from-amber-400 to-orange-500 text-black px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                ⭐ 最划算
+              </span>
+            </div>
+            
+            <h3 className="text-2xl font-bold text-white mb-1">永久字塊金庫</h3>
+            <p className="text-amber-300 mb-1 text-sm font-medium">Lifetime Vault</p>
+            <p className="text-amber-400/80 mb-6 text-xs">家庭號 (Family License)</p>
+            
+            <div className="text-center mb-6">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <span className="text-slate-500 line-through text-xl">NT${campaign.content.originalPrice}</span>
+                <span className="bg-amber-500 text-black px-2 py-0.5 rounded text-sm font-bold">
+                  {campaign.content.discountLabel}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-center gap-1">
+                <span className="text-5xl font-black text-white">NT${lifetimePrice}</span>
+              </div>
+              <p className="text-emerald-400 font-medium mt-1">
+                一次付費，永久使用！
               </p>
-            </>
-          ) : (
-            <>
-              <Link href="/login">
+              <p className="text-slate-400 text-xs mt-2">
+                3 個月回本（相較於月費）
+              </p>
+            </div>
+            
+            <ul className="space-y-2 mb-8">
+              {/* Family License - Prominently displayed first */}
+              <li className="flex items-center gap-2 text-amber-300 font-bold text-base bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/30">
+                <span className="text-amber-400 text-lg">👨‍👩‍👧‍👦</span> 
+                <span>家庭授權 (家庭號): 一次付費，解鎖所有孩子的學習者檔案</span>
+              </li>
+              {standardFeatures.map((feature, i) => (
+                <li key={i} className="flex items-center gap-2 text-slate-300">
+                  <span className="text-emerald-400">✓</span> {feature}
+                </li>
+              ))}
+            </ul>
+            
+            {isLoggedIn ? (
+              <motion.button
+                onClick={() => onCheckout('lifetime')}
+                disabled={authLoading}
+                whileHover={{ scale: authLoading ? 1 : 1.02 }}
+                whileTap={{ scale: authLoading ? 1 : 0.98 }}
+                className="w-full py-4 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-black font-black text-xl rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                💳 立即購買 NT${lifetimePrice}
+              </motion.button>
+            ) : (
+              <Link href={`/signup?plan=lifetime&redirect=checkout&utm_source=${campaign.tracking.utmSource}&utm_medium=${campaign.tracking.utmMedium}&utm_campaign=${campaign.tracking.utmCampaign}`}>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className="w-full py-4 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-black font-black text-xl rounded-xl shadow-lg transition-all"
                 >
-                  🎁 免費註冊，立即體驗
+                  💳 立即購買 NT${lifetimePrice}
                 </motion.button>
               </Link>
-              <p className="text-center text-slate-400 text-sm mt-4">
-                先試玩，滿意再付款
+            )}
+            <p className="text-center text-slate-400 text-sm mt-4">
+              一次付費，永久使用
+            </p>
+          </motion.div>
+          
+          {/* Yearly Plan (All Access - Right, VIP Club Style) */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-8 border-2 border-purple-500/50 shadow-xl relative"
+          >
+            {/* Badge */}
+            <div className="absolute top-4 right-4">
+              <span className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-2 py-1 rounded text-xs font-medium">
+                VIP Access
+              </span>
+            </div>
+            
+            <h3 className="text-xl font-bold text-white mb-2">全所通行證 (年繳)</h3>
+            <p className="text-slate-400 mb-6 text-sm">All-Access Year</p>
+            
+            <div className="text-center mb-6">
+              <div className="flex items-baseline justify-center gap-1">
+                <span className="text-4xl font-black text-white">NT${yearlyPrice}</span>
+                <span className="text-slate-400 text-lg">/年</span>
+              </div>
+              <p className="text-purple-400 font-medium mt-1 text-sm">
+                平均每月僅 NT$83
               </p>
-            </>
-          )}
-        </motion.div>
+              <p className="text-slate-500 text-xs mt-1">
+                節省 65% (相較於月費)
+              </p>
+            </div>
+            
+            <ul className="space-y-2 mb-8">
+              {yearlyFeatures.map((feature, i) => (
+                <li key={i} className="flex items-center gap-2 text-slate-300 text-sm">
+                  <span className="text-purple-400">✓</span> {feature}
+                </li>
+              ))}
+            </ul>
+            
+            {isLoggedIn ? (
+              <motion.button
+                onClick={() => onCheckout('yearly')}
+                disabled={authLoading}
+                whileHover={{ scale: authLoading ? 1 : 1.02 }}
+                whileTap={{ scale: authLoading ? 1 : 0.98 }}
+                className="w-full py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                開始年繳方案
+              </motion.button>
+            ) : (
+              <Link href={`/signup?plan=yearly&redirect=checkout&utm_source=${campaign.tracking.utmSource}&utm_medium=${campaign.tracking.utmMedium}&utm_campaign=${campaign.tracking.utmCampaign}`}>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold rounded-xl transition-all"
+                >
+                  開始年繳方案
+                </motion.button>
+              </Link>
+            )}
+          </motion.div>
+        </div>
       </div>
     </section>
   )
 }
 
 // Final CTA Section - All CTAs lead to checkout/login
-function FinalCTASection({ campaign, isLoggedIn, checkoutUrl }: { 
+function FinalCTASection({ campaign, isLoggedIn, checkoutUrl, onCheckout, authLoading }: { 
   campaign: CampaignConfig
   isLoggedIn: boolean
   checkoutUrl: string
+  onCheckout: () => void
+  authLoading: boolean
 }) {
-  const handleCheckout = () => {
-    trackCampaignEvent(campaign, 'checkoutStart')
-    window.open(checkoutUrl, '_blank')
-  }
 
   return (
     <section className="relative z-10 px-4 py-20 text-center">
@@ -486,17 +606,15 @@ function FinalCTASection({ campaign, isLoggedIn, checkoutUrl }: {
             快樂學習，從今天開始！
           </p>
           {isLoggedIn ? (
-            <motion.a
-              href={checkoutUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={handleCheckout}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="inline-block px-12 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold text-xl rounded-xl shadow-lg"
+            <motion.button
+              onClick={onCheckout}
+              disabled={authLoading}
+              whileHover={{ scale: authLoading ? 1 : 1.05 }}
+              whileTap={{ scale: authLoading ? 1 : 0.95 }}
+              className="px-12 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-bold text-xl rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               💳 NT${campaign.content.salePrice} 立即購買
-            </motion.a>
+            </motion.button>
           ) : (
             <Link href="/login">
               <motion.button
@@ -521,8 +639,47 @@ function FinalCTASection({ campaign, isLoggedIn, checkoutUrl }: {
 export default function EmojiLandingPage({ campaign, checkoutUrl }: EmojiLandingPageProps) {
   const [mounted, setMounted] = useState(false)
   const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
   
   const isLoggedIn = !authLoading && !!user
+  
+  // Centralized checkout handler (prevents code duplication and race conditions)
+  const handlePaymentNavigation = (plan: 'lifetime' | 'monthly' | 'yearly') => {
+    // CRITICAL: Prevent race conditions - disable if auth is still loading
+    if (authLoading) {
+      console.warn('Auth still loading, cannot proceed to checkout')
+      return
+    }
+    
+    // Validate checkout URL
+    const validUrl = getValidCheckoutUrl(campaign, plan)
+    if (!validUrl) {
+      alert('Checkout temporarily unavailable. Please contact support.')
+      return
+    }
+    
+    // If not logged in, redirect to signup (preserve plan intent)
+    if (!isLoggedIn) {
+      router.push(`/signup?plan=${plan}&redirect=checkout`)
+      return
+    }
+    
+    // Append user identity (email + user ID) to checkout URL
+    const checkoutUrl = appendUserIdentityToCheckoutUrl(validUrl, user)
+    
+    // DEBUG: Log checkout URL for testing (remove in production)
+    console.log('🔍 [Checkout Debug] Final checkout URL:', checkoutUrl)
+    console.log('🔍 [Checkout Debug] User email:', user?.email)
+    console.log('🔍 [Checkout Debug] User ID:', user?.id)
+    console.log('🔍 [Checkout Debug] URL contains email:', checkoutUrl.includes('checkout[email]') || checkoutUrl.includes('checkout%5Bemail%5D'))
+    console.log('🔍 [Checkout Debug] URL contains user_id:', checkoutUrl.includes('checkout[custom][user_id]') || checkoutUrl.includes('checkout%5Bcustom%5D%5Buser_id%5D'))
+    
+    // Track checkout start event
+    trackCampaignEvent(campaign, 'checkoutStart', { plan })
+    
+    // Redirect to checkout (same-tab navigation for PWA support)
+    window.location.href = checkoutUrl
+  }
   
   // Track page view
   useEffect(() => {
@@ -557,15 +714,29 @@ export default function EmojiLandingPage({ campaign, checkoutUrl }: EmojiLanding
         
         {/* Sections - No duplicate nav, global nav handles it */}
         <div className="pt-4">
-          <HeroSection campaign={campaign} isLoggedIn={isLoggedIn} checkoutUrl={checkoutUrl} />
+          <HeroSection 
+            campaign={campaign} 
+            isLoggedIn={isLoggedIn} 
+            checkoutUrl={checkoutUrl}
+            onCheckout={() => handlePaymentNavigation('lifetime')}
+            authLoading={authLoading}
+          />
         </div>
         <WordForgeSection campaign={campaign} />
         <PricingSection 
           campaign={campaign} 
           isLoggedIn={isLoggedIn} 
           checkoutUrl={checkoutUrl}
+          onCheckout={handlePaymentNavigation}
+          authLoading={authLoading}
         />
-        <FinalCTASection campaign={campaign} isLoggedIn={isLoggedIn} checkoutUrl={checkoutUrl} />
+        <FinalCTASection 
+          campaign={campaign} 
+          isLoggedIn={isLoggedIn} 
+          checkoutUrl={checkoutUrl}
+          onCheckout={() => handlePaymentNavigation('lifetime')}
+          authLoading={authLoading}
+        />
         
         {/* Footer */}
         <footer className="relative z-10 py-8 border-t border-slate-800">

@@ -26,6 +26,9 @@ class UserInfo(BaseModel):
     age: Optional[int]
     roles: List[str]
     email_confirmed: bool
+    subscription_status: Optional[str] = None  # 'active', 'inactive', 'trial', 'past_due', or NULL
+    plan_type: Optional[str] = None  # '6-month-pass', '12-month-pass', etc.
+    subscription_end_date: Optional[str] = None  # ISO format datetime
 
 
 class ChildInfo(BaseModel):
@@ -127,7 +130,10 @@ async def get_me(
             name=user.name,
             age=user.age,
             roles=roles,
-            email_confirmed=user.email_confirmed
+            email_confirmed=user.email_confirmed,
+            subscription_status=user.subscription_status,
+            plan_type=user.plan_type,
+            subscription_end_date=user.subscription_end_date.isoformat() if user.subscription_end_date else None
         )
     except HTTPException:
         raise
@@ -189,7 +195,10 @@ async def update_profile(
             name=user.name,
             age=user.age,
             roles=roles,
-            email_confirmed=user.email_confirmed
+            email_confirmed=user.email_confirmed,
+            subscription_status=user.subscription_status,
+            plan_type=user.plan_type,
+            subscription_end_date=user.subscription_end_date.isoformat() if user.subscription_end_date else None
         )
     except HTTPException:
         raise
@@ -945,7 +954,7 @@ async def create_child(
                 detail="Child must be under 20 years old"
             )
         
-        # Create child account
+        # Create child account (no commit - we handle it here)
         child_user, _ = user_crud.create_child_account(
             session=db,
             parent_id=user_id,
@@ -954,6 +963,10 @@ async def create_child(
             create_auth_account=False
         )
         
+        # CRITICAL: Explicitly commit the transaction
+        # create_child_account() does not commit - all operations are in one transaction
+        db.commit()
+        
         return CreateChildResponse(
             success=True,
             child_id=str(child_user.id),
@@ -961,10 +974,13 @@ async def create_child(
             message="Child account created successfully"
         )
     except ValueError as e:
+        db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
+        db.rollback()
         raise
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create child: {str(e)}")
     finally:
         db.close()
@@ -1034,7 +1050,10 @@ async def get_user(
             name=user.name,
             age=user.age,
             roles=roles,
-            email_confirmed=user.email_confirmed
+            email_confirmed=user.email_confirmed,
+            subscription_status=user.subscription_status,
+            plan_type=user.plan_type,
+            subscription_end_date=user.subscription_end_date.isoformat() if user.subscription_end_date else None
         )
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid user ID format")

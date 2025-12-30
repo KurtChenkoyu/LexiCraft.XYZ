@@ -1,18 +1,46 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from '@/i18n/routing'
-import Link from 'next/link'
+import { useRouter, Link } from '@/i18n/routing'
+import { useSearchParams } from 'next/navigation'
+import { getDefaultCampaign, getLifetimeCheckoutUrl, getMonthlyCheckoutUrl, getValidCheckoutUrl, appendUserIdentityToCheckoutUrl } from '@/lib/campaign-config'
 
 export default function SignupPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Get plan and redirect params from URL
+  const plan = searchParams.get('plan') as 'lifetime' | 'monthly' | 'yearly' | null
+  const redirect = searchParams.get('redirect')
+  
+  // Store UTM params and plan in localStorage for post-signup redirect
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const utmParams: Record<string, string> = {}
+      searchParams.forEach((value, key) => {
+        if (key.startsWith('utm_')) {
+          utmParams[key] = value
+        }
+      })
+      
+      if (plan) {
+        localStorage.setItem('signup_plan', plan)
+      }
+      if (redirect) {
+        localStorage.setItem('signup_redirect', redirect)
+      }
+      if (Object.keys(utmParams).length > 0) {
+        localStorage.setItem('signup_utm', JSON.stringify(utmParams))
+      }
+    }
+  }, [plan, redirect, searchParams])
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,9 +72,66 @@ export default function SignupPage() {
         return
       }
 
-      // If session exists, redirect to Traffic Cop for role-based routing
-      // Traffic Cop will check onboarding status and redirect accordingly
+      // If session exists, handle redirect based on plan/redirect params
       if (data.session) {
+        const storedPlan = localStorage.getItem('signup_plan') as 'lifetime' | 'monthly' | 'yearly' | null
+        const storedRedirect = localStorage.getItem('signup_redirect')
+        
+        // If redirect=checkout, redirect to appropriate checkout URL
+        if (storedRedirect === 'checkout' && storedPlan) {
+          const campaign = getDefaultCampaign()
+          
+          // Validate checkout URL before redirecting
+          const checkoutUrl = getValidCheckoutUrl(campaign, storedPlan)
+          
+          if (!checkoutUrl) {
+            // Show error and redirect to normal flow
+            alert('Checkout temporarily unavailable. You can complete your purchase later from your account.')
+            // Clear stored params
+            localStorage.removeItem('signup_plan')
+            localStorage.removeItem('signup_redirect')
+            localStorage.removeItem('signup_utm')
+            localStorage.removeItem('pending_checkout_plan')
+            localStorage.removeItem('pending_checkout_redirect')
+            localStorage.removeItem('pending_checkout_utm')
+            router.push('/start')
+            return
+          }
+          
+          // CRITICAL: Use user from signup response, not useAuth()
+          // useAuth() may not have updated yet (race condition)
+          const finalUrl = appendUserIdentityToCheckoutUrl(
+            checkoutUrl, 
+            data.user ? { email: data.user.email, id: data.user.id } : null
+          )
+          
+          // Preserve UTM params
+          const storedUtm = localStorage.getItem('signup_utm')
+          let urlWithUtm = finalUrl
+          if (storedUtm) {
+            try {
+              const utmParams = JSON.parse(storedUtm)
+              const params = new URLSearchParams(utmParams)
+              urlWithUtm = `${finalUrl}${finalUrl.includes('?') ? '&' : '?'}${params.toString()}`
+            } catch (e) {
+              console.warn('Failed to parse UTM params:', e)
+            }
+          }
+          
+          // Clear stored params
+          localStorage.removeItem('signup_plan')
+          localStorage.removeItem('signup_redirect')
+          localStorage.removeItem('signup_utm')
+          localStorage.removeItem('pending_checkout_plan')
+          localStorage.removeItem('pending_checkout_redirect')
+          localStorage.removeItem('pending_checkout_utm')
+          
+          // Redirect to checkout (same-tab navigation for PWA support)
+          window.location.href = urlWithUtm
+          return
+        }
+        
+        // Otherwise, redirect to Traffic Cop for role-based routing
         router.push('/start')
       }
     } catch (error: any) {
@@ -64,10 +149,43 @@ export default function SignupPage() {
       // Get current locale from pathname
       const currentLocale = window.location.pathname.split('/')[1] || 'zh-TW'
       
+      // CRITICAL: Store payment intent in localStorage BEFORE Google OAuth
+      // Google OAuth may strip query parameters, so we need localStorage as backup
+      if (typeof window !== 'undefined') {
+        if (plan) {
+          localStorage.setItem('pending_checkout_plan', plan)
+        }
+        if (redirect) {
+          localStorage.setItem('pending_checkout_redirect', redirect)
+        }
+        // Also store UTM params
+        const utmParams: Record<string, string> = {}
+        searchParams.forEach((value, key) => {
+          if (key.startsWith('utm_')) {
+            utmParams[key] = value
+          }
+        })
+        if (Object.keys(utmParams).length > 0) {
+          localStorage.setItem('pending_checkout_utm', JSON.stringify(utmParams))
+        }
+      }
+      
+      // Preserve plan and redirect params in OAuth redirect (may be lost, but try anyway)
+      const redirectParams = new URLSearchParams()
+      if (plan) redirectParams.set('plan', plan)
+      if (redirect) redirectParams.set('redirect', redirect)
+      searchParams.forEach((value, key) => {
+        if (key.startsWith('utm_')) {
+          redirectParams.set(key, value)
+        }
+      })
+      
+      const redirectTo = `${window.location.origin}/auth/callback?locale=${currentLocale}${redirectParams.toString() ? '&' + redirectParams.toString() : ''}`
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?locale=${currentLocale}`,
+          redirectTo,
         },
       })
 

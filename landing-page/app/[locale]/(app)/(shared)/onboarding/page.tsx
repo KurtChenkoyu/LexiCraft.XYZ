@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from '@/i18n/routing'
+import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { authenticatedPost } from '@/lib/api-client'
+import { authenticatedPost, authenticatedGet } from '@/lib/api-client'
+import { useAppStore } from '@/stores/useAppStore'
 
 type AccountType = 'parent' | 'learner' | 'both' | null
 
@@ -18,17 +20,125 @@ interface OnboardingData {
 
 export default function OnboardingPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showSkipOption, setShowSkipOption] = useState(true)
+  const [checkingPayment, setCheckingPayment] = useState(true)
+  const [paymentPollingAttempt, setPaymentPollingAttempt] = useState(0)
   const [data, setData] = useState<OnboardingData>({
     account_type: null,
   })
 
   // Get user ID from Supabase user (guaranteed by layout)
   const userId = user?.id
+
+  // Poll for payment status (replaces binary check)
+  const pollForPaymentStatus = async (): Promise<boolean> => {
+    const maxAttempts = 30 // 30 attempts × 1000ms = 30 seconds
+    const pollInterval = 1000 // ms
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        setPaymentPollingAttempt(attempt + 1)
+        const profile = await authenticatedGet<{
+          subscription_status?: string
+          plan_type?: string
+        }>('/api/users/me')
+        
+        const hasActiveSubscription = profile.subscription_status === 'active' || 
+                                     profile.subscription_status === 'trial'
+        
+        if (hasActiveSubscription) {
+          console.log(`✅ Payment verified after ${attempt + 1} attempt(s)`)
+          return true
+        }
+        
+        // If not found and not last attempt, wait before retrying
+        if (attempt < maxAttempts - 1) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval))
+        }
+      } catch (err) {
+        // Log error but continue polling (might be transient)
+        console.warn(`⚠️ Payment check attempt ${attempt + 1} failed:`, err)
+        if (attempt < maxAttempts - 1) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval))
+        }
+      }
+    }
+    
+    // Timeout - no active subscription found after 30 seconds
+    console.warn('⚠️ Payment verification timed out after 30 seconds')
+    return false
+  }
+
+  // Retry payment check (restarts full 30-second polling loop)
+  const handleRetryPaymentCheck = async () => {
+    if (!userId || authLoading) return
+    
+    try {
+      setCheckingPayment(true)
+      setError(null)
+      setPaymentPollingAttempt(0)
+      
+      // Poll for payment status (waits up to 30 seconds)
+      const hasPayment = await pollForPaymentStatus()
+      
+      if (!hasPayment) {
+        // Timeout - no payment found after polling
+        setError('付款確認中，請稍候。如果已完成付款，請稍候幾分鐘讓系統處理。')
+        setShowSkipOption(false) // Hide skip option when payment is required
+      } else {
+        // Payment verified - proceed to onboarding
+        setError(null)
+      }
+    } catch (err: any) {
+      console.error('Failed to check payment status:', err)
+      setError('無法驗證付款狀態，請稍後再試')
+    } finally {
+      setCheckingPayment(false)
+    }
+  }
+
+  // Check payment status on mount (with polling)
+  useEffect(() => {
+    const checkPayment = async () => {
+      if (!userId || authLoading) return
+      
+      try {
+        setCheckingPayment(true)
+        setError(null)
+        setPaymentPollingAttempt(0)
+        
+        // Check if user came from successful checkout (optimization)
+        const checkoutSuccess = searchParams.get('checkout_success') === 'true'
+        if (checkoutSuccess) {
+          console.log('🔄 User came from checkout - starting payment polling immediately')
+        }
+        
+        // Poll for payment status (waits up to 30 seconds)
+        const hasPayment = await pollForPaymentStatus()
+        
+        if (!hasPayment) {
+          // Timeout - no payment found after polling
+          setError('付款確認中，請稍候。如果已完成付款，請稍候幾分鐘讓系統處理。')
+          setShowSkipOption(false) // Hide skip option when payment is required
+        } else {
+          // Payment verified - proceed to onboarding
+          setError(null)
+        }
+      } catch (err: any) {
+        console.error('Failed to check payment status:', err)
+        setError('無法驗證付款狀態，請稍後再試')
+      } finally {
+        setCheckingPayment(false)
+      }
+    }
+    
+    checkPayment()
+  }, [userId, authLoading, searchParams])
 
   const handleAccountTypeSelect = (type: AccountType) => {
     setData({ ...data, account_type: type })
@@ -80,8 +190,118 @@ export default function OnboardingPage() {
       }>('/api/users/onboarding/complete', data)
 
       if (response.success) {
-        // Redirect to dashboard
-        router.push(response.redirect_to || '/dashboard')
+        // CRITICAL: Poll for learners until they appear (replaces fixed delay)
+        // This ensures the new child/learner appears immediately in the UI
+        // Polls every 500ms, stops when learners.length > 0 or after 5 seconds
+        const pollForLearners = async (): Promise<any[]> => {
+          const maxAttempts = 10 // 10 attempts × 500ms = 5 seconds
+          const pollInterval = 500 // ms
+          
+          const { downloadService } = await import('@/services/downloadService')
+          const { localStore } = await import('@/lib/local-store')
+          
+          // CRITICAL: Clear stale cache first to force fresh fetch
+          const { CACHE_KEYS } = await import('@/services/downloadService')
+          await localStore.deleteCache(CACHE_KEYS.LEARNERS)
+          await localStore.deleteCache(CACHE_KEYS.CHILDREN)
+          console.log('🗑️ Cleared stale learners/children cache')
+          
+          for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+              // Force refresh from API (bypasses all cache)
+              const learners = await downloadService.refreshLearners()
+              
+              if (learners && learners.length > 0) {
+                console.log(`✅ Onboarding: Found ${learners.length} learners after ${attempt + 1} attempt(s)`)
+                return learners
+              }
+              
+              // If not found and not last attempt, wait before retrying
+              if (attempt < maxAttempts - 1) {
+                await new Promise(resolve => setTimeout(resolve, pollInterval))
+              }
+            } catch (refreshError) {
+              // Log error but continue polling (might be transient)
+              console.warn(`⚠️ Onboarding: Poll attempt ${attempt + 1} failed:`, refreshError)
+              if (attempt < maxAttempts - 1) {
+                await new Promise(resolve => setTimeout(resolve, pollInterval))
+              }
+            }
+          }
+          
+          // Timeout - no learners found after all attempts
+          console.warn('⚠️ Onboarding: Polling timed out - no learners found after 5 seconds')
+          return []
+        }
+        
+        let freshLearners: any[] = []
+        
+        try {
+          freshLearners = await pollForLearners()
+          
+          if (freshLearners && freshLearners.length > 0) {
+            // Update Zustand store so LearnerSwitcher sees the new learners
+            const { useAppStore } = await import('@/stores/useAppStore')
+            const store = useAppStore.getState()
+            store.setLearners(freshLearners)
+            
+            // Auto-select first learner (parent or child)
+            const parentLearner = freshLearners.find(l => l.is_parent_profile)
+            if (parentLearner) {
+              store.setActiveLearner(parentLearner)
+            } else if (freshLearners.length > 0) {
+              store.setActiveLearner(freshLearners[0])
+            }
+            
+            console.log(`✅ Onboarding: Refreshed ${freshLearners.length} learners after completion`)
+          } else {
+            console.warn('⚠️ Onboarding: No learners returned from API after polling')
+            // Show error to user but don't block redirect (they can refresh manually)
+            setError('學習者資料載入中，如果稍後仍未顯示，請重新整理頁面')
+          }
+        } catch (refreshError) {
+          // Non-critical - log but don't block redirect
+          console.error('❌ Failed to poll for learners after onboarding:', refreshError)
+          setError('學習者資料載入失敗，請重新整理頁面')
+        }
+        
+        // Also refresh children cache (for parent dashboard)
+        try {
+          const { downloadService } = await import('@/services/downloadService')
+          const { CACHE_KEYS } = await import('@/services/downloadService')
+          const { localStore } = await import('@/lib/local-store')
+          await localStore.deleteCache(CACHE_KEYS.CHILDREN)
+          await downloadService.getChildren() // This will refresh if needed
+        } catch (childrenError) {
+          console.warn('⚠️ Failed to refresh children after onboarding (non-critical):', childrenError)
+        }
+        
+        // Determine redirect path based on account type
+        // Don't reset bootstrap - just redirect directly to the right place
+        const { useAppStore } = await import('@/stores/useAppStore')
+        const store = useAppStore.getState()
+        const userRoles = store.user?.roles || []
+        const isParent = userRoles.includes('parent')
+        const isLearner = userRoles.includes('learner')
+        
+        let redirectPath = '/start' // Default fallback
+        
+        if (isParent && freshLearners && freshLearners.length > 0) {
+          // Parent with learners → go directly to parent dashboard
+          redirectPath = '/parent/dashboard'
+          console.log('✅ Onboarding: Redirecting parent to dashboard')
+        } else if (isParent) {
+          // Parent but no learners yet → stay on onboarding (shouldn't happen, but safety check)
+          redirectPath = '/onboarding'
+          console.warn('⚠️ Onboarding: Parent has no learners after refresh')
+        } else if (isLearner) {
+          // Learner only → go to learner home
+          redirectPath = '/learner/home'
+          console.log('✅ Onboarding: Redirecting learner to home')
+        }
+        
+        // Redirect directly (don't reset bootstrap - let it run fresh on next page load)
+        router.push(redirectPath)
       } else {
         throw new Error('Onboarding failed')
       }
@@ -93,10 +313,20 @@ export default function OnboardingPage() {
     }
   }
 
-  if (authLoading) {
+  if (authLoading || checkingPayment) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
-        <div className="text-gray-600">載入中...</div>
+        <div className="text-center">
+          <div className="mb-4">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
+          </div>
+          <div className="text-gray-700 font-medium mb-2">正在確認付款狀態...</div>
+          {paymentPollingAttempt > 0 && (
+            <div className="text-sm text-gray-500">
+              嘗試 {paymentPollingAttempt} / 30
+            </div>
+          )}
+        </div>
       </div>
     )
   }
@@ -128,7 +358,23 @@ export default function OnboardingPage() {
 
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
-              {error}
+              <div className="mb-2">{error}</div>
+              {error.includes('付款確認中') && (
+                <div className="mt-3 flex gap-3">
+                  <button
+                    onClick={handleRetryPaymentCheck}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors"
+                  >
+                    重試
+                  </button>
+                  <button
+                    onClick={() => router.push('/start')}
+                    className="px-4 py-2 border border-red-300 text-red-700 hover:bg-red-50 rounded-lg text-sm transition-colors"
+                  >
+                    稍後再試
+                  </button>
+                </div>
+              )}
               {showSkipOption && error.includes('timeout') && (
                 <div className="mt-3">
                   <button
